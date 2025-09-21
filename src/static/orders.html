@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Management - MAGSASA-CARD ERP</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8fafc;
+            color: #334155;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .back-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: background-color 0.2s;
+        }
+        
+        .back-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .search-filters {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .search-input {
+            padding: 0.75rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            min-width: 250px;
+        }
+        
+        .filter-select {
+            padding: 0.75rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            background: white;
+            min-width: 150px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 0.75rem;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-primary {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #059669;
+        }
+        
+        .btn-secondary {
+            background: #6366f1;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #4f46e5;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-left: 4px solid #10b981;
+        }
+        
+        .stat-card h3 {
+            font-size: 0.875rem;
+            color: #64748b;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .stat-card .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        
+        .orders-table {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .table-header {
+            background: #f8fafc;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .orders-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .order-row {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #f1f5f9;
+            display: grid;
+            grid-template-columns: 1fr 150px 120px 120px 100px 120px 80px;
+            gap: 1rem;
+            align-items: center;
+            transition: background-color 0.2s;
+        }
+        
+        .order-row:hover {
+            background: #f8fafc;
+        }
+        
+        .order-info h4 {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 0.25rem;
+        }
+        
+        .order-info p {
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+        
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-align: center;
+        }
+        
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status-confirmed {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .status-processing {
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+        
+        .status-shipped {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status-delivered {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .status-cancelled {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .amount {
+            font-weight: 600;
+            color: #059669;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .action-btn {
+            padding: 0.25rem 0.5rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .action-view {
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+        
+        .action-view:hover {
+            background: #c7d2fe;
+        }
+        
+        .action-edit {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .action-edit:hover {
+            background: #fde68a;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #64748b;
+        }
+        
+        .empty-state h3 {
+            font-size: 1.125rem;
+            margin-bottom: 0.5rem;
+            color: #374151;
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 2rem;
+        }
+        
+        .pagination button {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d1d5db;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .pagination button:hover {
+            background: #f3f4f6;
+        }
+        
+        .pagination button.active {
+            background: #10b981;
+            color: white;
+            border-color: #10b981;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .modal-header h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #64748b;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #374151;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            margin-top: 2rem;
+        }
+        
+        .btn-cancel {
+            background: #6b7280;
+            color: white;
+        }
+        
+        .btn-cancel:hover {
+            background: #4b5563;
+        }
+        
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .search-filters {
+                flex-direction: column;
+            }
+            
+            .search-input,
+            .filter-select {
+                min-width: auto;
+                width: 100%;
+            }
+            
+            .order-row {
+                grid-template-columns: 1fr;
+                gap: 0.5rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <div id="navigation-placeholder"></div>
+    
+    <div class="container">
+        <!-- Page Header -->
+        <div style="margin-bottom: 2rem; padding: 1rem 0;">
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                <span style="font-size: 2rem;">📦</span>
+                <div>
+                    <h1 style="font-size: 2rem; font-weight: 600; margin: 0; color: #1f2937;">Order Management</h1>
+                    <p style="color: #6b7280; margin: 0;">End-to-end order processing from farmer requests to partner fulfillment and delivery tracking</p>
+                </div>
+            </div>
+        </div>
+        <div class="controls">
+            <div class="search-filters">
+                <input type="text" class="search-input" placeholder="Search orders by ID, farmer name, or product..." id="searchInput">
+                <select class="filter-select" id="statusFilter">
+                    <option value="">All Status</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Confirmed">Confirmed</option>
+                    <option value="Processing">Processing</option>
+                    <option value="Shipped">Shipped</option>
+                    <option value="Delivered">Delivered</option>
+                    <option value="Cancelled">Cancelled</option>
+                </select>
+                <select class="filter-select" id="dateFilter">
+                    <option value="">All Time</option>
+                    <option value="today">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                </select>
+            </div>
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="exportOrders()">📊 Export</button>
+                <button class="btn btn-primary" onclick="showCreateOrderModal()">+ New Order</button>
+            </div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Orders</h3>
+                <div class="value" id="totalOrders">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Pending Orders</h3>
+                <div class="value" id="pendingOrders">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Total Revenue</h3>
+                <div class="value" id="totalRevenue">₱0</div>
+            </div>
+            <div class="stat-card">
+                <h3>This Month</h3>
+                <div class="value" id="monthlyOrders">0</div>
+            </div>
+        </div>
+        
+        <div class="orders-table">
+            <div class="table-header">
+                Order Management
+            </div>
+            <div class="orders-list" id="ordersList">
+                <div class="empty-state">
+                    <h3>No orders found</h3>
+                    <p>Orders will appear here once farmers start placing orders.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="pagination" id="pagination">
+            <button onclick="previousPage()">Previous</button>
+            <button class="active">1</button>
+            <button onclick="nextPage()">Next</button>
+        </div>
+    </div>
+    
+    <!-- Order Details Modal -->
+    <div class="modal" id="orderModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Order Details</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="orderDetails">
+                <!-- Order details will be populated here -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Create Order Modal -->
+    <div class="modal" id="createOrderModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create New Order</h2>
+                <button class="close-btn" onclick="closeCreateOrderModal()">&times;</button>
+            </div>
+            <form id="createOrderForm">
+                <div class="form-group">
+                    <label for="farmerSelect">Farmer *</label>
+                    <select id="farmerSelect" required>
+                        <option value="">Select a farmer...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="productSelect">Product *</label>
+                    <select id="productSelect" required>
+                        <option value="">Select a product...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="quantity">Quantity *</label>
+                    <input type="number" id="quantity" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="deliveryAddress">Delivery Address</label>
+                    <textarea id="deliveryAddress" placeholder="Enter delivery address..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="notes">Notes</label>
+                    <textarea id="notes" placeholder="Additional notes..."></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-cancel" onclick="closeCreateOrderModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Order</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        let orders = [];
+        let farmers = [];
+        let products = [];
+        let currentPage = 1;
+        let totalPages = 1;
+        
+        // Load data on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadOrders();
+            loadFarmers();
+            loadProducts();
+            setupEventListeners();
+        });
+        
+        function setupEventListeners() {
+            document.getElementById('searchInput').addEventListener('input', filterOrders);
+            document.getElementById('statusFilter').addEventListener('change', filterOrders);
+            document.getElementById('dateFilter').addEventListener('change', filterOrders);
+            document.getElementById('createOrderForm').addEventListener('submit', createOrder);
+        }
+        
+        async function loadOrders() {
+            try {
+                const response = await fetch('/api/orders');
+                const data = await response.json();
+                orders = data.orders || [];
+                updateStats();
+                renderOrders();
+            } catch (error) {
+                console.error('Error loading orders:', error);
+            }
+        }
+        
+        async function loadFarmers() {
+            try {
+                const response = await fetch('/api/farmers');
+                const data = await response.json();
+                farmers = data.farmers || [];
+                populateFarmerSelect();
+            } catch (error) {
+                console.error('Error loading farmers:', error);
+            }
+        }
+        
+        async function loadProducts() {
+            try {
+                const response = await fetch('/api/products');
+                const data = await response.json();
+                products = data.products || [];
+                populateProductSelect();
+            } catch (error) {
+                console.error('Error loading products:', error);
+            }
+        }
+        
+        function updateStats() {
+            const totalOrders = orders.length;
+            const pendingOrders = orders.filter(order => order.status === 'Pending').length;
+            const totalRevenue = orders.reduce((sum, order) => sum + (order.total_amount || 0), 0);
+            
+            const thisMonth = new Date();
+            thisMonth.setDate(1);
+            const monthlyOrders = orders.filter(order => 
+                new Date(order.created_at) >= thisMonth
+            ).length;
+            
+            document.getElementById('totalOrders').textContent = totalOrders;
+            document.getElementById('pendingOrders').textContent = pendingOrders;
+            document.getElementById('totalRevenue').textContent = `₱${totalRevenue.toLocaleString()}`;
+            document.getElementById('monthlyOrders').textContent = monthlyOrders;
+        }
+        
+        function renderOrders() {
+            const ordersList = document.getElementById('ordersList');
+            
+            if (orders.length === 0) {
+                ordersList.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No orders found</h3>
+                        <p>Orders will appear here once farmers start placing orders.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const ordersHtml = orders.map(order => `
+                <div class="order-row">
+                    <div class="order-info">
+                        <h4>Order #${order.id}</h4>
+                        <p>${order.farmer_name || 'Unknown Farmer'}</p>
+                    </div>
+                    <div>${new Date(order.created_at).toLocaleDateString()}</div>
+                    <div class="status-badge status-${order.status.toLowerCase()}">${order.status}</div>
+                    <div class="amount">₱${(order.total_amount || 0).toLocaleString()}</div>
+                    <div>${order.item_count || 0} items</div>
+                    <div>${order.payment_status || 'Pending'}</div>
+                    <div class="actions">
+                        <button class="action-btn action-view" onclick="viewOrder(${order.id})">View</button>
+                        <button class="action-btn action-edit" onclick="editOrder(${order.id})">Edit</button>
+                    </div>
+                </div>
+            `).join('');
+            
+            ordersList.innerHTML = ordersHtml;
+        }
+        
+        function filterOrders() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+            const dateFilter = document.getElementById('dateFilter').value;
+            
+            let filteredOrders = orders;
+            
+            if (searchTerm) {
+                filteredOrders = filteredOrders.filter(order => 
+                    order.id.toString().includes(searchTerm) ||
+                    (order.farmer_name && order.farmer_name.toLowerCase().includes(searchTerm))
+                );
+            }
+            
+            if (statusFilter) {
+                filteredOrders = filteredOrders.filter(order => order.status === statusFilter);
+            }
+            
+            if (dateFilter) {
+                const now = new Date();
+                let filterDate;
+                
+                switch (dateFilter) {
+                    case 'today':
+                        filterDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                        break;
+                    case 'week':
+                        filterDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                        break;
+                    case 'month':
+                        filterDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                        break;
+                }
+                
+                if (filterDate) {
+                    filteredOrders = filteredOrders.filter(order => 
+                        new Date(order.created_at) >= filterDate
+                    );
+                }
+            }
+            
+            // Update the orders array temporarily for rendering
+            const originalOrders = orders;
+            orders = filteredOrders;
+            renderOrders();
+            updateStats();
+            orders = originalOrders;
+        }
+        
+        function populateFarmerSelect() {
+            const select = document.getElementById('farmerSelect');
+            select.innerHTML = '<option value="">Select a farmer...</option>';
+            
+            farmers.forEach(farmer => {
+                const option = document.createElement('option');
+                option.value = farmer.id;
+                option.textContent = farmer.name;
+                select.appendChild(option);
+            });
+        }
+        
+        function populateProductSelect() {
+            const select = document.getElementById('productSelect');
+            select.innerHTML = '<option value="">Select a product...</option>';
+            
+            products.forEach(product => {
+                const option = document.createElement('option');
+                option.value = product.id;
+                option.textContent = `${product.name} - ₱${product.selling_price}`;
+                select.appendChild(option);
+            });
+        }
+        
+        function showCreateOrderModal() {
+            document.getElementById('createOrderModal').style.display = 'block';
+        }
+        
+        function closeCreateOrderModal() {
+            document.getElementById('createOrderModal').style.display = 'none';
+            document.getElementById('createOrderForm').reset();
+        }
+        
+        async function createOrder(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const orderData = {
+                farmer_id: document.getElementById('farmerSelect').value,
+                product_id: document.getElementById('productSelect').value,
+                quantity: document.getElementById('quantity').value,
+                delivery_address: document.getElementById('deliveryAddress').value,
+                notes: document.getElementById('notes').value
+            };
+            
+            try {
+                const response = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(orderData)
+                });
+                
+                if (response.ok) {
+                    closeCreateOrderModal();
+                    loadOrders();
+                    alert('Order created successfully!');
+                } else {
+                    alert('Error creating order. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error creating order:', error);
+                alert('Error creating order. Please try again.');
+            }
+        }
+        
+        async function viewOrder(orderId) {
+            try {
+                const response = await fetch(`/api/orders/${orderId}`);
+                const order = await response.json();
+                
+                const orderDetails = `
+                    <div class="form-group">
+                        <label>Order ID</label>
+                        <p>#${order.id}</p>
+                    </div>
+                    <div class="form-group">
+                        <label>Farmer</label>
+                        <p>${order.farmer_name || 'Unknown'}</p>
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <p class="status-badge status-${order.status.toLowerCase()}">${order.status}</p>
+                    </div>
+                    <div class="form-group">
+                        <label>Total Amount</label>
+                        <p class="amount">₱${(order.total_amount || 0).toLocaleString()}</p>
+                    </div>
+                    <div class="form-group">
+                        <label>Payment Status</label>
+                        <p>${order.payment_status || 'Pending'}</p>
+                    </div>
+                    <div class="form-group">
+                        <label>Created</label>
+                        <p>${new Date(order.created_at).toLocaleString()}</p>
+                    </div>
+                    ${order.notes ? `
+                        <div class="form-group">
+                            <label>Notes</label>
+                            <p>${order.notes}</p>
+                        </div>
+                    ` : ''}
+                `;
+                
+                document.getElementById('orderDetails').innerHTML = orderDetails;
+                document.getElementById('orderModal').style.display = 'block';
+            } catch (error) {
+                console.error('Error loading order details:', error);
+                alert('Error loading order details.');
+            }
+        }
+        
+        function editOrder(orderId) {
+            // Implement edit functionality
+            alert('Edit functionality will be implemented soon.');
+        }
+        
+        function closeModal() {
+            document.getElementById('orderModal').style.display = 'none';
+        }
+        
+        function exportOrders() {
+            // Create CSV content
+            const csvContent = [
+                ['Order ID', 'Farmer', 'Status', 'Total Amount', 'Payment Status', 'Created Date'].join(','),
+                ...orders.map(order => [
+                    order.id,
+                    order.farmer_name || 'Unknown',
+                    order.status,
+                    order.total_amount || 0,
+                    order.payment_status || 'Pending',
+                    new Date(order.created_at).toLocaleDateString()
+                ].join(','))
+            ].join('\n');
+            
+            // Download CSV
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'orders_export.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+        
+        function previousPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                loadOrders();
+            }
+        }
+        
+        function nextPage() {
+            if (currentPage < totalPages) {
+                currentPage++;
+                loadOrders();
+            }
+        }
+        
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const orderModal = document.getElementById('orderModal');
+            const createOrderModal = document.getElementById('createOrderModal');
+            
+            if (event.target === orderModal) {
+                orderModal.style.display = 'none';
+            }
+            if (event.target === createOrderModal) {
+                createOrderModal.style.display = 'none';
+            }
+        }
+    </script>
+    
+    <!-- Load Navigation Component -->
+    <script>
+        // Load navigation component
+        fetch('/components/navigation.html')
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('navigation-placeholder').innerHTML = html;
+                // Set active page
+                const activeLink = document.querySelector('a[href*="orders"]');
+                if (activeLink) {
+                    activeLink.classList.add('bg-green-700');
+                }
+            })
+            .catch(error => console.error('Error loading navigation:', error));
+    </script>
+</body>
+</html>
+

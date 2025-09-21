@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Loan Application Demo - MAGSASA-CARD</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        .demo-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        .step {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 0 5px;
+            transition: all 0.3s ease;
+        }
+        .step.active {
+            background: #2E7D32;
+            color: white;
+        }
+        .step.completed {
+            background: #4CAF50;
+            color: white;
+        }
+        .step.pending {
+            background: #F5F5F5;
+            color: #666;
+        }
+        .demo-screen {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            padding: 30px;
+            margin-bottom: 20px;
+            min-height: 500px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #E0E0E0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #2E7D32;
+        }
+        .btn-primary {
+            background: #2E7D32;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        .btn-primary:hover {
+            background: #1B5E20;
+        }
+        .btn-secondary {
+            background: #9E9E9E;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .timer {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #2E7D32;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        .photo-capture {
+            border: 2px dashed #2E7D32;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            background: #F8F9FA;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .photo-capture:hover {
+            background: #E8F5E9;
+        }
+        .photo-preview {
+            width: 150px;
+            height: 150px;
+            border-radius: 10px;
+            object-fit: cover;
+            margin: 10px;
+            border: 2px solid #2E7D32;
+        }
+        .agscore-display {
+            background: linear-gradient(135deg, #2E7D32, #4CAF50);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .agscore-number {
+            font-size: 48px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #E0E0E0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #2E7D32;
+            transition: width 0.5s ease;
+        }
+        .farmer-card {
+            background: #F8F9FA;
+            border: 1px solid #E0E0E0;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 10px 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .farmer-card:hover {
+            background: #E8F5E9;
+            border-color: #2E7D32;
+        }
+        .farmer-card.selected {
+            background: #E8F5E9;
+            border-color: #2E7D32;
+            border-width: 2px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Timer -->
+    <div class="timer" id="timer">
+        <i class="fas fa-clock mr-2"></i>
+        <span id="timer-display">00:00</span>
+    </div>
+
+    <div class="demo-container">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-green-800 mb-2">
+                <i class="fas fa-seedling mr-3"></i>MAGSASA-CARD
+            </h1>
+            <h2 class="text-2xl text-gray-700">Live Loan Application Demo</h2>
+            <p class="text-gray-600 mt-2">Experience the complete 25-minute digital workflow</p>
+        </div>
+
+        <!-- Step Indicator -->
+        <div class="step-indicator">
+            <div class="step active" id="step-1">
+                <i class="fas fa-search text-xl mb-2"></i>
+                <div class="text-sm font-bold">Find Farmer</div>
+            </div>
+            <div class="step pending" id="step-2">
+                <i class="fas fa-user-edit text-xl mb-2"></i>
+                <div class="text-sm font-bold">Verify Info</div>
+            </div>
+            <div class="step pending" id="step-3">
+                <i class="fas fa-camera text-xl mb-2"></i>
+                <div class="text-sm font-bold">Documentation</div>
+            </div>
+            <div class="step pending" id="step-4">
+                <i class="fas fa-calculator text-xl mb-2"></i>
+                <div class="text-sm font-bold">Loan Details</div>
+            </div>
+            <div class="step pending" id="step-5">
+                <i class="fas fa-robot text-xl mb-2"></i>
+                <div class="text-sm font-bold">AgScore</div>
+            </div>
+            <div class="step pending" id="step-6">
+                <i class="fas fa-check-circle text-xl mb-2"></i>
+                <div class="text-sm font-bold">Submit</div>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill" style="width: 16.67%"></div>
+        </div>
+
+        <!-- Demo Screen -->
+        <div class="demo-screen" id="demo-screen">
+            <!-- Step 1: Find Farmer -->
+            <div id="screen-1">
+                <h3 class="text-2xl font-bold text-green-800 mb-6">
+                    <i class="fas fa-search mr-2"></i>Step 1: Find or Add Farmer
+                </h3>
+                
+                <div class="form-group">
+                    <label class="form-label">Search Existing Farmers</label>
+                    <div class="relative">
+                        <input type="text" class="form-input pl-12" placeholder="Search by name, phone, or ID..." id="farmer-search">
+                        <i class="fas fa-search absolute left-4 top-4 text-gray-400"></i>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div class="farmer-card" onclick="selectFarmer('existing')">
+                        <div class="flex items-center">
+                            <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mr-4">
+                                <i class="fas fa-user text-green-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <div class="font-bold text-lg">Maria Santos</div>
+                                <div class="text-gray-600">09123456789</div>
+                                <div class="text-sm text-gray-500">Barangay San Miguel, Tarlac</div>
+                                <div class="text-sm text-green-600 font-bold">Existing Customer</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="farmer-card" onclick="selectFarmer('new')">
+                        <div class="flex items-center">
+                            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                                <i class="fas fa-user-plus text-blue-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <div class="font-bold text-lg">Add New Farmer</div>
+                                <div class="text-gray-600">Create new farmer profile</div>
+                                <div class="text-sm text-gray-500">For first-time applicants</div>
+                                <div class="text-sm text-blue-600 font-bold">New Registration</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center">
+                    <button class="btn-primary" onclick="nextStep()" id="step1-next" disabled>
+                        Continue to Verification <i class="fas fa-arrow-right ml-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="text-center mt-6">
+            <button class="btn-secondary" onclick="resetDemo()">
+                <i class="fas fa-redo mr-2"></i>Reset Demo
+            </button>
+            <button class="btn-primary" onclick="autoDemo()">
+                <i class="fas fa-play mr-2"></i>Auto Demo (Fast Forward)
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 1;
+        let startTime = Date.now();
+        let selectedFarmer = null;
+        let timerInterval;
+        let demoData = {
+            farmer: null,
+            loanAmount: 0,
+            agScore: 0,
+            photos: []
+        };
+
+        // Start timer
+        function startTimer() {
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        function updateTimer() {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            document.getElementById('timer-display').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function selectFarmer(type) {
+            selectedFarmer = type;
+            document.querySelectorAll('.farmer-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+            document.getElementById('step1-next').disabled = false;
+            
+            if (type === 'existing') {
+                demoData.farmer = {
+                    name: 'Maria Santos',
+                    phone: '09123456789',
+                    address: 'Barangay San Miguel, Tarlac',
+                    farmSize: '2.5 hectares',
+                    cropType: 'Rice',
+                    existing: true
+                };
+            }
+        }
+
+        function nextStep() {
+            // Mark current step as completed
+            document.getElementById(`step-${currentStep}`).classList.remove('active');
+            document.getElementById(`step-${currentStep}`).classList.add('completed');
+            
+            currentStep++;
+            
+            // Activate next step
+            if (currentStep <= 6) {
+                document.getElementById(`step-${currentStep}`).classList.remove('pending');
+                document.getElementById(`step-${currentStep}`).classList.add('active');
+                
+                // Update progress bar
+                const progress = (currentStep / 6) * 100;
+                document.getElementById('progress-fill').style.width = progress + '%';
+                
+                // Load next screen
+                loadScreen(currentStep);
+            }
+        }
+
+        function loadScreen(step) {
+            const screens = {
+                2: getVerificationScreen(),
+                3: getDocumentationScreen(),
+                4: getLoanDetailsScreen(),
+                5: getAgScoreScreen(),
+                6: getSubmissionScreen()
+            };
+            
+            document.getElementById('demo-screen').innerHTML = screens[step] || '';
+        }
+
+        function getVerificationScreen() {
+            return `
+                <div id="screen-2">
+                    <h3 class="text-2xl font-bold text-green-800 mb-6">
+                        <i class="fas fa-user-edit mr-2"></i>Step 2: Verify Farmer Information
+                    </h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <div class="form-group">
+                                <label class="form-label">Full Name</label>
+                                <input type="text" class="form-input" value="Maria Santos" readonly>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Mobile Number</label>
+                                <input type="text" class="form-input" value="09123456789">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Address</label>
+                                <input type="text" class="form-input" value="Barangay San Miguel, Tarlac">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div class="form-group">
+                                <label class="form-label">Farm Size</label>
+                                <input type="text" class="form-input" value="2.5 hectares">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Primary Crop</label>
+                                <select class="form-input">
+                                    <option>Rice</option>
+                                    <option>Corn</option>
+                                    <option>Vegetables</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Monthly Income</label>
+                                <input type="text" class="form-input" value="₱18,000">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-6">
+                        <button class="btn-primary" onclick="nextStep()">
+                            Continue to Documentation <i class="fas fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getDocumentationScreen() {
+            return `
+                <div id="screen-3">
+                    <h3 class="text-2xl font-bold text-green-800 mb-6">
+                        <i class="fas fa-camera mr-2"></i>Step 3: Photo Documentation
+                    </h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-bold mb-4">Required Photos</h4>
+                            
+                            <div class="photo-capture mb-4" onclick="capturePhoto('farmer')">
+                                <i class="fas fa-camera text-4xl text-green-600 mb-2"></i>
+                                <div class="font-bold">Farmer Portrait</div>
+                                <div class="text-sm text-gray-600">Tap to capture photo</div>
+                            </div>
+                            
+                            <div class="photo-capture mb-4" onclick="capturePhoto('farm')">
+                                <i class="fas fa-seedling text-4xl text-green-600 mb-2"></i>
+                                <div class="font-bold">Farm Overview</div>
+                                <div class="text-sm text-gray-600">Tap to capture photo</div>
+                            </div>
+                            
+                            <div class="photo-capture" onclick="capturePhoto('id')">
+                                <i class="fas fa-id-card text-4xl text-green-600 mb-2"></i>
+                                <div class="font-bold">Valid ID</div>
+                                <div class="text-sm text-gray-600">Tap to capture photo</div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-bold mb-4">Captured Photos</h4>
+                            <div id="photo-gallery" class="flex flex-wrap">
+                                <!-- Photos will appear here -->
+                            </div>
+                            
+                            <div class="mt-6 p-4 bg-green-50 rounded-lg">
+                                <div class="flex items-center">
+                                    <i class="fas fa-map-marker-alt text-green-600 mr-2"></i>
+                                    <div>
+                                        <div class="font-bold">GPS Location Captured</div>
+                                        <div class="text-sm text-gray-600">15.4817° N, 120.5979° E</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-6">
+                        <button class="btn-primary" onclick="nextStep()" id="doc-next" disabled>
+                            Continue to Loan Details <i class="fas fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getLoanDetailsScreen() {
+            return `
+                <div id="screen-4">
+                    <h3 class="text-2xl font-bold text-green-800 mb-6">
+                        <i class="fas fa-calculator mr-2"></i>Step 4: Loan Configuration
+                    </h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <div class="form-group">
+                                <label class="form-label">Loan Amount Requested</label>
+                                <input type="text" class="form-input" value="₱50,000" onchange="calculateLoan()">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Loan Purpose</label>
+                                <select class="form-input">
+                                    <option>Seeds and Fertilizer</option>
+                                    <option>Farm Equipment</option>
+                                    <option>Livestock</option>
+                                    <option>Land Improvement</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Loan Term</label>
+                                <select class="form-input" onchange="calculateLoan()">
+                                    <option value="12">12 months</option>
+                                    <option value="18">18 months</option>
+                                    <option value="24">24 months</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div class="bg-green-50 p-6 rounded-lg">
+                                <h4 class="font-bold text-lg mb-4">Loan Summary</h4>
+                                
+                                <div class="flex justify-between mb-2">
+                                    <span>Principal Amount:</span>
+                                    <span class="font-bold">₱50,000</span>
+                                </div>
+                                
+                                <div class="flex justify-between mb-2">
+                                    <span>Interest Rate:</span>
+                                    <span class="font-bold">12% per annum</span>
+                                </div>
+                                
+                                <div class="flex justify-between mb-2">
+                                    <span>Term:</span>
+                                    <span class="font-bold">12 months</span>
+                                </div>
+                                
+                                <hr class="my-3">
+                                
+                                <div class="flex justify-between text-lg">
+                                    <span class="font-bold">Monthly Payment:</span>
+                                    <span class="font-bold text-green-600">₱4,441.67</span>
+                                </div>
+                                
+                                <div class="flex justify-between text-sm text-gray-600 mt-2">
+                                    <span>Total Interest:</span>
+                                    <span>₱3,300</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-6">
+                        <button class="btn-primary" onclick="nextStep()">
+                            Calculate AgScore <i class="fas fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getAgScoreScreen() {
+            return `
+                <div id="screen-5">
+                    <h3 class="text-2xl font-bold text-green-800 mb-6">
+                        <i class="fas fa-robot mr-2"></i>Step 5: AI-Powered AgScore Assessment
+                    </h3>
+                    
+                    <div class="text-center mb-6">
+                        <div class="inline-block">
+                            <div class="text-lg text-gray-600 mb-2">Calculating AgScore...</div>
+                            <div class="w-64 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div class="h-full bg-green-500 rounded-full transition-all duration-3000" id="agscore-progress" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="agscore-display" id="agscore-result" style="display: none;">
+                        <div class="text-xl">Maria Santos - AgScore</div>
+                        <div class="agscore-number">542</div>
+                        <div class="text-2xl font-bold">Grade D</div>
+                        <div class="text-lg">Risk Level: Moderate</div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6" id="factor-breakdown" style="display: none;">
+                        <div class="bg-white p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-green-600">90</div>
+                            <div class="text-sm">Payment History</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-green-600">80</div>
+                            <div class="text-sm">Farm Productivity</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-green-600">100</div>
+                            <div class="text-sm">Land Ownership</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-orange-500">60</div>
+                            <div class="text-sm">Income Stability</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-green-600">83</div>
+                            <div class="text-sm">Debt-to-Income</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg text-center">
+                            <div class="text-2xl font-bold text-green-600">71</div>
+                            <div class="text-sm">Community Standing</div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-6">
+                        <button class="btn-primary" onclick="nextStep()" id="agscore-next" style="display: none;">
+                            Submit Application <i class="fas fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getSubmissionScreen() {
+            return `
+                <div id="screen-6">
+                    <h3 class="text-2xl font-bold text-green-800 mb-6">
+                        <i class="fas fa-check-circle mr-2"></i>Step 6: Application Submission
+                    </h3>
+                    
+                    <div class="bg-green-50 p-6 rounded-lg mb-6">
+                        <h4 class="font-bold text-lg mb-4">Application Summary</h4>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <div class="mb-3">
+                                    <span class="font-bold">Farmer:</span> Maria Santos
+                                </div>
+                                <div class="mb-3">
+                                    <span class="font-bold">Phone:</span> 09123456789
+                                </div>
+                                <div class="mb-3">
+                                    <span class="font-bold">Location:</span> Barangay San Miguel, Tarlac
+                                </div>
+                                <div class="mb-3">
+                                    <span class="font-bold">Farm Size:</span> 2.5 hectares
+                                </div>
+                            </div>
+                            <div>
+                                <div class="mb-3">
+                                    <span class="font-bold">Loan Amount:</span> ₱50,000
+                                </div>
+                                <div class="mb-3">
+                                    <span class="font-bold">Monthly Payment:</span> ₱4,441.67
+                                </div>
+                                <div class="mb-3">
+                                    <span class="font-bold">AgScore:</span> 542 (Grade D)
+                                </div>
+                                <div class="mb-3">
+                                    <span class="font-bold">Photos:</span> 3 captured
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <div class="mb-6">
+                            <div class="text-lg text-gray-600 mb-2">Submitting application...</div>
+                            <div class="w-64 h-2 bg-gray-200 rounded-full overflow-hidden mx-auto">
+                                <div class="h-full bg-green-500 rounded-full transition-all duration-2000" id="submit-progress" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        
+                        <div id="success-message" style="display: none;">
+                            <div class="text-6xl text-green-500 mb-4">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <h4 class="text-2xl font-bold text-green-800 mb-2">Application Submitted Successfully!</h4>
+                            <p class="text-gray-600 mb-4">Application ID: LA-2024-001234</p>
+                            <p class="text-gray-600">The application will be reviewed within 3-5 business days.</p>
+                            
+                            <div class="mt-6 p-4 bg-blue-50 rounded-lg">
+                                <div class="font-bold text-blue-800">Next Steps:</div>
+                                <ul class="text-left text-blue-700 mt-2">
+                                    <li>• Manager review and approval</li>
+                                    <li>• Credit verification</li>
+                                    <li>• Loan disbursement preparation</li>
+                                    <li>• SMS notification to farmer</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <button class="btn-primary" onclick="completeDemo()" id="complete-btn" style="display: none;">
+                            <i class="fas fa-trophy mr-2"></i>Demo Complete!
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function capturePhoto(type) {
+            const gallery = document.getElementById('photo-gallery');
+            const photoTypes = {
+                'farmer': '👤',
+                'farm': '🌾',
+                'id': '🆔'
+            };
+            
+            const photoDiv = document.createElement('div');
+            photoDiv.className = 'w-20 h-20 bg-green-100 rounded-lg flex items-center justify-center m-2 border-2 border-green-500';
+            photoDiv.innerHTML = `<span class="text-2xl">${photoTypes[type]}</span>`;
+            gallery.appendChild(photoDiv);
+            
+            demoData.photos.push(type);
+            
+            if (demoData.photos.length >= 3) {
+                document.getElementById('doc-next').disabled = false;
+            }
+        }
+
+        function autoDemo() {
+            // Fast forward through all steps
+            const steps = [
+                () => { selectFarmer('existing'); setTimeout(nextStep, 500); },
+                () => { setTimeout(nextStep, 1000); },
+                () => { 
+                    capturePhoto('farmer');
+                    setTimeout(() => capturePhoto('farm'), 300);
+                    setTimeout(() => capturePhoto('id'), 600);
+                    setTimeout(nextStep, 1000);
+                },
+                () => { setTimeout(nextStep, 1000); },
+                () => { 
+                    setTimeout(() => {
+                        document.getElementById('agscore-progress').style.width = '100%';
+                        setTimeout(() => {
+                            document.getElementById('agscore-result').style.display = 'block';
+                            document.getElementById('factor-breakdown').style.display = 'grid';
+                            document.getElementById('agscore-next').style.display = 'inline-block';
+                        }, 1000);
+                        setTimeout(nextStep, 2000);
+                    }, 500);
+                },
+                () => {
+                    setTimeout(() => {
+                        document.getElementById('submit-progress').style.width = '100%';
+                        setTimeout(() => {
+                            document.getElementById('success-message').style.display = 'block';
+                            document.getElementById('complete-btn').style.display = 'inline-block';
+                        }, 1000);
+                    }, 500);
+                }
+            ];
+            
+            let stepIndex = currentStep - 1;
+            if (stepIndex < steps.length) {
+                steps[stepIndex]();
+            }
+        }
+
+        function resetDemo() {
+            currentStep = 1;
+            selectedFarmer = null;
+            startTime = Date.now();
+            demoData = { farmer: null, loanAmount: 0, agScore: 0, photos: [] };
+            
+            // Reset all steps
+            for (let i = 1; i <= 6; i++) {
+                const step = document.getElementById(`step-${i}`);
+                step.classList.remove('active', 'completed');
+                step.classList.add('pending');
+            }
+            
+            document.getElementById('step-1').classList.remove('pending');
+            document.getElementById('step-1').classList.add('active');
+            document.getElementById('progress-fill').style.width = '16.67%';
+            
+            // Reset screen
+            document.getElementById('demo-screen').innerHTML = document.getElementById('screen-1').outerHTML;
+        }
+
+        function completeDemo() {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            
+            alert(`Demo completed in ${minutes}:${seconds.toString().padStart(2, '0')}! 
+                   
+In a real scenario, this would typically take 20-25 minutes, compared to 2+ hours with traditional paper-based processes.
+
+Key benefits demonstrated:
+• 80% faster processing time
+• 90% reduction in paperwork
+• Real-time AgScore calculation
+• GPS-tagged documentation
+• Immediate application submission`);
+        }
+
+        // Initialize demo
+        document.addEventListener('DOMContentLoaded', function() {
+            startTimer();
+            
+            // Auto-trigger AgScore calculation when step 5 loads
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'childList') {
+                        const agscoreProgress = document.getElementById('agscore-progress');
+                        if (agscoreProgress && currentStep === 5) {
+                            setTimeout(() => {
+                                agscoreProgress.style.width = '100%';
+                                setTimeout(() => {
+                                    document.getElementById('agscore-result').style.display = 'block';
+                                    document.getElementById('factor-breakdown').style.display = 'grid';
+                                    document.getElementById('agscore-next').style.display = 'inline-block';
+                                }, 1500);
+                            }, 1000);
+                        }
+                        
+                        const submitProgress = document.getElementById('submit-progress');
+                        if (submitProgress && currentStep === 6) {
+                            setTimeout(() => {
+                                submitProgress.style.width = '100%';
+                                setTimeout(() => {
+                                    document.getElementById('success-message').style.display = 'block';
+                                    document.getElementById('complete-btn').style.display = 'inline-block';
+                                }, 2000);
+                            }, 1000);
+                        }
+                    }
+                });
+            });
+            
+            observer.observe(document.getElementById('demo-screen'), {
+                childList: true,
+                subtree: true
+            });
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAGSASA-CARD - Offline Sync Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #000;
+            color: #fff;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: #888;
+            font-size: 0.875rem;
+        }
+
+        .demo-section {
+            background: #1a1a1a;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .connection-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #2a2a2a;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background: #374151;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: #22c55e;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 24px;
+            height: 24px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(30px);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #22c55e;
+            animation: pulse 2s infinite;
+        }
+
+        .status-offline {
+            background: #f59e0b;
+        }
+
+        .demo-actions {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .demo-btn {
+            background: #374151;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            color: #fff;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .demo-btn:hover {
+            background: #4b5563;
+        }
+
+        .demo-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pending-items {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 0.5rem;
+            padding: 1rem;
+        }
+
+        .pending-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #334155;
+        }
+
+        .pending-item:last-child {
+            border-bottom: none;
+        }
+
+        .item-info {
+            flex: 1;
+        }
+
+        .item-title {
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .item-subtitle {
+            font-size: 0.75rem;
+            color: #888;
+        }
+
+        .item-status {
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.625rem;
+            font-weight: 600;
+        }
+
+        .status-pending {
+            background: #f59e0b;
+            color: #000;
+        }
+
+        .status-synced {
+            background: #22c55e;
+            color: #000;
+        }
+
+        .sync-button {
+            background: #22c55e;
+            color: #000;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        .sync-button:disabled {
+            background: #6b7280;
+            color: #fff;
+            cursor: not-allowed;
+        }
+
+        .log-section {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            font-size: 0.75rem;
+            padding: 0.25rem 0;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-timestamp {
+            color: #64748b;
+        }
+
+        .log-message {
+            color: #e2e8f0;
+        }
+
+        .alert {
+            background: #dc2626;
+            color: #fff;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+        }
+
+        .alert.success {
+            background: #22c55e;
+            color: #000;
+        }
+
+        .alert.warning {
+            background: #f59e0b;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">🌱 MAGSASA-CARD</h1>
+            <p class="subtitle">Offline Synchronization Demo</p>
+        </div>
+
+        <!-- Connection Status -->
+        <div class="demo-section">
+            <h2 class="section-title">📡 Connection Status</h2>
+            <div class="connection-toggle">
+                <div class="status-indicator">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">Online</span>
+                </div>
+                <div class="toggle-switch active" id="connectionToggle" onclick="toggleConnection()">
+                    <div class="toggle-slider"></div>
+                </div>
+            </div>
+            <div id="connectionAlert" style="display: none;"></div>
+        </div>
+
+        <!-- Demo Actions -->
+        <div class="demo-section">
+            <h2 class="section-title">⚡ Field Actions</h2>
+            <div class="demo-actions">
+                <button class="demo-btn" onclick="createLoanApplication()">📝 New Loan Application</button>
+                <button class="demo-btn" onclick="scheduleVisit()">📅 Schedule Visit</button>
+                <button class="demo-btn" onclick="updateFarmerProfile()">👨‍🌾 Update Farmer</button>
+                <button class="demo-btn" onclick="submitReport()">📊 Submit Report</button>
+            </div>
+        </div>
+
+        <!-- Pending Items -->
+        <div class="demo-section">
+            <h2 class="section-title">📱 Local Storage</h2>
+            <div class="pending-items" id="pendingItems">
+                <div style="text-align: center; color: #888; font-size: 0.875rem; padding: 1rem;">
+                    No pending items
+                </div>
+            </div>
+            <button class="sync-button" id="syncButton" onclick="syncData()">
+                🔄 Sync All Data
+            </button>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="demo-section">
+            <h2 class="section-title">📋 Activity Log</h2>
+            <div class="log-section" id="activityLog">
+                <div class="log-entry">
+                    <span class="log-timestamp">[17:15:32]</span>
+                    <span class="log-message">Demo initialized</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isOnline = true;
+        let pendingItems = [];
+        let itemCounter = 1;
+
+        // Initialize demo
+        function init() {
+            updateConnectionStatus();
+            loadPendingItems();
+            addLogEntry('Demo initialized - Ready for offline testing');
+        }
+
+        // Toggle connection status
+        function toggleConnection() {
+            isOnline = !isOnline;
+            const toggle = document.getElementById('connectionToggle');
+            
+            if (isOnline) {
+                toggle.classList.add('active');
+            } else {
+                toggle.classList.remove('active');
+            }
+            
+            updateConnectionStatus();
+        }
+
+        // Update UI based on connection status
+        function updateConnectionStatus() {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            const connectionAlert = document.getElementById('connectionAlert');
+            const syncButton = document.getElementById('syncButton');
+
+            if (isOnline) {
+                statusDot.classList.remove('status-offline');
+                statusText.textContent = 'Online';
+                connectionAlert.style.display = 'none';
+                syncButton.disabled = false;
+                addLogEntry('Connection restored - Online mode active');
+                
+                // Auto-sync when coming back online
+                if (pendingItems.length > 0) {
+                    setTimeout(() => {
+                        showAlert('Connection restored! Auto-syncing pending data...', 'success');
+                        setTimeout(syncData, 1000);
+                    }, 500);
+                }
+            } else {
+                statusDot.classList.add('status-offline');
+                statusText.textContent = 'Offline';
+                connectionAlert.innerHTML = '<div class="alert warning">📱 Working offline - Data will be stored locally and synced when connection is restored</div>';
+                connectionAlert.style.display = 'block';
+                syncButton.disabled = true;
+                addLogEntry('Connection lost - Offline mode activated');
+            }
+        }
+
+        // Demo actions
+        function createLoanApplication() {
+            const item = {
+                id: itemCounter++,
+                type: 'Loan Application',
+                title: `Carlos Lopez - ₱45,000 Rice Loan`,
+                timestamp: new Date().toLocaleTimeString(),
+                status: 'pending'
+            };
+            
+            if (isOnline) {
+                showAlert('Loan application submitted successfully!', 'success');
+                addLogEntry(`Loan application submitted online: ${item.title}`);
+            } else {
+                pendingItems.push(item);
+                savePendingItems();
+                updatePendingItemsDisplay();
+                showAlert('Loan application saved locally - will sync when online', 'warning');
+                addLogEntry(`Loan application saved offline: ${item.title}`);
+            }
+        }
+
+        function scheduleVisit() {
+            const item = {
+                id: itemCounter++,
+                type: 'Visit Schedule',
+                title: `Carmen Reyes - Farm Inspection`,
+                timestamp: new Date().toLocaleTimeString(),
+                status: 'pending'
+            };
+            
+            if (isOnline) {
+                showAlert('Visit scheduled successfully!', 'success');
+                addLogEntry(`Visit scheduled online: ${item.title}`);
+            } else {
+                pendingItems.push(item);
+                savePendingItems();
+                updatePendingItemsDisplay();
+                showAlert('Visit scheduled locally - will sync when online', 'warning');
+                addLogEntry(`Visit scheduled offline: ${item.title}`);
+            }
+        }
+
+        function updateFarmerProfile() {
+            const item = {
+                id: itemCounter++,
+                type: 'Profile Update',
+                title: `Ana Torres - Contact Info Updated`,
+                timestamp: new Date().toLocaleTimeString(),
+                status: 'pending'
+            };
+            
+            if (isOnline) {
+                showAlert('Farmer profile updated successfully!', 'success');
+                addLogEntry(`Profile updated online: ${item.title}`);
+            } else {
+                pendingItems.push(item);
+                savePendingItems();
+                updatePendingItemsDisplay();
+                showAlert('Profile update saved locally - will sync when online', 'warning');
+                addLogEntry(`Profile update saved offline: ${item.title}`);
+            }
+        }
+
+        function submitReport() {
+            const item = {
+                id: itemCounter++,
+                type: 'Daily Report',
+                title: `Field Report - 8 visits completed`,
+                timestamp: new Date().toLocaleTimeString(),
+                status: 'pending'
+            };
+            
+            if (isOnline) {
+                showAlert('Report submitted successfully!', 'success');
+                addLogEntry(`Report submitted online: ${item.title}`);
+            } else {
+                pendingItems.push(item);
+                savePendingItems();
+                updatePendingItemsDisplay();
+                showAlert('Report saved locally - will sync when online', 'warning');
+                addLogEntry(`Report saved offline: ${item.title}`);
+            }
+        }
+
+        // Sync data
+        function syncData() {
+            if (!isOnline) {
+                showAlert('Cannot sync while offline', 'error');
+                return;
+            }
+
+            if (pendingItems.length === 0) {
+                showAlert('All data is up to date!', 'success');
+                addLogEntry('Sync completed - No pending items');
+                return;
+            }
+
+            const itemCount = pendingItems.length;
+            showAlert(`Syncing ${itemCount} items...`, 'warning');
+            addLogEntry(`Starting sync of ${itemCount} pending items`);
+
+            // Simulate sync process
+            setTimeout(() => {
+                pendingItems.forEach(item => {
+                    item.status = 'synced';
+                    addLogEntry(`Synced: ${item.type} - ${item.title}`);
+                });
+                
+                updatePendingItemsDisplay();
+                
+                setTimeout(() => {
+                    pendingItems = [];
+                    savePendingItems();
+                    updatePendingItemsDisplay();
+                    showAlert(`Successfully synced ${itemCount} items!`, 'success');
+                    addLogEntry(`Sync completed successfully - ${itemCount} items processed`);
+                }, 1000);
+            }, 2000);
+        }
+
+        // Update pending items display
+        function updatePendingItemsDisplay() {
+            const container = document.getElementById('pendingItems');
+            
+            if (pendingItems.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #888; font-size: 0.875rem; padding: 1rem;">No pending items</div>';
+                return;
+            }
+
+            container.innerHTML = pendingItems.map(item => `
+                <div class="pending-item">
+                    <div class="item-info">
+                        <div class="item-title">${item.title}</div>
+                        <div class="item-subtitle">${item.type} • ${item.timestamp}</div>
+                    </div>
+                    <div class="item-status ${item.status === 'synced' ? 'status-synced' : 'status-pending'}">
+                        ${item.status === 'synced' ? 'SYNCED' : 'PENDING'}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Local storage functions
+        function savePendingItems() {
+            localStorage.setItem('magsasa_pending_items', JSON.stringify(pendingItems));
+        }
+
+        function loadPendingItems() {
+            const stored = localStorage.getItem('magsasa_pending_items');
+            if (stored) {
+                pendingItems = JSON.parse(stored);
+                updatePendingItemsDisplay();
+            }
+        }
+
+        // Show alert
+        function showAlert(message, type = 'success') {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert ${type}`;
+            alertDiv.textContent = message;
+            
+            document.body.insertBefore(alertDiv, document.body.firstChild);
+            
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 3000);
+        }
+
+        // Add log entry
+        function addLogEntry(message) {
+            const logContainer = document.getElementById('activityLog');
+            const timestamp = new Date().toLocaleTimeString();
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.innerHTML = `
+                <span class="log-timestamp">[${timestamp}]</span>
+                <span class="log-message">${message}</span>
+            `;
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
+

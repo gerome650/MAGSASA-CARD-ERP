@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Partnership Network - MAGSASA-CARD ERP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .hover-scale { transition: transform 0.2s; }
+        .hover-scale:hover { transform: scale(1.02); }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card-shadow { box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <div id="navigation-placeholder"></div>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-8">
+        <!-- Page Header -->
+        <div class="mb-8">
+            <div class="flex items-center space-x-4 mb-4">
+                <div class="bg-purple-100 p-3 rounded-lg">
+                    <i data-lucide="handshake" class="w-8 h-8 text-purple-600"></i>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Partnership Network</h1>
+                    <p class="text-gray-600">Coordinate with logistics and supplier partners, track performance and commissions</p>
+                </div>
+            </div>
+        </div>
+        <!-- Statistics Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 fade-in">
+            <div class="bg-white rounded-xl p-6 card-shadow hover-scale">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm font-medium">Total Partners</p>
+                        <p class="text-3xl font-bold text-gray-900" id="totalPartners">0</p>
+                    </div>
+                    <div class="bg-blue-100 p-3 rounded-lg">
+                        <i data-lucide="users" class="w-6 h-6 text-blue-600"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl p-6 card-shadow hover-scale">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm font-medium">Active Partners</p>
+                        <p class="text-3xl font-bold text-green-600" id="activePartners">0</p>
+                    </div>
+                    <div class="bg-green-100 p-3 rounded-lg">
+                        <i data-lucide="check-circle" class="w-6 h-6 text-green-600"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl p-6 card-shadow hover-scale">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm font-medium">Total Commissions</p>
+                        <p class="text-3xl font-bold text-purple-600" id="totalCommissions">₱0</p>
+                    </div>
+                    <div class="bg-purple-100 p-3 rounded-lg">
+                        <i data-lucide="dollar-sign" class="w-6 h-6 text-purple-600"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl p-6 card-shadow hover-scale">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm font-medium">Pending Payouts</p>
+                        <p class="text-3xl font-bold text-orange-600" id="pendingCommissions">₱0</p>
+                    </div>
+                    <div class="bg-orange-100 p-3 rounded-lg">
+                        <i data-lucide="clock" class="w-6 h-6 text-orange-600"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="bg-white rounded-xl p-6 card-shadow mb-8 fade-in">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+                <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+                    <div class="relative">
+                        <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4"></i>
+                        <input type="text" id="searchInput" placeholder="Search partners..." 
+                               class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    
+                    <select id="typeFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">All Types</option>
+                        <option value="Supplier">Suppliers</option>
+                        <option value="Logistics">Logistics</option>
+                    </select>
+                    
+                    <select id="statusFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">All Status</option>
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                        <option value="Pending">Pending</option>
+                    </select>
+                </div>
+                
+                <div class="flex space-x-3">
+                    <button onclick="exportPartners()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center space-x-2">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                        <span>Export</span>
+                    </button>
+                    <button onclick="openAddPartnerModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center space-x-2">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <span>Add Partner</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Partners Table -->
+        <div class="bg-white rounded-xl card-shadow fade-in">
+            <div class="p-6 border-b border-gray-200">
+                <h2 class="text-xl font-semibold text-gray-900">Partners</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Partner</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Commission</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rating</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="partnersTableBody" class="bg-white divide-y divide-gray-200">
+                        <!-- Partners will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Loading State -->
+            <div id="loadingState" class="flex items-center justify-center py-12">
+                <div class="flex items-center space-x-2 text-gray-500">
+                    <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                    <span>Loading partners...</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Add Partner Modal -->
+    <div id="addPartnerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-xl p-6 w-full max-w-2xl mx-4 max-h-screen overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-semibold text-gray-900">Add New Partner</h3>
+                <button onclick="closeAddPartnerModal()" class="text-gray-400 hover:text-gray-600">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+            
+            <form id="addPartnerForm" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Partner Name *</label>
+                        <input type="text" name="name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Partner Type *</label>
+                        <select name="partner_type" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Select Type</option>
+                            <option value="Supplier">Supplier</option>
+                            <option value="Logistics">Logistics</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                        <input type="text" name="category" placeholder="e.g., Fertilizers, Last-Mile Delivery" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Contact Person</label>
+                        <input type="text" name="contact_person" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input type="email" name="email" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                        <input type="tel" name="phone" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Commission Rate (%)</label>
+                        <input type="number" name="commission_rate" step="0.01" min="0" max="100" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Payment Terms</label>
+                        <input type="text" name="payment_terms" placeholder="e.g., Net 30" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                    <textarea name="address" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Website</label>
+                    <input type="url" name="website" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Geographic Coverage</label>
+                    <input type="text" name="geographic_coverage" placeholder="e.g., Metro Manila, Luzon" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                    <textarea name="notes" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+                </div>
+                
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" onclick="closeAddPartnerModal()" class="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors duration-200">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                        Add Partner
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        let partners = [];
+        let currentPage = 1;
+
+        // Load dashboard data
+        async function loadDashboard() {
+            try {
+                const response = await fetch('/api/partnership/dashboard');
+                const data = await response.json();
+                
+                document.getElementById('totalPartners').textContent = data.total_partners || 0;
+                document.getElementById('activePartners').textContent = data.active_partners || 0;
+                document.getElementById('totalCommissions').textContent = `₱${(data.total_commissions || 0).toLocaleString()}`;
+                document.getElementById('pendingCommissions').textContent = `₱${(data.pending_commissions || 0).toLocaleString()}`;
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+
+        // Load partners
+        async function loadPartners() {
+            try {
+                const searchTerm = document.getElementById('searchInput').value;
+                const typeFilter = document.getElementById('typeFilter').value;
+                const statusFilter = document.getElementById('statusFilter').value;
+                
+                let url = `/api/partners?page=${currentPage}&per_page=10`;
+                if (searchTerm) url += `&search=${encodeURIComponent(searchTerm)}`;
+                if (typeFilter) url += `&type=${encodeURIComponent(typeFilter)}`;
+                if (statusFilter) url += `&status=${encodeURIComponent(statusFilter)}`;
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                partners = data.partners || [];
+                renderPartners();
+                
+                document.getElementById('loadingState').style.display = 'none';
+            } catch (error) {
+                console.error('Error loading partners:', error);
+                document.getElementById('loadingState').innerHTML = '<div class="text-red-500">Error loading partners</div>';
+            }
+        }
+
+        // Render partners table
+        function renderPartners() {
+            const tbody = document.getElementById('partnersTableBody');
+            
+            if (partners.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="px-6 py-12 text-center text-gray-500">
+                            <div class="flex flex-col items-center space-y-2">
+                                <i data-lucide="users" class="w-12 h-12 text-gray-300"></i>
+                                <p>No partners found</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                lucide.createIcons();
+                return;
+            }
+            
+            tbody.innerHTML = partners.map(partner => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4">
+                        <div>
+                            <div class="text-sm font-medium text-gray-900">${partner.name}</div>
+                            <div class="text-sm text-gray-500">${partner.contact_person || 'No contact'}</div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            partner.partner_type === 'Supplier' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                        }">
+                            ${partner.partner_type}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-900">${partner.category || 'N/A'}</td>
+                    <td class="px-6 py-4 text-sm text-gray-900">${partner.commission_rate}%</td>
+                    <td class="px-6 py-4">
+                        <div class="flex items-center">
+                            <div class="flex text-yellow-400">
+                                ${Array.from({length: 5}, (_, i) => 
+                                    `<i data-lucide="star" class="w-4 h-4 ${i < Math.floor(partner.rating) ? 'fill-current' : ''}"></i>`
+                                ).join('')}
+                            </div>
+                            <span class="ml-2 text-sm text-gray-600">${partner.rating.toFixed(1)}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            partner.status === 'Active' ? 'bg-green-100 text-green-800' : 
+                            partner.status === 'Inactive' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+                        }">
+                            ${partner.status}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-sm font-medium">
+                        <div class="flex space-x-2">
+                            <button onclick="viewPartner(${partner.id})" class="text-blue-600 hover:text-blue-900">
+                                <i data-lucide="eye" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="editPartner(${partner.id})" class="text-green-600 hover:text-green-900">
+                                <i data-lucide="edit" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="deletePartner(${partner.id})" class="text-red-600 hover:text-red-900">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+            
+            lucide.createIcons();
+        }
+
+        // Modal functions
+        function openAddPartnerModal() {
+            document.getElementById('addPartnerModal').classList.remove('hidden');
+            document.getElementById('addPartnerModal').classList.add('flex');
+        }
+
+        function closeAddPartnerModal() {
+            document.getElementById('addPartnerModal').classList.add('hidden');
+            document.getElementById('addPartnerModal').classList.remove('flex');
+            document.getElementById('addPartnerForm').reset();
+        }
+
+        // Add partner form submission
+        document.getElementById('addPartnerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const partnerData = Object.fromEntries(formData.entries());
+            
+            // Convert commission_rate to number
+            if (partnerData.commission_rate) {
+                partnerData.commission_rate = parseFloat(partnerData.commission_rate);
+            }
+            
+            try {
+                const response = await fetch('/api/partners', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(partnerData)
+                });
+                
+                if (response.ok) {
+                    closeAddPartnerModal();
+                    loadPartners();
+                    loadDashboard();
+                    alert('Partner added successfully!');
+                } else {
+                    const error = await response.json();
+                    alert('Error adding partner: ' + error.error);
+                }
+            } catch (error) {
+                console.error('Error adding partner:', error);
+                alert('Error adding partner');
+            }
+        });
+
+        // Export partners
+        async function exportPartners() {
+            try {
+                const response = await fetch('/api/partners/export');
+                const data = await response.json();
+                
+                // Convert to CSV
+                const csv = convertToCSV(data);
+                downloadCSV(csv, 'partners_export.csv');
+            } catch (error) {
+                console.error('Error exporting partners:', error);
+                alert('Error exporting partners');
+            }
+        }
+
+        function convertToCSV(data) {
+            if (data.length === 0) return '';
+            
+            const headers = Object.keys(data[0]);
+            const csvContent = [
+                headers.join(','),
+                ...data.map(row => headers.map(header => `"${row[header] || ''}"`).join(','))
+            ].join('\n');
+            
+            return csvContent;
+        }
+
+        function downloadCSV(csv, filename) {
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('hidden', '');
+            a.setAttribute('href', url);
+            a.setAttribute('download', filename);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // Placeholder functions for partner actions
+        function viewPartner(id) {
+            alert(`View partner ${id} - Feature coming soon!`);
+        }
+
+        function editPartner(id) {
+            alert(`Edit partner ${id} - Feature coming soon!`);
+        }
+
+        function deletePartner(id) {
+            if (confirm('Are you sure you want to delete this partner?')) {
+                // Implement delete functionality
+                alert(`Delete partner ${id} - Feature coming soon!`);
+            }
+        }
+
+        // Event listeners
+        document.getElementById('searchInput').addEventListener('input', loadPartners);
+        document.getElementById('typeFilter').addEventListener('change', loadPartners);
+        document.getElementById('statusFilter').addEventListener('change', loadPartners);
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDashboard();
+            loadPartners();
+        });
+    </script>
+    
+    <!-- Load Navigation Component -->
+    <script>
+        // Load navigation component
+        fetch('/components/navigation.html')
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('navigation-placeholder').innerHTML = html;
+                // Set active page
+                const activeLink = document.querySelector('a[href*="partners"]');
+                if (activeLink) {
+                    activeLink.classList.add('bg-green-700');
+                }
+            })
+            .catch(error => console.error('Error loading navigation:', error));
+    </script>
+</body>
+</html>
+

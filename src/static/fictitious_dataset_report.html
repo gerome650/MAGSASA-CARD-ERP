@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fictitious Farmers Dataset Report - MAGSASA-CARD ERP</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header .subtitle {
+            color: #7f8c8d;
+            font-size: 1.1em;
+            margin-bottom: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: #3498db;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-card.green { background: #27ae60; }
+        .stat-card.orange { background: #f39c12; }
+        .stat-card.purple { background: #9b59b6; }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            display: block;
+        }
+
+        .content-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .content-section h2 {
+            color: #2c3e50;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .content-section h3 {
+            color: #34495e;
+            font-size: 1.3em;
+            margin: 20px 0 10px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        th {
+            background: #3498db;
+            color: white;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .highlight-box {
+            background: #e8f4fd;
+            border-left: 5px solid #3498db;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .success-box {
+            background: #d4edda;
+            border-left: 5px solid #28a745;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .back-button {
+            display: inline-block;
+            background: #3498db;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 25px;
+            margin-bottom: 20px;
+            transition: background 0.3s;
+        }
+
+        .back-button:hover {
+            background: #2980b9;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .feature-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid #3498db;
+        }
+
+        .feature-card h4 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        ul {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+
+        li {
+            margin-bottom: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-button">← Back to Dashboard</a>
+        
+        <div class="header">
+            <h1>🌾 Fictitious Farmers Dataset Report</h1>
+            <div class="subtitle">
+                <strong>Generated:</strong> September 16, 2025 | 
+                <strong>Total Records:</strong> 2,500 farmers | 
+                <strong>Purpose:</strong> Testing and demonstration of MAGSASA-CARD ERP system scalability
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span class="stat-number">2,500</span>
+                    Total Farmers
+                </div>
+                <div class="stat-card green">
+                    <span class="stat-number">₱8,312</span>
+                    Avg Loan Amount
+                </div>
+                <div class="stat-card orange">
+                    <span class="stat-number">12</span>
+                    Crop Types
+                </div>
+                <div class="stat-card purple">
+                    <span class="stat-number">24</span>
+                    Locations
+                </div>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <h2>📊 Overview</h2>
+            <p>This report provides a comprehensive analysis of the 2,500 fictitious farmer records generated for the MAGSASA-CARD ERP system. All records are clearly marked as <strong>"FICTITIOUS DATA"</strong> to distinguish them from real farmer information.</p>
+            
+            <div class="warning-box">
+                <strong>⚠️ Important:</strong> All data in this dataset is fictitious and generated for testing purposes only. Each record is clearly marked with ".fictitious" email addresses and "FICTITIOUS DATA" notes.
+            </div>
+        </div>
+
+        <div class="content-section">
+            <h2>🌍 Geographic Distribution</h2>
+            <p>The farmers are distributed across major agricultural regions in the Philippines:</p>
+            <ul>
+                <li><strong>Nueva Ecija</strong> - Rice and corn farming regions</li>
+                <li><strong>Pangasinan</strong> - Major rice production area</li>
+                <li><strong>Iloilo & Negros Occidental</strong> - Sugar and rice production</li>
+                <li><strong>Camarines Sur</strong> - Rice and coconut farming</li>
+                <li><strong>Isabela & Cagayan</strong> - Corn and rice production</li>
+                <li><strong>Bukidnon & South Cotabato</strong> - Diverse crop production</li>
+            </ul>
+        </div>
+
+        <div class="content-section">
+            <h2>🌾 Crop Distribution</h2>
+            <p>The dataset includes realistic crop diversity reflecting Philippine agriculture:</p>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Crop</th>
+                        <th>Number of Farmers</th>
+                        <th>Percentage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Rice</td><td>332</td><td>13.3%</td></tr>
+                    <tr><td>Corn</td><td>346</td><td>13.8%</td></tr>
+                    <tr><td>Sugarcane</td><td>345</td><td>13.8%</td></tr>
+                    <tr><td>Banana</td><td>168</td><td>6.7%</td></tr>
+                    <tr><td>Cacao</td><td>174</td><td>7.0%</td></tr>
+                    <tr><td>Cassava</td><td>173</td><td>6.9%</td></tr>
+                    <tr><td>Coconut</td><td>161</td><td>6.4%</td></tr>
+                    <tr><td>Coffee</td><td>165</td><td>6.6%</td></tr>
+                    <tr><td>Mango</td><td>151</td><td>6.0%</td></tr>
+                    <tr><td>Peanut</td><td>173</td><td>6.9%</td></tr>
+                    <tr><td>Soybean</td><td>171</td><td>6.8%</td></tr>
+                    <tr><td>Sweet Potato</td><td>141</td><td>5.6%</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="content-section">
+            <h2>💰 Loan Status Distribution</h2>
+            <p>The farmers have varied loan statuses reflecting real-world scenarios:</p>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Status</th>
+                        <th>Number of Farmers</th>
+                        <th>Percentage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Pending</td><td>2,338</td><td>93.5%</td></tr>
+                    <tr><td>Approved</td><td>45</td><td>1.8%</td></tr>
+                    <tr><td>Under Review</td><td>31</td><td>1.2%</td></tr>
+                    <tr><td>Disbursed</td><td>34</td><td>1.4%</td></tr>
+                    <tr><td>Partially Disbursed</td><td>28</td><td>1.1%</td></tr>
+                    <tr><td>Completed</td><td>24</td><td>1.0%</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="content-section">
+            <h2>📈 Financial Analysis</h2>
+            <div class="highlight-box">
+                <h3>Loan Amount Statistics:</h3>
+                <ul>
+                    <li><strong>Average Loan:</strong> ₱8,312.23</li>
+                    <li><strong>Minimum Loan:</strong> ₱0.00 (new farmers or those not requiring loans)</li>
+                    <li><strong>Maximum Loan:</strong> ₱495,147.80 (large-scale sugarcane operations)</li>
+                </ul>
+            </div>
+
+            <h3>Farm Size Distribution</h3>
+            <ul>
+                <li><strong>Range:</strong> 0.5 to 5.0 hectares</li>
+                <li><strong>Target:</strong> Small to medium-scale farmers (typical CARD MRI demographic)</li>
+                <li><strong>Realistic:</strong> Reflects actual farm sizes in the Philippines</li>
+            </ul>
+
+            <h3>AgScore Distribution</h3>
+            <ul>
+                <li><strong>Excellent (850-950):</strong> 10% of farmers</li>
+                <li><strong>Very Good (750-849):</strong> 20% of farmers</li>
+                <li><strong>Good (650-749):</strong> 35% of farmers</li>
+                <li><strong>Fair (550-649):</strong> 25% of farmers</li>
+                <li><strong>Poor (400-549):</strong> 8% of farmers</li>
+                <li><strong>New (500-600):</strong> 2% of farmers</li>
+            </ul>
+        </div>
+
+        <div class="content-section">
+            <h2>✅ Data Quality Features</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>🏷️ Realistic Names</h4>
+                    <p>Uses authentic Filipino first and last names, reflecting cultural diversity across regions</p>
+                </div>
+                <div class="feature-card">
+                    <h4>📱 Contact Information</h4>
+                    <p>Philippine mobile number formats (0917, 0918, etc.), unique email addresses with ".fictitious" identifier</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🌾 Agricultural Accuracy</h4>
+                    <p>Seasonal crop cycles, realistic fertilizer types and application rates, accurate cost calculations</p>
+                </div>
+                <div class="feature-card">
+                    <h4>📅 Temporal Data</h4>
+                    <p>Registration dates spanning the last 2 years, recent activity dates, realistic farming cycles</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <h2>🧪 System Testing Capabilities</h2>
+            <p>This dataset enables comprehensive testing of:</p>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>📊 Scalability</h4>
+                    <p>2,500 records test system performance at scale</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🔍 Search & Filtering</h4>
+                    <p>Diverse data for testing search functionality</p>
+                </div>
+                <div class="feature-card">
+                    <h4>📈 Reporting</h4>
+                    <p>Rich dataset for analytics and financial reports</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🖥️ User Interface</h4>
+                    <p>Large dataset tests pagination and loading</p>
+                </div>
+                <div class="feature-card">
+                    <h4>📤 Data Export</h4>
+                    <p>Bulk export functionality testing</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🔐 Role-Based Access</h4>
+                    <p>Different user roles accessing varied data</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <h2>🏷️ Identification Markers</h2>
+            <div class="success-box">
+                <p>All fictitious records include:</p>
+                <ul>
+                    <li><strong>Email Suffix:</strong> ".fictitious" in all email addresses</li>
+                    <li><strong>Notes Field:</strong> "FICTITIOUS DATA - Generated for testing purposes"</li>
+                    <li><strong>Crop Details:</strong> Detailed crop and fertilizer information in notes</li>
+                    <li><strong>Clear Labeling:</strong> Easy identification and filtering of test data</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <h2>💡 Usage Recommendations</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>🔧 Development Testing</h4>
+                    <p>Use for feature development and bug testing</p>
+                </div>
+                <div class="feature-card">
+                    <h4>⚡ Performance Testing</h4>
+                    <p>Validate system performance with large datasets</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🎓 User Training</h4>
+                    <p>Provide realistic data for user training sessions</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🎯 Demo Purposes</h4>
+                    <p>Showcase system capabilities to stakeholders</p>
+                </div>
+                <div class="feature-card">
+                    <h4>📊 Load Testing</h4>
+                    <p>Test system behavior under realistic data loads</p>
+                </div>
+                <div class="feature-card">
+                    <h4>🔄 Integration Testing</h4>
+                    <p>Test data flow between different modules</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <h2>🧹 Data Cleanup</h2>
+            <div class="warning-box">
+                <h3>When transitioning to production:</h3>
+                <ol>
+                    <li>Filter by notes containing "FICTITIOUS DATA"</li>
+                    <li>Delete all test records before live deployment</li>
+                    <li>Verify no fictitious data remains in production database</li>
+                    <li>Implement data validation to prevent similar test data entry</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <h2>🎯 Conclusion</h2>
+            <p>This comprehensive dataset provides a robust foundation for testing the MAGSASA-CARD ERP system's capabilities while maintaining clear separation from real farmer data. The varied and realistic nature of the data ensures thorough testing across all system components and use cases.</p>
+            
+            <div class="success-box">
+                <strong>✅ Ready for Production Testing:</strong> The system now has a complete dataset for scalability testing, user training, and stakeholder demonstrations.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add some interactivity
+        document.addEventListener('DOMContentLoaded', function() {
+            // Animate stat cards on load
+            const statCards = document.querySelectorAll('.stat-card');
+            statCards.forEach((card, index) => {
+                setTimeout(() => {
+                    card.style.opacity = '0';
+                    card.style.transform = 'translateY(20px)';
+                    card.style.transition = 'all 0.5s ease';
+                    setTimeout(() => {
+                        card.style.opacity = '1';
+                        card.style.transform = 'translateY(0)';
+                    }, 100);
+                }, index * 100);
+            });
+
+            // Add hover effects to tables
+            const tables = document.querySelectorAll('table');
+            tables.forEach(table => {
+                const rows = table.querySelectorAll('tbody tr');
+                rows.forEach(row => {
+                    row.addEventListener('mouseenter', function() {
+                        this.style.backgroundColor = '#e3f2fd';
+                    });
+                    row.addEventListener('mouseleave', function() {
+                        this.style.backgroundColor = '';
+                    });
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+

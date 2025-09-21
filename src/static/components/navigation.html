@@ -1,0 +1,511 @@
+<!-- MAGSASA-CARD ERP Navigation Component -->
+<nav class="navbar" id="navbar">
+    <div class="nav-container">
+        <!-- Logo and Brand -->
+        <div class="nav-brand">
+            <span class="nav-logo">🌾</span>
+            <span class="nav-title">MAGSASA-CARD ERP</span>
+        </div>
+
+        <!-- Desktop Navigation Menu -->
+        <div class="nav-menu" id="navMenu">
+            <a href="/" class="nav-link" data-page="dashboard">
+                <span class="nav-icon">🏠</span>
+                <span class="nav-text">Dashboard</span>
+            </a>
+            <a href="/farmers.html" class="nav-link" data-page="farmers">
+                <span class="nav-icon">👨‍🌾</span>
+                <span class="nav-text">Farmers</span>
+            </a>
+            <a href="/products.html" class="nav-link" data-page="products">
+                <span class="nav-icon">🌱</span>
+                <span class="nav-text">Products</span>
+            </a>
+            <a href="/orders.html" class="nav-link" data-page="orders">
+                <span class="nav-icon">📦</span>
+                <span class="nav-text">Orders</span>
+            </a>
+            <a href="/partnerships.html" class="nav-link" data-page="partnerships">
+                <span class="nav-icon">🤝</span>
+                <span class="nav-text">Partners</span>
+            </a>
+            <a href="/financial_reports.html" class="nav-link" data-page="reports">
+                <span class="nav-icon">💰</span>
+                <span class="nav-text">Reports</span>
+            </a>
+            <a href="/fictitious_dataset_report.html" class="nav-link" data-page="dataset">
+                <span class="nav-icon">📋</span>
+                <span class="nav-text">Dataset</span>
+            </a>
+            
+            <!-- Mobile-only logout button -->
+            <div class="mobile-logout-section">
+                <hr class="mobile-divider">
+                <a href="#" class="nav-link mobile-logout" onclick="logout()">
+                    <span class="nav-icon">🚪</span>
+                    <span class="nav-text">Logout</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- User Menu -->
+        <div class="nav-user">
+            <div class="user-info" onclick="toggleUserMenu()">
+                <span class="user-avatar">👤</span>
+                <span class="user-name" id="userName">Admin</span>
+                <span class="user-dropdown">▼</span>
+            </div>
+            <div class="user-menu" id="userMenu">
+                <a href="#" class="user-menu-item">
+                    <span class="user-menu-icon">⚙️</span>
+                    Settings
+                </a>
+                <a href="#" class="user-menu-item">
+                    <span class="user-menu-icon">👤</span>
+                    Profile
+                </a>
+                <hr class="user-menu-divider">
+                <a href="#" class="user-menu-item" onclick="logout()">
+                    <span class="user-menu-icon">🚪</span>
+                    Logout
+                </a>
+            </div>
+        </div>
+
+        <!-- Mobile Hamburger Button -->
+        <div class="nav-hamburger" id="navHamburger" onclick="toggleMobileMenu()">
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+        </div>
+    </div>
+
+    <!-- Mobile Menu Overlay -->
+    <div class="mobile-menu-overlay" id="mobileMenuOverlay" onclick="closeMobileMenu()"></div>
+</nav>
+
+<style>
+/* Navigation Styles */
+.navbar {
+    background: #000000;
+    color: white;
+    padding: 0;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.nav-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    height: 60px;
+}
+
+.nav-brand {
+    display: flex;
+    align-items: center;
+    font-weight: 700;
+    font-size: 1.2rem;
+    text-decoration: none;
+    color: white;
+}
+
+.nav-logo {
+    font-size: 1.5rem;
+    margin-right: 10px;
+}
+
+.nav-title {
+    font-size: 1.2rem;
+}
+
+.nav-menu {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.nav-link {
+    display: flex;
+    align-items: center;
+    padding: 8px 15px;
+    color: rgba(255, 255, 255, 0.9);
+    text-decoration: none;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.nav-link:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    transform: translateY(-1px);
+}
+
+.nav-link.active {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.nav-icon {
+    margin-right: 8px;
+    font-size: 1.1rem;
+}
+
+.nav-text {
+    font-size: 0.9rem;
+}
+
+/* Mobile logout section - hidden on desktop */
+.mobile-logout-section {
+    display: none;
+}
+
+/* User Menu */
+.nav-user {
+    position: relative;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.user-info:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.user-avatar {
+    margin-right: 8px;
+    font-size: 1.2rem;
+}
+
+.user-name {
+    margin-right: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.user-dropdown {
+    font-size: 0.7rem;
+    transition: transform 0.3s ease;
+}
+
+.user-dropdown.open {
+    transform: rotate(180deg);
+}
+
+.user-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+    min-width: 180px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+    margin-top: 10px;
+}
+
+.user-menu.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.user-menu-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    color: #333;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: background 0.3s ease;
+}
+
+.user-menu-item:hover {
+    background: #f8f9fa;
+}
+
+.user-menu-icon {
+    margin-right: 10px;
+    font-size: 1rem;
+}
+
+.user-menu-divider {
+    margin: 5px 0;
+    border: none;
+    border-top: 1px solid #e9ecef;
+}
+
+/* Mobile Hamburger */
+.nav-hamburger {
+    display: none;
+    flex-direction: column;
+    cursor: pointer;
+    padding: 5px;
+}
+
+.hamburger-line {
+    width: 25px;
+    height: 3px;
+    background: white;
+    margin: 3px 0;
+    transition: all 0.3s ease;
+    border-radius: 2px;
+}
+
+.nav-hamburger.open .hamburger-line:nth-child(1) {
+    transform: rotate(45deg) translate(5px, 5px);
+}
+
+.nav-hamburger.open .hamburger-line:nth-child(2) {
+    opacity: 0;
+}
+
+.nav-hamburger.open .hamburger-line:nth-child(3) {
+    transform: rotate(-45deg) translate(7px, -6px);
+}
+
+/* Mobile Menu Overlay */
+.mobile-menu-overlay {
+    display: none;
+    position: fixed;
+    top: 60px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+}
+
+.mobile-menu-overlay.open {
+    display: block;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .nav-menu {
+        position: fixed;
+        top: 60px;
+        left: -100%;
+        width: 280px;
+        height: calc(100vh - 60px);
+        background: #000000;
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 20px 0;
+        transition: left 0.3s ease;
+        overflow-y: auto;
+        gap: 0;
+    }
+
+    .nav-menu.open {
+        left: 0;
+    }
+
+    .nav-link {
+        width: 100%;
+        padding: 15px 25px;
+        border-radius: 0;
+        justify-content: flex-start;
+    }
+
+    .nav-link:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: none;
+    }
+
+    .nav-hamburger {
+        display: flex;
+    }
+
+    .nav-user {
+        display: none;
+    }
+
+    .nav-text {
+        font-size: 1rem;
+    }
+
+    .nav-icon {
+        font-size: 1.3rem;
+        margin-right: 15px;
+    }
+
+    /* Mobile logout section */
+    .mobile-logout-section {
+        display: block;
+        width: 100%;
+        margin-top: 20px;
+    }
+
+    .mobile-divider {
+        margin: 15px 25px;
+        border: none;
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .mobile-logout {
+        color: #ff6b6b !important;
+    }
+
+    .mobile-logout:hover {
+        background: rgba(255, 107, 107, 0.1) !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .nav-container {
+        padding: 0 15px;
+    }
+
+    .nav-title {
+        display: none;
+    }
+
+    .nav-menu {
+        width: 100%;
+    }
+}
+
+/* Page Content Spacing */
+body {
+    padding-top: 60px;
+}
+</style>
+
+<script>
+// Navigation JavaScript
+function toggleMobileMenu() {
+    const navMenu = document.getElementById('navMenu');
+    const navHamburger = document.getElementById('navHamburger');
+    const mobileOverlay = document.getElementById('mobileMenuOverlay');
+    
+    navMenu.classList.toggle('open');
+    navHamburger.classList.toggle('open');
+    mobileOverlay.classList.toggle('open');
+    
+    // Prevent body scroll when menu is open
+    if (navMenu.classList.contains('open')) {
+        document.body.style.overflow = 'hidden';
+    } else {
+        document.body.style.overflow = '';
+    }
+}
+
+function closeMobileMenu() {
+    const navMenu = document.getElementById('navMenu');
+    const navHamburger = document.getElementById('navHamburger');
+    const mobileOverlay = document.getElementById('mobileMenuOverlay');
+    
+    navMenu.classList.remove('open');
+    navHamburger.classList.remove('open');
+    mobileOverlay.classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+function toggleUserMenu() {
+    const userMenu = document.getElementById('userMenu');
+    const userDropdown = document.querySelector('.user-dropdown');
+    
+    userMenu.classList.toggle('open');
+    userDropdown.classList.toggle('open');
+}
+
+async function logout() {
+    try {
+        // Call server logout API to clear server-side session
+        const response = await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include' // Include session cookies
+        });
+        
+        const data = await response.json();
+        console.log('Logout response:', data);
+        
+    } catch (error) {
+        console.error('Logout API error:', error);
+        // Continue with logout even if API call fails
+    }
+    
+    // Clear client-side session data
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    sessionStorage.clear();
+    localStorage.clear();
+    
+    // Redirect to login page
+    window.location.href = '/login.html';
+}
+
+// Set active navigation item based on current page
+function setActiveNavItem() {
+    const currentPath = window.location.pathname;
+    const navLinks = document.querySelectorAll('.nav-link');
+    
+    navLinks.forEach(link => {
+        link.classList.remove('active');
+        const href = link.getAttribute('href');
+        
+        if (currentPath === '/' && href === '/') {
+            link.classList.add('active');
+        } else if (currentPath !== '/' && href !== '/' && currentPath.includes(href.replace('.html', ''))) {
+            link.classList.add('active');
+        }
+    });
+}
+
+// Load user info
+function loadUserInfo() {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const userName = document.getElementById('userName');
+    
+    if (user.username) {
+        userName.textContent = user.username;
+    }
+}
+
+// Close user menu when clicking outside
+document.addEventListener('click', function(event) {
+    const userMenu = document.getElementById('userMenu');
+    const userInfo = document.querySelector('.user-info');
+    
+    if (userMenu && !userInfo.contains(event.target)) {
+        userMenu.classList.remove('open');
+        document.querySelector('.user-dropdown').classList.remove('open');
+    }
+});
+
+// Initialize navigation
+document.addEventListener('DOMContentLoaded', function() {
+    setActiveNavItem();
+    loadUserInfo();
+});
+
+// Close mobile menu when window is resized to desktop
+window.addEventListener('resize', function() {
+    if (window.innerWidth > 768) {
+        closeMobileMenu();
+    }
+});
+</script>
+

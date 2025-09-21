@@ -1,0 +1,1814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAGSASA-CARD ERP - Manager Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-green: #28a745;
+            --dark-green: #1e7e34;
+            --light-green: #d4edda;
+            --accent-blue: #007bff;
+            --warning-orange: #fd7e14;
+            --danger-red: #dc3545;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+        }
+
+        .navbar {
+            background-color: #000 !important;
+            padding: 1rem 0;
+        }
+
+        .navbar-brand {
+            color: white !important;
+            font-weight: bold;
+            font-size: 1.5rem;
+        }
+
+        .navbar-nav .nav-link {
+            color: white !important;
+            margin: 0 1rem;
+            font-weight: 500;
+        }
+
+        .navbar-nav .nav-link:hover {
+            color: var(--primary-green) !important;
+        }
+
+        .main-content {
+            padding: 2rem 0;
+        }
+
+        .welcome-section {
+            background: linear-gradient(135deg, var(--primary-green), var(--dark-green));
+            color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+        }
+
+        .kpi-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+            transition: transform 0.2s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .kpi-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--primary-green);
+        }
+
+        .kpi-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+        }
+
+        .action-btn {
+            background: var(--primary-green);
+            color: white;
+            border: none;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s;
+            margin: 0.5rem;
+        }
+
+        .action-btn:hover {
+            background: var(--dark-green);
+            transform: translateY(-1px);
+        }
+
+        .action-btn.secondary {
+            background: var(--accent-blue);
+        }
+
+        .action-btn.warning {
+            background: var(--warning-orange);
+        }
+
+        .action-btn.danger {
+            background: var(--danger-red);
+        }
+
+        .team-performance {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .officer-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .officer-name {
+            font-weight: 500;
+        }
+
+        .performance-badge {
+            background: var(--light-green);
+            color: var(--dark-green);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+        }
+
+        .chart-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        /* Chat Interface Styles */
+        .chat-messages {
+            background: #f8f9fa;
+        }
+
+        .message {
+            display: flex;
+            margin-bottom: 15px;
+            align-items: flex-start;
+        }
+
+        .message-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            font-size: 14px;
+        }
+
+        .bot-message .message-avatar {
+            background: var(--primary-green);
+            color: white;
+        }
+
+        .user-message {
+            flex-direction: row-reverse;
+        }
+
+        .user-message .message-avatar {
+            background: #007bff;
+            color: white;
+            margin-right: 0;
+            margin-left: 10px;
+        }
+
+        .message-content {
+            background: white;
+            padding: 12px 15px;
+            border-radius: 15px;
+            max-width: 70%;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .user-message .message-content {
+            background: var(--primary-green);
+            color: white;
+        }
+
+        .message-content p {
+            margin: 0;
+            line-height: 1.4;
+        }
+
+        .typing {
+            opacity: 0.7;
+        }
+
+        .avatar-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--primary-green);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .kpi-number {
+                font-size: 2rem;
+            }
+            
+            .action-btn {
+                width: 100%;
+                margin: 0.25rem 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-seedling me-2"></i>MAGSASA-CARD
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" style="border: 1px solid white;">
+                <span style="color: white; font-size: 1.2rem;">
+                    <i class="fas fa-bars"></i>
+                </span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#"><i class="fas fa-tachometer-alt me-1"></i>Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showBranchesSection()"><i class="fas fa-users me-1"></i>Branches</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/manager_reports.html"><i class="fas fa-chart-line me-1"></i>Reports</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="showTeamSection()"><i class="fas fa-user-tie me-1"></i>Team</a>
+                    </li>
+                    <!-- Mobile-only logout button -->
+                    <li class="nav-item d-lg-none">
+                        <hr class="dropdown-divider my-2">
+                        <a class="nav-link text-danger" href="/login.html" onclick="logout()">
+                            <i class="fas fa-sign-out-alt me-1"></i>Logout
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle me-1"></i>Manager
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" onclick="showProfileSection()"><i class="fas fa-user me-2"></i>Profile</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="showSettingsSection()"><i class="fas fa-cog me-2"></i>Settings</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" onclick="logout()"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container main-content">
+        <!-- Welcome Section -->
+        <div class="welcome-section">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h2><i class="fas fa-sun me-2"></i>Good morning, Manager</h2>
+                    <p class="mb-0">Here's your regional performance overview and team management dashboard</p>
+                    <small><i class="fas fa-calendar me-1"></i>September 17, 2025 | Last updated: Just now</small>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button class="btn btn-light btn-lg" onclick="scrollToKaAni()">
+                        💬 Agricultural Advisor
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="row">
+            <div class="col-md-3">
+                <div class="kpi-card text-center">
+                    <div class="kpi-number">1,250</div>
+                    <div class="kpi-label">Total Farmers Managed</div>
+                    <small class="text-success"><i class="fas fa-arrow-up me-1"></i>+12% this month</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="kpi-card text-center">
+                    <div class="kpi-number">₱45.2M</div>
+                    <div class="kpi-label">Active Loans</div>
+                    <small class="text-success"><i class="fas fa-arrow-up me-1"></i>+8% this month</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="kpi-card text-center">
+                    <div class="kpi-number">87%</div>
+                    <div class="kpi-label">Approval Rate</div>
+                    <small class="text-success"><i class="fas fa-arrow-up me-1"></i>+3% this month</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="kpi-card text-center">
+                    <div class="kpi-number">2.1%</div>
+                    <div class="kpi-label">Default Rate</div>
+                    <small class="text-danger"><i class="fas fa-arrow-down me-1"></i>-0.5% this month</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Management Actions -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="chart-container">
+                    <h5 class="chart-title"><i class="fas fa-tasks me-2"></i>Management Actions</h5>
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <button class="action-btn w-100">
+                                <i class="fas fa-check-circle me-2"></i>Approve Loans
+                                <div class="small mt-1">12 pending</div>
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="action-btn secondary w-100">
+                                <i class="fas fa-file-alt me-2"></i>Review Applications
+                                <div class="small mt-1">8 new</div>
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="action-btn warning w-100">
+                                <i class="fas fa-chart-bar me-2"></i>Generate Reports
+                                <div class="small mt-1">Monthly due</div>
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="action-btn danger w-100">
+                                <i class="fas fa-users-cog me-2"></i>Manage Officers
+                                <div class="small mt-1">5 active</div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KaAni Agricultural Advisor for Field Officers -->
+        <div class="row mb-4" id="kaani-section">
+            <div class="col-12">
+                <div class="chart-container">
+                    <h5 class="chart-title">
+                        <i class="fas fa-robot me-2"></i>🌾 KaAni Agricultural Advisor - Field Assessment Tool
+                    </h5>
+                    <p class="text-muted mb-3">Professional agricultural assessment and loan evaluation support</p>
+                    
+                    <!-- Quick Assessment Tools -->
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <button onclick="openKaAniManager('field-assessment')" class="btn btn-outline-success w-100 mb-2">
+                                <i class="fas fa-search me-1"></i> Field Assessment
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <button onclick="openKaAniManager('agscore-calculation')" class="btn btn-outline-primary w-100 mb-2">
+                                <i class="fas fa-calculator me-1"></i> AgScore Analysis
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <button onclick="openKaAniManager('risk-evaluation')" class="btn btn-outline-warning w-100 mb-2">
+                                <i class="fas fa-exclamation-triangle me-1"></i> Risk Evaluation
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <button onclick="openKaAniManager('loan-recommendation')" class="btn btn-outline-info w-100 mb-2">
+                                <i class="fas fa-file-alt me-1"></i> Loan Recommendation
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- KaAni Interface -->
+                         <!-- KaAni Interface -->
+                    <div id="kaani-manager-chat" class="d-none">
+                        <div class="card border-success">
+                            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fas fa-robot me-2"></i>
+                                    <h5 class="fw-bold mb-0">KaAni - Field Assessment Advisor</h5>
+                                    <small>Professional agricultural assessment and loan evaluation support</small>
+                                </div>
+                                <div>
+                                    <button onclick="closeKaAniManager()" class="btn btn-outline-light btn-sm">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body p-0">
+                                <!-- Chat Messages -->
+                                <div id="kaani-manager-messages" class="chat-messages" style="height: 400px; overflow-y: auto; padding: 15px;">
+                                    <div class="message bot-message">
+                                        <div class="message-avatar">
+                                            <i class="fas fa-robot"></i>
+                                        </div>
+                                        <div class="message-content">
+                                            <strong>KaAni Agricultural Advisor</strong>
+                                            <p>Hello! I'm KaAni, your professional agricultural assessment tool. I'm here to help you with field evaluations, AgScore calculations, risk assessments, and loan recommendations. What would you like to analyze today?</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Chat Input -->
+                                <div class="chat-input-container" style="border-top: 1px solid #dee2e6; padding: 15px;">
+                                    <div class="input-group">
+                                        <input type="text" id="kaani-manager-input" class="form-control" 
+                                               placeholder="Ask about field assessment, AgScore calculation, risk evaluation..." 
+                                               onkeypress="if(event.key==='Enter') sendKaAniManagerMessage()">
+                                        <button class="btn btn-success" onclick="sendKaAniManagerMessage()">
+                                            <i class="fas fa-paper-plane"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>       </div>
+                    
+                    <!-- Open KaAni Button -->
+                    <div id="kaani-manager-open-btn" class="text-center">
+                        <button onclick="openKaAniManager('general')" class="btn btn-success btn-lg">
+                            <i class="fas fa-comments me-2"></i> Open Agricultural Advisor
+                        </button>
+                        <p class="text-muted mt-2 mb-0">
+                            <small>💡 Get professional agricultural assessment and loan evaluation support</small>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h5 class="chart-title"><i class="fas fa-chart-bar me-2"></i>Regional Performance Overview</h5>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="regionalChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h5 class="chart-title"><i class="fas fa-chart-line me-2"></i>Financial Summary</h5>
+                    <div style="position: relative; height: 300px; width: 100%;">
+                        <canvas id="financialChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Team Performance -->
+        <div class="row">
+            <div class="col-md-8">
+                <div class="team-performance">
+                    <h5 class="chart-title"><i class="fas fa-user-friends me-2"></i>Team Performance</h5>
+                    <div class="officer-row">
+                        <div>
+                            <div class="officer-name">Garcia, Juan</div>
+                            <small class="text-muted">Senior Loan Officer</small>
+                        </div>
+                        <div class="text-center">
+                            <div class="fw-bold">215</div>
+                            <small class="text-muted">Loans Approved</small>
+                        </div>
+                        <div class="text-center">
+                            <div class="fw-bold">487</div>
+                            <small class="text-muted">Farmers Managed</small>
+                        </div>
+                        <div>
+                            <span class="performance-badge">Excellent</span>
+                        </div>
+                    </div>
+                    <div class="officer-row">
+                        <div>
+                            <div class="officer-name">Perez, Maria</div>
+                            <small class="text-muted">Loan Officer</small>
+                        </div>
+                        <div class="text-center">
+                            <div class="fw-bold">187</div>
+                            <small class="text-muted">Loans Approved</small>
+                        </div>
+                        <div class="text-center">
+                            <div class="fw-bold">376</div>
+                            <small class="text-muted">Farmers Managed</small>
+                        </div>
+                        <div>
+                            <span class="performance-badge">Good</span>
+                        </div>
+                    </div>
+                    <div class="officer-row">
+                        <div>
+                            <div class="officer-name">Santos, Carlos</div>
+                            <small class="text-muted">Junior Loan Officer</small>
+                        </div>
+                        <div class="text-center">
+                            <div class="fw-bold">176</div>
+                            <small class="text-muted">Loans Approved</small>
+                        </div>
+                        <div class="text-center">
+                            <div class="fw-bold">265</div>
+                            <small class="text-muted">Farmers Managed</small>
+                        </div>
+                        <div>
+                            <span class="performance-badge">Good</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="chart-container">
+                    <h5 class="chart-title"><i class="fas fa-bullseye me-2"></i>Monthly Targets</h5>
+                    <div style="position: relative; height: 250px; width: 100%;">
+                        <canvas id="targetChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Branches Section (Hidden by default) -->
+        <div class="row d-none" id="branches-section">
+            <div class="col-12">
+                <div class="chart-container">
+                    <h5 class="chart-title"><i class="fas fa-building me-2"></i>Branch Management</h5>
+                    <p class="text-muted mb-3">Manage branch operations and performance across your region</p>
+                    
+                    <!-- Branch Overview Cards -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="kpi-card text-center">
+                                <div class="kpi-number">8</div>
+                                <div class="kpi-label">Active Branches</div>
+                                <small class="text-success"><i class="fas fa-arrow-up me-1"></i>+1 this quarter</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="kpi-card text-center">
+                                <div class="kpi-number">156</div>
+                                <div class="kpi-label">Total Officers</div>
+                                <small class="text-success"><i class="fas fa-arrow-up me-1"></i>+12 this month</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="kpi-card text-center">
+                                <div class="kpi-number">₱127.5M</div>
+                                <div class="kpi-label">Total Portfolio</div>
+                                <small class="text-success"><i class="fas fa-arrow-up me-1"></i>+15% this quarter</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="kpi-card text-center">
+                                <div class="kpi-number">94.2%</div>
+                                <div class="kpi-label">Collection Rate</div>
+                                <small class="text-success"><i class="fas fa-arrow-up me-1"></i>+2.1% this month</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Branch List -->
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-success">
+                                <tr>
+                                    <th>Branch Name</th>
+                                    <th>Location</th>
+                                    <th>Officers</th>
+                                    <th>Active Loans</th>
+                                    <th>Portfolio Value</th>
+                                    <th>Collection Rate</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Laguna Branch</strong></td>
+                                    <td>Los Baños, Laguna</td>
+                                    <td>23</td>
+                                    <td>342</td>
+                                    <td>₱18.5M</td>
+                                    <td><span class="badge bg-success">96.8%</span></td>
+                                    <td><span class="badge bg-success">Active</span></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary">View</button>
+                                        <button class="btn btn-sm btn-outline-secondary">Reports</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Batangas Branch</strong></td>
+                                    <td>Lipa City, Batangas</td>
+                                    <td>19</td>
+                                    <td>287</td>
+                                    <td>₱15.2M</td>
+                                    <td><span class="badge bg-success">94.5%</span></td>
+                                    <td><span class="badge bg-success">Active</span></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary">View</button>
+                                        <button class="btn btn-sm btn-outline-secondary">Reports</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Quezon Branch</strong></td>
+                                    <td>Lucena City, Quezon</td>
+                                    <td>21</td>
+                                    <td>298</td>
+                                    <td>₱16.8M</td>
+                                    <td><span class="badge bg-warning">89.2%</span></td>
+                                    <td><span class="badge bg-success">Active</span></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary">View</button>
+                                        <button class="btn btn-sm btn-outline-secondary">Reports</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Cavite Branch</strong></td>
+                                    <td>Dasmariñas, Cavite</td>
+                                    <td>18</td>
+                                    <td>256</td>
+                                    <td>₱14.1M</td>
+                                    <td><span class="badge bg-success">95.7%</span></td>
+                                    <td><span class="badge bg-success">Active</span></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary">View</button>
+                                        <button class="btn btn-sm btn-outline-secondary">Reports</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Rizal Branch</strong></td>
+                                    <td>Antipolo City, Rizal</td>
+                                    <td>16</td>
+                                    <td>198</td>
+                                    <td>₱11.3M</td>
+                                    <td><span class="badge bg-success">93.1%</span></td>
+                                    <td><span class="badge bg-success">Active</span></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary">View</button>
+                                        <button class="btn btn-sm btn-outline-secondary">Reports</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Back to Dashboard Button -->
+                    <div class="text-center mt-4">
+                        <button onclick="showDashboardSection()" class="btn btn-success">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Team Section (Hidden by default) -->
+        <div class="row d-none" id="team-section">
+            <div class="col-12">
+                <div class="chart-container">
+                    <h5 class="chart-title"><i class="fas fa-user-tie me-2"></i>Team Management</h5>
+                    <p class="text-muted mb-3">Manage your team members, performance tracking, and organizational structure</p>
+                    
+                    <!-- Team Overview Cards -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="kpi-card text-center">
+                                <div class="kpi-number">23</div>
+                                <div class="kpi-label">Total Team Members</div>
+                                <small class="text-success"><i class="fas fa-arrow-up me-1"></i>+3 this month</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="kpi-card text-center">
+                                <div class="kpi-number">18</div>
+                                <div class="kpi-label">Loan Officers</div>
+                                <small class="text-success"><i class="fas fa-arrow-up me-1"></i>+2 this month</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="kpi-card text-center">
+                                <div class="kpi-number">5</div>
+                                <div class="kpi-label">Field Officers</div>
+                                <small class="text-success"><i class="fas fa-arrow-up me-1"></i>+1 this month</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="kpi-card text-center">
+                                <div class="kpi-number">92.5%</div>
+                                <div class="kpi-label">Team Performance</div>
+                                <small class="text-success"><i class="fas fa-arrow-up me-1"></i>+4.2% this month</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Team Performance Tabs -->
+                    <ul class="nav nav-tabs mb-3" id="teamTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="officers-tab" data-bs-toggle="tab" data-bs-target="#officers" type="button" role="tab">
+                                <i class="fas fa-user-tie me-1"></i>Loan Officers
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="field-tab" data-bs-toggle="tab" data-bs-target="#field" type="button" role="tab">
+                                <i class="fas fa-user-check me-1"></i>Field Officers
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="performance-tab" data-bs-toggle="tab" data-bs-target="#performance" type="button" role="tab">
+                                <i class="fas fa-chart-line me-1"></i>Performance Metrics
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Tab Content -->
+                    <div class="tab-content" id="teamTabContent">
+                        <!-- Loan Officers Tab -->
+                        <div class="tab-pane fade show active" id="officers" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-success">
+                                        <tr>
+                                            <th>Officer Name</th>
+                                            <th>Position</th>
+                                            <th>Branch</th>
+                                            <th>Loans Managed</th>
+                                            <th>Portfolio Value</th>
+                                            <th>Performance</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="avatar-circle me-2">JG</div>
+                                                    <strong>Garcia, Juan</strong>
+                                                </div>
+                                            </td>
+                                            <td>Senior Loan Officer</td>
+                                            <td>Laguna Branch</td>
+                                            <td>215</td>
+                                            <td>₱18.5M</td>
+                                            <td><span class="badge bg-success">Excellent</span></td>
+                                            <td><span class="badge bg-success">Active</span></td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary">Profile</button>
+                                                <button class="btn btn-sm btn-outline-secondary">Reports</button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="avatar-circle me-2">MP</div>
+                                                    <strong>Perez, Maria</strong>
+                                                </div>
+                                            </td>
+                                            <td>Loan Officer</td>
+                                            <td>Batangas Branch</td>
+                                            <td>187</td>
+                                            <td>₱15.2M</td>
+                                            <td><span class="badge bg-primary">Good</span></td>
+                                            <td><span class="badge bg-success">Active</span></td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary">Profile</button>
+                                                <button class="btn btn-sm btn-outline-secondary">Reports</button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="avatar-circle me-2">CS</div>
+                                                    <strong>Santos, Carlos</strong>
+                                                </div>
+                                            </td>
+                                            <td>Junior Loan Officer</td>
+                                            <td>Quezon Branch</td>
+                                            <td>176</td>
+                                            <td>₱14.1M</td>
+                                            <td><span class="badge bg-primary">Good</span></td>
+                                            <td><span class="badge bg-success">Active</span></td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary">Profile</button>
+                                                <button class="btn btn-sm btn-outline-secondary">Reports</button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="avatar-circle me-2">AR</div>
+                                                    <strong>Reyes, Ana</strong>
+                                                </div>
+                                            </td>
+                                            <td>Loan Officer</td>
+                                            <td>Cavite Branch</td>
+                                            <td>156</td>
+                                            <td>₱12.8M</td>
+                                            <td><span class="badge bg-warning">Improving</span></td>
+                                            <td><span class="badge bg-success">Active</span></td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary">Profile</button>
+                                                <button class="btn btn-sm btn-outline-secondary">Reports</button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Field Officers Tab -->
+                        <div class="tab-pane fade" id="field" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-success">
+                                        <tr>
+                                            <th>Officer Name</th>
+                                            <th>Position</th>
+                                            <th>Coverage Area</th>
+                                            <th>Farmers Visited</th>
+                                            <th>Assessments</th>
+                                            <th>Performance</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="avatar-circle me-2">RT</div>
+                                                    <strong>Torres, Roberto</strong>
+                                                </div>
+                                            </td>
+                                            <td>Senior Field Officer</td>
+                                            <td>Laguna Region</td>
+                                            <td>342</td>
+                                            <td>89</td>
+                                            <td><span class="badge bg-success">Excellent</span></td>
+                                            <td><span class="badge bg-success">Active</span></td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary">Profile</button>
+                                                <button class="btn btn-sm btn-outline-secondary">Schedule</button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="avatar-circle me-2">LV</div>
+                                                    <strong>Villanueva, Lisa</strong>
+                                                </div>
+                                            </td>
+                                            <td>Field Officer</td>
+                                            <td>Batangas Region</td>
+                                            <td>287</td>
+                                            <td>76</td>
+                                            <td><span class="badge bg-primary">Good</span></td>
+                                            <td><span class="badge bg-success">Active</span></td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary">Profile</button>
+                                                <button class="btn btn-sm btn-outline-secondary">Schedule</button>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="avatar-circle me-2">MD</div>
+                                                    <strong>Dela Cruz, Miguel</strong>
+                                                </div>
+                                            </td>
+                                            <td>Field Officer</td>
+                                            <td>Quezon Region</td>
+                                            <td>298</td>
+                                            <td>82</td>
+                                            <td><span class="badge bg-primary">Good</span></td>
+                                            <td><span class="badge bg-success">Active</span></td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary">Profile</button>
+                                                <button class="btn btn-sm btn-outline-secondary">Schedule</button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Performance Metrics Tab -->
+                        <div class="tab-pane fade" id="performance" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h6 class="mb-0"><i class="fas fa-trophy me-2"></i>Top Performers This Month</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span>1. Garcia, Juan</span>
+                                                <span class="badge bg-success">98.5%</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span>2. Torres, Roberto</span>
+                                                <span class="badge bg-success">96.2%</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span>3. Perez, Maria</span>
+                                                <span class="badge bg-primary">94.8%</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <span>4. Dela Cruz, Miguel</span>
+                                                <span class="badge bg-primary">92.1%</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span>5. Villanueva, Lisa</span>
+                                                <span class="badge bg-primary">90.7%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Team Metrics</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <div class="d-flex justify-content-between">
+                                                    <span>Average Performance</span>
+                                                    <span>92.5%</span>
+                                                </div>
+                                                <div class="progress">
+                                                    <div class="progress-bar bg-success" style="width: 92.5%"></div>
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <div class="d-flex justify-content-between">
+                                                    <span>Loan Approval Rate</span>
+                                                    <span>87%</span>
+                                                </div>
+                                                <div class="progress">
+                                                    <div class="progress-bar bg-primary" style="width: 87%"></div>
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <div class="d-flex justify-content-between">
+                                                    <span>Collection Efficiency</span>
+                                                    <span>94.2%</span>
+                                                </div>
+                                                <div class="progress">
+                                                    <div class="progress-bar bg-success" style="width: 94.2%"></div>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div class="d-flex justify-content-between">
+                                                    <span>Field Visit Completion</span>
+                                                    <span>89.3%</span>
+                                                </div>
+                                                <div class="progress">
+                                                    <div class="progress-bar bg-warning" style="width: 89.3%"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Back to Dashboard Button -->
+                    <div class="text-center mt-4">
+                        <button onclick="showDashboardSection()" class="btn btn-success">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Section (Hidden by default) -->
+        <div class="row d-none" id="profile-section">
+            <div class="col-12">
+                <div class="chart-container">
+                    <h5 class="chart-title"><i class="fas fa-user me-2"></i>Manager Profile</h5>
+                    <p class="text-muted mb-4">Manage your personal information and account details</p>
+                    
+                    <!-- Profile Header -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <div class="avatar-circle mx-auto mb-3" style="width: 100px; height: 100px; font-size: 2.5rem;">
+                                        MG
+                                    </div>
+                                    <h4>Maria Elena Garcia</h4>
+                                    <p class="text-muted mb-2">Regional Manager - CALABARZON</p>
+                                    <span class="badge bg-success mb-2">Active</span>
+                                    <div class="mt-3">
+                                        <button class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-camera me-1"></i>Change Photo
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Personal Information</h6>
+                                    <button class="btn btn-outline-secondary btn-sm">
+                                        <i class="fas fa-edit me-1"></i>Edit Profile
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label"><strong>Full Name</strong></label>
+                                            <input type="text" class="form-control" value="Maria Elena Garcia" readonly>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label"><strong>Employee ID</strong></label>
+                                            <input type="text" class="form-control" value="CARD-MGR-001" readonly>
+                                        </div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label"><strong>Email Address</strong></label>
+                                            <input type="email" class="form-control" value="maria.garcia@cardmri.com">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label"><strong>Mobile Number</strong></label>
+                                            <input type="text" class="form-control" value="+63 917 123 4567">
+                                        </div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label"><strong>Office Phone</strong></label>
+                                            <input type="text" class="form-control" value="+63 49 545 1234">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label"><strong>Emergency Contact</strong></label>
+                                            <input type="text" class="form-control" value="+63 917 987 6543">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Professional Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-briefcase me-2"></i>Professional Details</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Position</strong></label>
+                                        <input type="text" class="form-control" value="Regional Manager" readonly>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Department</strong></label>
+                                        <input type="text" class="form-control" value="Agricultural Lending Operations" readonly>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Region Coverage</strong></label>
+                                        <input type="text" class="form-control" value="CALABARZON (Cavite, Laguna, Batangas, Rizal, Quezon)" readonly>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Reporting Manager</strong></label>
+                                        <input type="text" class="form-control" value="Dr. Jaime Aristotle Alip - Executive Director" readonly>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Date Hired</strong></label>
+                                        <input type="text" class="form-control" value="January 15, 2020" readonly>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Years of Service</strong></label>
+                                        <input type="text" class="form-control" value="5 years, 8 months" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-graduation-cap me-2"></i>Education & Certifications</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Highest Education</strong></label>
+                                        <input type="text" class="form-control" value="Master of Business Administration (MBA)" readonly>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>University</strong></label>
+                                        <input type="text" class="form-control" value="University of the Philippines Los Baños" readonly>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Bachelor's Degree</strong></label>
+                                        <input type="text" class="form-control" value="BS Agricultural Economics" readonly>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Professional Licenses</strong></label>
+                                        <textarea class="form-control" rows="3" readonly>• Certified Agricultural Credit Specialist (CACS)
+• Licensed Cooperative Development Specialist
+• Certified Microfinance Professional (CMP)</textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Performance & Achievements -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-trophy me-2"></i>Performance & Achievements</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row mb-4">
+                                        <div class="col-md-3 text-center">
+                                            <div class="kpi-number text-success">1,250</div>
+                                            <div class="kpi-label">Farmers Managed</div>
+                                            <small class="text-success">+12% this month</small>
+                                        </div>
+                                        <div class="col-md-3 text-center">
+                                            <div class="kpi-number text-primary">₱45.2M</div>
+                                            <div class="kpi-label">Portfolio Value</div>
+                                            <small class="text-success">+8% this month</small>
+                                        </div>
+                                        <div class="col-md-3 text-center">
+                                            <div class="kpi-number text-success">87%</div>
+                                            <div class="kpi-label">Approval Rate</div>
+                                            <small class="text-success">+3% this month</small>
+                                        </div>
+                                        <div class="col-md-3 text-center">
+                                            <div class="kpi-number text-success">2.1%</div>
+                                            <div class="kpi-label">Default Rate</div>
+                                            <small class="text-success">-0.5% this month</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <h6 class="mb-3"><i class="fas fa-award me-2"></i>Recent Achievements</h6>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <ul class="list-group list-group-flush">
+                                                <li class="list-group-item d-flex align-items-center">
+                                                    <span class="badge bg-success me-2">2025</span>
+                                                    Outstanding Regional Manager Award
+                                                </li>
+                                                <li class="list-group-item d-flex align-items-center">
+                                                    <span class="badge bg-primary me-2">2024</span>
+                                                    Best Portfolio Performance - CALABARZON
+                                                </li>
+                                                <li class="list-group-item d-flex align-items-center">
+                                                    <span class="badge bg-info me-2">2024</span>
+                                                    Digital Transformation Champion
+                                                </li>
+                                            </ul>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <ul class="list-group list-group-flush">
+                                                <li class="list-group-item d-flex align-items-center">
+                                                    <span class="badge bg-warning me-2">2023</span>
+                                                    Farmer Empowerment Excellence Award
+                                                </li>
+                                                <li class="list-group-item d-flex align-items-center">
+                                                    <span class="badge bg-secondary me-2">2023</span>
+                                                    Team Leadership Recognition
+                                                </li>
+                                                <li class="list-group-item d-flex align-items-center">
+                                                    <span class="badge bg-success me-2">2022</span>
+                                                    Innovation in Agricultural Lending
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Account Settings -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-key me-2"></i>Account Security</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Last Password Change</strong></label>
+                                        <input type="text" class="form-control" value="August 15, 2025" readonly>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Two-Factor Authentication</strong></label>
+                                        <div class="d-flex align-items-center">
+                                            <span class="badge bg-success me-2">Enabled</span>
+                                            <small class="text-muted">SMS + Authenticator App</small>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label"><strong>Last Login</strong></label>
+                                        <input type="text" class="form-control" value="September 20, 2025 - 8:30 AM" readonly>
+                                    </div>
+                                    <div class="mb-3">
+                                        <button class="btn btn-outline-warning btn-sm me-2">
+                                            <i class="fas fa-key me-1"></i>Change Password
+                                        </button>
+                                        <button class="btn btn-outline-info btn-sm">
+                                            <i class="fas fa-shield-alt me-1"></i>Security Settings
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-clock me-2"></i>Activity Log</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="timeline">
+                                        <div class="timeline-item mb-2">
+                                            <small class="text-muted">Today, 8:30 AM</small>
+                                            <div>Logged in from Chrome (Windows)</div>
+                                        </div>
+                                        <div class="timeline-item mb-2">
+                                            <small class="text-muted">Yesterday, 6:45 PM</small>
+                                            <div>Generated monthly performance report</div>
+                                        </div>
+                                        <div class="timeline-item mb-2">
+                                            <small class="text-muted">Yesterday, 3:20 PM</small>
+                                            <div>Approved 12 loan applications</div>
+                                        </div>
+                                        <div class="timeline-item mb-2">
+                                            <small class="text-muted">Sep 19, 2:15 PM</small>
+                                            <div>Updated team performance metrics</div>
+                                        </div>
+                                        <div class="timeline-item">
+                                            <small class="text-muted">Sep 19, 10:30 AM</small>
+                                            <div>Conducted field visit - Laguna Branch</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="text-center mt-4">
+                        <button class="btn btn-success me-2">
+                            <i class="fas fa-save me-2"></i>Save Changes
+                        </button>
+                        <button class="btn btn-outline-primary me-2">
+                            <i class="fas fa-download me-2"></i>Export Profile
+                        </button>
+                        <button onclick="showDashboardSection()" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Section (Hidden by default) -->
+        <div class="row d-none" id="settings-section">
+            <div class="col-12">
+                <div class="chart-container">
+                    <h5 class="chart-title"><i class="fas fa-cog me-2"></i>Manager Settings</h5>
+                    <p class="text-muted mb-4">Configure your preferences and system settings</p>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-bell me-2"></i>Notification Preferences</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="emailNotifications" checked>
+                                        <label class="form-check-label" for="emailNotifications">
+                                            Email Notifications
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="smsNotifications" checked>
+                                        <label class="form-check-label" for="smsNotifications">
+                                            SMS Notifications
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="loanAlerts" checked>
+                                        <label class="form-check-label" for="loanAlerts">
+                                            Loan Application Alerts
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="performanceReports" checked>
+                                        <label class="form-check-label" for="performanceReports">
+                                            Weekly Performance Reports
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-display me-2"></i>Display Settings</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Dashboard Theme</label>
+                                        <select class="form-select">
+                                            <option selected>Light Theme</option>
+                                            <option>Dark Theme</option>
+                                            <option>Auto (System)</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Language</label>
+                                        <select class="form-select">
+                                            <option selected>English</option>
+                                            <option>Filipino</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Timezone</label>
+                                        <select class="form-select">
+                                            <option selected>Asia/Manila (GMT+8)</option>
+                                            <option>UTC (GMT+0)</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Date Format</label>
+                                        <select class="form-select">
+                                            <option selected>MM/DD/YYYY</option>
+                                            <option>DD/MM/YYYY</option>
+                                            <option>YYYY-MM-DD</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Security Settings</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <button class="btn btn-outline-primary w-100">
+                                            <i class="fas fa-key me-2"></i>Change Password
+                                        </button>
+                                    </div>
+                                    <div class="mb-3">
+                                        <button class="btn btn-outline-secondary w-100">
+                                            <i class="fas fa-mobile-alt me-2"></i>Setup Two-Factor Authentication
+                                        </button>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="sessionTimeout" checked>
+                                        <label class="form-check-label" for="sessionTimeout">
+                                            Auto-logout after 30 minutes of inactivity
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0"><i class="fas fa-download me-2"></i>Data & Reports</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <button class="btn btn-outline-success w-100">
+                                            <i class="fas fa-file-excel me-2"></i>Export Performance Data
+                                        </button>
+                                    </div>
+                                    <div class="mb-3">
+                                        <button class="btn btn-outline-info w-100">
+                                            <i class="fas fa-file-pdf me-2"></i>Generate Monthly Report
+                                        </button>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Auto-backup Frequency</label>
+                                        <select class="form-select">
+                                            <option selected>Daily</option>
+                                            <option>Weekly</option>
+                                            <option>Monthly</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Save Settings Button -->
+                    <div class="text-center mt-4">
+                        <button class="btn btn-success me-2">
+                            <i class="fas fa-save me-2"></i>Save Settings
+                        </button>
+                        <button onclick="showDashboardSection()" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Regional Performance Chart
+        const regionalCtx = document.getElementById('regionalChart').getContext('2d');
+        new Chart(regionalCtx, {
+            type: 'bar',
+            data: {
+                labels: ['North', 'East', 'South', 'West', 'Central'],
+                datasets: [{
+                    label: 'Loan Approval Rate (%)',
+                    data: [85, 92, 78, 89, 94],
+                    backgroundColor: '#28a745',
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                },
+                layout: {
+                    padding: {
+                        top: 10,
+                        bottom: 10,
+                        left: 10,
+                        right: 10
+                    }
+                }
+            }
+        });
+
+        // Financial Chart
+        const financialCtx = document.getElementById('financialChart').getContext('2d');
+        new Chart(financialCtx, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                datasets: [{
+                    label: 'Revenue (₱M)',
+                    data: [35, 42, 38, 45, 52, 48],
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                layout: {
+                    padding: {
+                        top: 10,
+                        bottom: 10,
+                        left: 10,
+                        right: 10
+                    }
+                }
+            }
+        });
+
+        // Target Chart
+        const targetCtx = document.getElementById('targetChart').getContext('2d');
+        new Chart(targetCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Achieved', 'Remaining'],
+                datasets: [{
+                    data: [87, 13],
+                    backgroundColor: ['#28a745', '#e9ecef'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                },
+                layout: {
+                    padding: {
+                        top: 10,
+                        bottom: 10,
+                        left: 10,
+                        right: 10
+                    }
+                }
+            }
+        });
+
+        // Scroll to KaAni section function
+        function scrollToKaAni() {
+            const kaaniSection = document.getElementById('kaani-section');
+            if (kaaniSection) {
+                kaaniSection.scrollIntoView({ 
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        }
+
+        // KaAni Manager API Integration Functions
+        let managerConversationHistory = [];
+
+        function openKaAniManager(assessmentType) {
+            const chatDiv = document.getElementById('kaani-manager-chat');
+            const openBtn = document.getElementById('kaani-manager-open-btn');
+            
+            // Show chat interface
+            chatDiv.classList.remove('d-none');
+            openBtn.classList.add('d-none');
+            
+            // Scroll to KaAni section
+            setTimeout(() => {
+                chatDiv.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        }
+
+        async function sendKaAniManagerMessage() {
+            const input = document.getElementById('kaani-manager-input');
+            const messagesDiv = document.getElementById('kaani-manager-messages');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Add user message to chat
+            addManagerMessage(message, 'user');
+            input.value = '';
+            
+            // Show typing indicator
+            const typingDiv = addManagerMessage('KaAni is thinking...', 'bot', true);
+            
+            try {
+                const response = await fetch('/api/kaani/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        history: managerConversationHistory
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // Remove typing indicator
+                typingDiv.remove();
+                
+                if (data.success) {
+                    // Add KaAni response
+                    addManagerMessage(data.response, 'bot');
+                    
+                    // Update conversation history
+                    managerConversationHistory.push(
+                        { role: 'user', content: message },
+                        { role: 'assistant', content: data.response }
+                    );
+                } else {
+                    addManagerMessage('Sorry, I encountered an error. Please try again.', 'bot');
+                }
+                
+            } catch (error) {
+                console.error('KaAni API Error:', error);
+                typingDiv.remove();
+                addManagerMessage('An unexpected error occurred. Please try again.', 'bot');
+            }
+        }
+
+        function addManagerMessage(content, sender, isTyping = false) {
+            const messagesDiv = document.getElementById('kaani-manager-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message${isTyping ? ' typing' : ''}`;
+            
+            if (sender === 'user') {
+                messageDiv.innerHTML = `
+                    <div class="message-content user-msg">
+                        <p>${content}</p>
+                    </div>
+                    <div class="message-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div class="message-avatar">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div class="message-content">
+                        <strong>KaAni Agricultural Advisor</strong>
+                        <p>${content}</p>
+                    </div>
+                `;
+            }
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            return messageDiv;
+        }
+        
+        function closeKaAniManager() {
+            const chatDiv = document.getElementById('kaani-manager-chat');
+            const openBtn = document.getElementById('kaani-manager-open-btn');
+            
+            // Hide chat interface
+            chatDiv.classList.add('d-none');
+            openBtn.classList.remove('d-none');
+        }
+
+        // Section Navigation Functions
+        function showBranchesSection() {
+            // Hide dashboard sections
+            document.querySelectorAll('.row:not(#branches-section)').forEach(row => {
+                if (!row.classList.contains('navbar') && row.id !== 'branches-section') {
+                    row.style.display = 'none';
+                }
+            });
+            
+            // Show branches section
+            document.getElementById('branches-section').classList.remove('d-none');
+            
+            // Update navigation active state
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            document.querySelector('a[onclick="showBranchesSection()"]').classList.add('active');
+        }
+
+        function showTeamSection() {
+            // Hide dashboard sections
+            document.querySelectorAll('.row:not(#team-section):not(#branches-section)').forEach(row => {
+                if (!row.classList.contains('navbar') && row.id !== 'team-section' && row.id !== 'branches-section') {
+                    row.style.display = 'none';
+                }
+            });
+            
+            // Hide branches section if visible
+            document.getElementById('branches-section').classList.add('d-none');
+            
+            // Show team section
+            document.getElementById('team-section').classList.remove('d-none');
+            
+            // Update navigation active state
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            document.querySelector('a[onclick="showTeamSection()"]').classList.add('active');
+        }
+
+        function showProfileSection() {
+            // Hide all other sections
+            document.querySelectorAll('.row:not(#profile-section)').forEach(row => {
+                if (!row.classList.contains('navbar') && row.id !== 'profile-section') {
+                    row.style.display = 'none';
+                }
+            });
+            
+            // Hide other special sections
+            document.getElementById('branches-section').classList.add('d-none');
+            document.getElementById('team-section').classList.add('d-none');
+            document.getElementById('settings-section').classList.add('d-none');
+            
+            // Show profile section
+            document.getElementById('profile-section').classList.remove('d-none');
+        }
+
+        function showSettingsSection() {
+            // Hide all other sections
+            document.querySelectorAll('.row:not(#settings-section)').forEach(row => {
+                if (!row.classList.contains('navbar') && row.id !== 'settings-section') {
+                    row.style.display = 'none';
+                }
+            });
+            
+            // Hide other special sections
+            document.getElementById('branches-section').classList.add('d-none');
+            document.getElementById('team-section').classList.add('d-none');
+            document.getElementById('profile-section').classList.add('d-none');
+            
+            // Show settings section
+            document.getElementById('settings-section').classList.remove('d-none');
+        }
+
+        function showDashboardSection() {
+            // Show all dashboard sections
+            document.querySelectorAll('.row:not(#branches-section):not(#team-section):not(#profile-section):not(#settings-section)').forEach(row => {
+                if (!row.classList.contains('navbar') && 
+                    row.id !== 'branches-section' && 
+                    row.id !== 'team-section' && 
+                    row.id !== 'profile-section' && 
+                    row.id !== 'settings-section') {
+                    row.style.display = '';
+                }
+            });
+            
+            // Hide all special sections
+            document.getElementById('branches-section').classList.add('d-none');
+            document.getElementById('team-section').classList.add('d-none');
+            document.getElementById('profile-section').classList.add('d-none');
+            document.getElementById('settings-section').classList.add('d-none');
+            
+            // Update navigation active state
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            document.querySelector('a[href="#"]').classList.add('active');
+        }
+
+        // Logout function
+        async function logout() {
+            // Prevent multiple logout calls
+            if (window.loggingOut) return;
+            window.loggingOut = true;
+            
+            try {
+                // Call server logout API to clear server-side session
+                const response = await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include' // Include session cookies
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Logout successful:', data);
+                }
+                
+            } catch (error) {
+                console.error('Logout API error:', error);
+                // Continue with logout even if API call fails
+            }
+            
+            // Clear client-side session data
+            sessionStorage.clear();
+            localStorage.clear();
+            
+            // Clear any auto-login cookies
+            document.cookie = "session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            document.cookie = "user_role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            document.cookie = "remember_me=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            
+            // Add a small delay to ensure server processes logout
+            setTimeout(() => {
+                // Force redirect to login page with cache busting
+                window.location.replace('/login.html?logout=true&t=' + Date.now());
+            }, 100);
+        }
+    </script>
+</body>
+</html>
+

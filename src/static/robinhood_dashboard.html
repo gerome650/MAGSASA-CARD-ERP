@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAGSASA-CARD ERP - Agricultural Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Robinhood-inspired custom styles */
+        :root {
+            --rh-green: #00C805;
+            --rh-green-dark: #00B004;
+            --rh-green-light: #E8F5E8;
+            --rh-black: #040404;
+            --rh-gray-900: #1A1A1A;
+            --rh-gray-800: #2D2D2D;
+            --rh-gray-700: #404040;
+            --rh-gray-600: #6B6B6B;
+            --rh-gray-500: #8B8B8B;
+            --rh-gray-400: #B3B3B3;
+            --rh-gray-300: #D1D1D1;
+            --rh-gray-200: #E8E8E8;
+            --rh-gray-100: #F5F5F5;
+            --rh-white: #FFFFFF;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #f8fffe 0%, #f0fdf4 100%);
+            min-height: 100vh;
+        }
+
+        .rh-card {
+            background: var(--rh-white);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--rh-gray-200);
+            transition: all 0.2s ease;
+        }
+
+        .rh-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .rh-button-primary {
+            background: var(--rh-green);
+            color: var(--rh-white);
+            border: none;
+            border-radius: 24px;
+            padding: 12px 24px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .rh-button-primary:hover {
+            background: var(--rh-green-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 200, 5, 0.3);
+        }
+
+        .rh-button-secondary {
+            background: var(--rh-white);
+            color: var(--rh-black);
+            border: 1px solid var(--rh-gray-300);
+            border-radius: 24px;
+            padding: 12px 24px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .rh-button-secondary:hover {
+            background: var(--rh-gray-100);
+            border-color: var(--rh-gray-400);
+        }
+
+        .rh-stat-card {
+            background: var(--rh-white);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid var(--rh-gray-200);
+            transition: all 0.2s ease;
+        }
+
+        .rh-stat-card:hover {
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .rh-nav {
+            background: var(--rh-white);
+            border-bottom: 1px solid var(--rh-gray-200);
+            backdrop-filter: blur(20px);
+        }
+
+        .rh-nav-item {
+            color: var(--rh-gray-600);
+            text-decoration: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .rh-nav-item:hover {
+            background: var(--rh-gray-100);
+            color: var(--rh-black);
+        }
+
+        .rh-nav-item.active {
+            background: var(--rh-green-light);
+            color: var(--rh-green);
+            font-weight: 600;
+        }
+
+        .rh-metric-positive {
+            color: var(--rh-green);
+        }
+
+        .rh-metric-neutral {
+            color: var(--rh-gray-600);
+        }
+
+        .rh-gradient-text {
+            background: linear-gradient(135deg, var(--rh-green) 0%, #10B981 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .rh-hero-section {
+            background: linear-gradient(135deg, var(--rh-white) 0%, var(--rh-green-light) 100%);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 32px;
+        }
+
+        .rh-module-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-top: 32px;
+        }
+
+        .rh-module-card {
+            background: var(--rh-white);
+            border-radius: 16px;
+            padding: 32px;
+            border: 1px solid var(--rh-gray-200);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .rh-module-card:hover {
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
+            transform: translateY(-4px);
+            border-color: var(--rh-green);
+        }
+
+        .rh-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .rh-hero-section {
+                padding: 24px;
+                margin-bottom: 24px;
+            }
+            
+            .rh-module-card {
+                padding: 24px;
+            }
+            
+            .rh-module-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+        }
+
+        /* Loading animation */
+        .rh-loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--rh-gray-300);
+            border-radius: 50%;
+            border-top-color: var(--rh-green);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Smooth transitions */
+        * {
+            transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="rh-nav sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo -->
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-seedling text-white text-sm"></i>
+                    </div>
+                    <span class="text-xl font-bold rh-gradient-text">MAGSASA-CARD</span>
+                </div>
+
+                <!-- Desktop Navigation -->
+                <div class="hidden md:flex items-center space-x-1">
+                    <a href="#" class="rh-nav-item active">
+                        <i class="fas fa-home mr-2"></i>Dashboard
+                    </a>
+                    <a href="/farmers.html" class="rh-nav-item">
+                        <i class="fas fa-users mr-2"></i>Farmers
+                    </a>
+                    <a href="/products.html" class="rh-nav-item">
+                        <i class="fas fa-seedling mr-2"></i>Products
+                    </a>
+                    <a href="/orders.html" class="rh-nav-item">
+                        <i class="fas fa-shopping-cart mr-2"></i>Orders
+                    </a>
+                    <a href="/partnerships.html" class="rh-nav-item">
+                        <i class="fas fa-handshake mr-2"></i>Partners
+                    </a>
+                    <a href="/financial_reports.html" class="rh-nav-item">
+                        <i class="fas fa-chart-line mr-2"></i>Reports
+                    </a>
+                </div>
+
+                <!-- User Menu -->
+                <div class="flex items-center space-x-3">
+                    <button class="rh-button-secondary">
+                        <i class="fas fa-user mr-2"></i>Admin
+                    </button>
+                </div>
+
+                <!-- Mobile Menu Button -->
+                <button class="md:hidden rh-button-secondary" onclick="toggleMobileMenu()">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Navigation -->
+        <div id="mobileMenu" class="md:hidden hidden border-t border-gray-200 bg-white">
+            <div class="px-4 py-2 space-y-1">
+                <a href="#" class="block rh-nav-item active">
+                    <i class="fas fa-home mr-2"></i>Dashboard
+                </a>
+                <a href="/farmers.html" class="block rh-nav-item">
+                    <i class="fas fa-users mr-2"></i>Farmers
+                </a>
+                <a href="/products.html" class="block rh-nav-item">
+                    <i class="fas fa-seedling mr-2"></i>Products
+                </a>
+                <a href="/orders.html" class="block rh-nav-item">
+                    <i class="fas fa-shopping-cart mr-2"></i>Orders
+                </a>
+                <a href="/partnerships.html" class="block rh-nav-item">
+                    <i class="fas fa-handshake mr-2"></i>Partners
+                </a>
+                <a href="/financial_reports.html" class="block rh-nav-item">
+                    <i class="fas fa-chart-line mr-2"></i>Reports
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Hero Section -->
+        <div class="rh-hero-section">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center">
+                <div>
+                    <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+                        Good morning, Admin
+                    </h1>
+                    <p class="text-lg text-gray-600 mb-4">
+                        Here's what's happening with your agricultural operations today
+                    </p>
+                    <div class="flex items-center space-x-4 text-sm text-gray-500">
+                        <span><i class="fas fa-calendar mr-1"></i>September 16, 2025</span>
+                        <span><i class="fas fa-clock mr-1"></i>Last updated: Just now</span>
+                    </div>
+                </div>
+                <div class="mt-4 md:mt-0">
+                    <button class="rh-button-primary">
+                        <i class="fas fa-plus mr-2"></i>Add New Farmer
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Key Metrics -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="rh-stat-card">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="rh-icon bg-green-100 text-green-600">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <span class="text-sm font-medium text-gray-500">+12% this month</span>
+                </div>
+                <div class="space-y-1">
+                    <p class="text-2xl font-bold text-gray-900" id="totalFarmers">50</p>
+                    <p class="text-sm text-gray-600">Total Farmers</p>
+                </div>
+            </div>
+
+            <div class="rh-stat-card">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="rh-icon bg-blue-100 text-blue-600">
+                        <i class="fas fa-seedling"></i>
+                    </div>
+                    <span class="text-sm font-medium text-gray-500">+8% this month</span>
+                </div>
+                <div class="space-y-1">
+                    <p class="text-2xl font-bold text-gray-900" id="totalProducts">18</p>
+                    <p class="text-sm text-gray-600">Products</p>
+                </div>
+            </div>
+
+            <div class="rh-stat-card">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="rh-icon bg-purple-100 text-purple-600">
+                        <i class="fas fa-shopping-cart"></i>
+                    </div>
+                    <span class="text-sm font-medium text-gray-500">+24% this month</span>
+                </div>
+                <div class="space-y-1">
+                    <p class="text-2xl font-bold text-gray-900" id="totalOrders">25</p>
+                    <p class="text-sm text-gray-600">Orders</p>
+                </div>
+            </div>
+
+            <div class="rh-stat-card">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="rh-icon bg-orange-100 text-orange-600">
+                        <i class="fas fa-peso-sign"></i>
+                    </div>
+                    <span class="text-sm font-medium rh-metric-positive">+18% this month</span>
+                </div>
+                <div class="space-y-1">
+                    <p class="text-2xl font-bold text-gray-900" id="totalRevenue">₱2.4M</p>
+                    <p class="text-sm text-gray-600">Total Revenue</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="rh-card p-6 mb-8">
+            <h2 class="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <button class="rh-button-secondary text-center py-4" onclick="window.location.href='/farmers.html'">
+                    <i class="fas fa-user-plus text-xl mb-2 block"></i>
+                    <span class="text-sm">Add Farmer</span>
+                </button>
+                <button class="rh-button-secondary text-center py-4" onclick="window.location.href='/products.html'">
+                    <i class="fas fa-plus-circle text-xl mb-2 block"></i>
+                    <span class="text-sm">Add Product</span>
+                </button>
+                <button class="rh-button-secondary text-center py-4" onclick="window.location.href='/orders.html'">
+                    <i class="fas fa-shopping-cart text-xl mb-2 block"></i>
+                    <span class="text-sm">New Order</span>
+                </button>
+                <button class="rh-button-secondary text-center py-4" onclick="window.location.href='/financial_reports.html'">
+                    <i class="fas fa-chart-bar text-xl mb-2 block"></i>
+                    <span class="text-sm">View Reports</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Modules Grid -->
+        <div class="rh-module-grid">
+            <div class="rh-module-card" onclick="window.location.href='/farmers.html'">
+                <div class="rh-icon bg-green-100 text-green-600">
+                    <i class="fas fa-users"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-2">Farmer Management</h3>
+                <p class="text-gray-600 mb-4">Manage farmer profiles, AgScore tracking, and loan coordination with CARD MRI officers.</p>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-500">50 farmers</span>
+                    <i class="fas fa-arrow-right text-gray-400"></i>
+                </div>
+            </div>
+
+            <div class="rh-module-card" onclick="window.location.href='/products.html'">
+                <div class="rh-icon bg-blue-100 text-blue-600">
+                    <i class="fas fa-seedling"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-2">Product Catalog</h3>
+                <p class="text-gray-600 mb-4">Inventory management with cost tracking, margin analysis, and stock level monitoring.</p>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-500">18 products</span>
+                    <i class="fas fa-arrow-right text-gray-400"></i>
+                </div>
+            </div>
+
+            <div class="rh-module-card" onclick="window.location.href='/orders.html'">
+                <div class="rh-icon bg-purple-100 text-purple-600">
+                    <i class="fas fa-shopping-cart"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-2">Order Management</h3>
+                <p class="text-gray-600 mb-4">End-to-end order processing from farmer requests to partner fulfillment and delivery tracking.</p>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-500">25 orders</span>
+                    <i class="fas fa-arrow-right text-gray-400"></i>
+                </div>
+            </div>
+
+            <div class="rh-module-card" onclick="window.location.href='/partnerships.html'">
+                <div class="rh-icon bg-orange-100 text-orange-600">
+                    <i class="fas fa-handshake"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-2">Partner Network</h3>
+                <p class="text-gray-600 mb-4">Coordinate with logistics and supplier partners, track performance and commissions.</p>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-500">10 partners</span>
+                    <i class="fas fa-arrow-right text-gray-400"></i>
+                </div>
+            </div>
+
+            <div class="rh-module-card" onclick="window.location.href='/financial_reports.html'">
+                <div class="rh-icon bg-red-100 text-red-600">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-2">Financial Reports</h3>
+                <p class="text-gray-600 mb-4">Revenue tracking, margin analysis, and comprehensive financial summaries.</p>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-500">₱2.4M revenue</span>
+                    <i class="fas fa-arrow-right text-gray-400"></i>
+                </div>
+            </div>
+
+            <div class="rh-module-card" onclick="window.location.href='/fictitious_dataset_report.html'">
+                <div class="rh-icon bg-yellow-100 text-yellow-600">
+                    <i class="fas fa-database"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-2">Dataset Report</h3>
+                <p class="text-gray-600 mb-4">Comprehensive analysis of the fictitious farmers generated for testing and demonstration purposes.</p>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-500">Sample data</span>
+                    <i class="fas fa-arrow-right text-gray-400"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Status -->
+        <div class="rh-card p-6 mt-8">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                    <span class="text-sm font-medium text-gray-900">System Status: All systems operational</span>
+                </div>
+                <span class="text-sm text-gray-500">MAGSASA-CARD ERP Backend is running and ready for CARD MRI integration</span>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Mobile menu toggle
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobileMenu');
+            menu.classList.toggle('hidden');
+        }
+
+        // Load dashboard stats
+        async function loadDashboardStats() {
+            try {
+                const response = await fetch('/api/dashboard/stats');
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Update stats with animation
+                    animateNumber('totalFarmers', data.total_farmers || 50);
+                    animateNumber('totalProducts', data.total_products || 18);
+                    animateNumber('totalOrders', data.total_orders || 25);
+                    
+                    // Format revenue
+                    const revenue = data.total_revenue || 2400000;
+                    document.getElementById('totalRevenue').textContent = `₱${(revenue / 1000000).toFixed(1)}M`;
+                }
+            } catch (error) {
+                console.log('Using default stats');
+            }
+        }
+
+        // Animate number counting
+        function animateNumber(elementId, targetValue) {
+            const element = document.getElementById(elementId);
+            const startValue = 0;
+            const duration = 1000;
+            const startTime = performance.now();
+
+            function updateNumber(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                const currentValue = Math.floor(startValue + (targetValue - startValue) * progress);
+                element.textContent = currentValue.toLocaleString();
+
+                if (progress < 1) {
+                    requestAnimationFrame(updateNumber);
+                }
+            }
+
+            requestAnimationFrame(updateNumber);
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboardStats();
+            
+            // Add smooth scrolling
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.scrollIntoView({
+                            behavior: 'smooth'
+                        });
+                    }
+                });
+            });
+        });
+
+        // Add loading states to buttons
+        document.querySelectorAll('.rh-button-primary, .rh-button-secondary').forEach(button => {
+            button.addEventListener('click', function() {
+                if (!this.classList.contains('loading')) {
+                    const originalText = this.innerHTML;
+                    this.classList.add('loading');
+                    this.innerHTML = '<span class="rh-loading"></span>';
+                    
+                    setTimeout(() => {
+                        this.classList.remove('loading');
+                        this.innerHTML = originalText;
+                    }, 500);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAGSASA-CARD - Field Officer Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #000;
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: #000;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #333;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo-icon {
+            width: 24px;
+            height: 24px;
+            background: #22c55e;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #000;
+            font-weight: bold;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #22c55e;
+            animation: pulse 2s infinite;
+        }
+
+        .status-offline {
+            background: #f59e0b;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .container {
+            padding: 1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .welcome-section {
+            margin-bottom: 2rem;
+        }
+
+        .welcome-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .welcome-subtitle {
+            color: #888;
+            font-size: 0.875rem;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: #1a1a1a;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #22c55e;
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-label {
+            font-size: 0.75rem;
+            color: #888;
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-change {
+            font-size: 0.625rem;
+            color: #22c55e;
+        }
+
+        .quick-actions {
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .action-btn {
+            background: #1a1a1a;
+            border: none;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .action-btn:hover {
+            background: #2a2a2a;
+            transform: translateY(-1px);
+        }
+
+        .action-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+
+        .icon-green { background: #22c55e; color: #000; }
+        .icon-blue { background: #3b82f6; color: #fff; }
+        .icon-orange { background: #f59e0b; color: #000; }
+        .icon-purple { background: #8b5cf6; color: #fff; }
+
+        .action-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .pending-tasks {
+            margin-bottom: 2rem;
+        }
+
+        .task-list {
+            background: #1a1a1a;
+            border-radius: 0.75rem;
+            overflow: hidden;
+        }
+
+        .task-item {
+            padding: 1rem;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .task-item:last-child {
+            border-bottom: none;
+        }
+
+        .task-info h4 {
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .task-info p {
+            font-size: 0.75rem;
+            color: #888;
+        }
+
+        .task-priority {
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.5rem;
+            font-size: 0.625rem;
+            font-weight: 600;
+        }
+
+        .priority-high {
+            background: #dc2626;
+            color: #fff;
+        }
+
+        .priority-medium {
+            background: #f59e0b;
+            color: #000;
+        }
+
+        .priority-low {
+            background: #6b7280;
+            color: #fff;
+        }
+
+        .sync-status {
+            background: #1a1a1a;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sync-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .sync-btn {
+            background: #22c55e;
+            color: #000;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.5rem 1rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .offline-indicator {
+            background: #f59e0b;
+            color: #000;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1a1a1a;
+            border-top: 1px solid #333;
+            display: flex;
+            justify-content: space-around;
+            padding: 0.75rem 0;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.25rem;
+            color: #888;
+            text-decoration: none;
+            font-size: 0.625rem;
+        }
+
+        .nav-item.active {
+            color: #22c55e;
+        }
+
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: #1a1a1a;
+            border-radius: 1rem;
+            padding: 2rem;
+            margin: 10% auto;
+            max-width: 400px;
+            position: relative;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #333;
+            border-radius: 0.5rem;
+            background: #000;
+            color: #fff;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .btn {
+            padding: 0.75rem 1rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #22c55e;
+            color: #000;
+        }
+
+        .btn-secondary {
+            background: #374151;
+            color: #fff;
+        }
+
+        .photo-capture {
+            margin: 1rem 0;
+        }
+
+        .photo-preview {
+            width: 100%;
+            max-height: 200px;
+            object-fit: cover;
+            border-radius: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .gps-info {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            margin-top: 0.5rem;
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">
+            <div class="logo-icon">🌱</div>
+            <span>MAGSASA-CARD</span>
+        </div>
+        <div class="connection-status">
+            <div class="status-indicator" id="connectionStatus"></div>
+            <span id="connectionText">Online</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Offline Indicator -->
+        <div class="offline-indicator" id="offlineIndicator" style="display: none;">
+            📱 Working Offline - Data will sync when connection is restored
+        </div>
+
+        <!-- Welcome Section -->
+        <div class="welcome-section">
+            <h1 class="welcome-title">Good afternoon, Officer Maria!</h1>
+            <p class="welcome-subtitle">Here's your field work overview for today</p>
+        </div>
+
+        <!-- Metrics Grid -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-value">45</div>
+                <div class="metric-label">Assigned Farmers</div>
+                <div class="metric-change">+3 this week</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">12</div>
+                <div class="metric-label">Pending Applications</div>
+                <div class="metric-change">-2 from yesterday</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">8</div>
+                <div class="metric-label">Site Visits Today</div>
+                <div class="metric-change">3 completed</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">3</div>
+                <div class="metric-label">Overdue Tasks</div>
+                <div class="metric-change">Needs attention</div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+            <h2 class="section-title">Quick Actions</h2>
+            <div class="actions-grid">
+                <button class="action-btn" onclick="openNewApplicationModal()">
+                    <div class="action-icon icon-green">📝</div>
+                    <span class="action-label">New Application</span>
+                </button>
+                <button class="action-btn" onclick="openVisitScheduleModal()">
+                    <div class="action-icon icon-blue">📅</div>
+                    <span class="action-label">Schedule Visit</span>
+                </button>
+                <button class="action-btn" onclick="openFarmerSearchModal()">
+                    <div class="action-icon icon-orange">👨‍🌾</div>
+                    <span class="action-label">Find Farmer</span>
+                </button>
+                <button class="action-btn" onclick="openReportModal()">
+                    <div class="action-icon icon-purple">📊</div>
+                    <span class="action-label">Submit Report</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Sync Status -->
+        <div class="sync-status">
+            <div class="sync-info">
+                <span>📱</span>
+                <div>
+                    <div style="font-size: 0.875rem; font-weight: 500;">Local Data</div>
+                    <div style="font-size: 0.75rem; color: #888;" id="syncStatus">Last synced: 2 minutes ago</div>
+                </div>
+            </div>
+            <button class="sync-btn" onclick="syncData()">Sync Now</button>
+        </div>
+
+        <!-- Pending Tasks -->
+        <div class="pending-tasks">
+            <h2 class="section-title">Today's Tasks</h2>
+            <div class="task-list">
+                <div class="task-item">
+                    <div class="task-info">
+                        <h4>Visit Carmen Reyes - Loan Interview</h4>
+                        <p>Barangay 27 • 2:00 PM</p>
+                    </div>
+                    <div class="task-priority priority-high">HIGH</div>
+                </div>
+                <div class="task-item">
+                    <div class="task-info">
+                        <h4>Follow-up: Carlos Lopez Payment</h4>
+                        <p>Barangay 12 • 3:30 PM</p>
+                    </div>
+                    <div class="task-priority priority-medium">MEDIUM</div>
+                </div>
+                <div class="task-item">
+                    <div class="task-info">
+                        <h4>Document Review: Ana Torres</h4>
+                        <p>Office work • 4:00 PM</p>
+                    </div>
+                    <div class="task-priority priority-low">LOW</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom padding for fixed nav -->
+        <div style="height: 80px;"></div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <a href="#" class="nav-item active">
+            <div class="nav-icon">🏠</div>
+            <span>Home</span>
+        </a>
+        <a href="#" class="nav-item">
+            <div class="nav-icon">👥</div>
+            <span>Farmers</span>
+        </a>
+        <a href="#" class="nav-item">
+            <div class="nav-icon">📋</div>
+            <span>Tasks</span>
+        </a>
+        <a href="#" class="nav-item">
+            <div class="nav-icon">📊</div>
+            <span>Reports</span>
+        </a>
+        <a href="#" class="nav-item">
+            <div class="nav-icon">👤</div>
+            <span>Profile</span>
+        </a>
+    </div>
+
+    <!-- New Application Modal -->
+    <div class="modal" id="newApplicationModal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal('newApplicationModal')">×</button>
+            <h2>New Loan Application</h2>
+            <form onsubmit="submitApplication(event)">
+                <div class="form-group">
+                    <label>Farmer Name</label>
+                    <input type="text" placeholder="Search or enter farmer name" required>
+                </div>
+                <div class="form-group">
+                    <label>Loan Amount (₱)</label>
+                    <input type="number" min="1000" max="100000" required>
+                </div>
+                <div class="form-group">
+                    <label>Loan Purpose</label>
+                    <select required>
+                        <option value="">Select purpose</option>
+                        <option>Seeds and Fertilizer</option>
+                        <option>Equipment Purchase</option>
+                        <option>Land Preparation</option>
+                        <option>Harvest Processing</option>
+                        <option>Emergency Expenses</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea placeholder="Additional notes or observations"></textarea>
+                </div>
+                <div class="photo-capture">
+                    <label>Farmer Photo</label>
+                    <input type="file" accept="image/*" capture="user" onchange="previewPhoto(this, 'farmerPhoto')">
+                    <img id="farmerPhoto" class="photo-preview" style="display: none;">
+                </div>
+                <div class="gps-info" id="gpsInfo">
+                    📍 Getting location...
+                </div>
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('newApplicationModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Submit Application</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Visit Schedule Modal -->
+    <div class="modal" id="visitScheduleModal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal('visitScheduleModal')">×</button>
+            <h2>Schedule Farm Visit</h2>
+            <form onsubmit="scheduleVisit(event)">
+                <div class="form-group">
+                    <label>Farmer</label>
+                    <select required>
+                        <option value="">Select farmer</option>
+                        <option>Carlos Lopez - Barangay 12</option>
+                        <option>Carmen Reyes - Barangay 27</option>
+                        <option>Ana Torres - Barangay 32</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Visit Date</label>
+                    <input type="date" required>
+                </div>
+                <div class="form-group">
+                    <label>Visit Time</label>
+                    <input type="time" required>
+                </div>
+                <div class="form-group">
+                    <label>Visit Purpose</label>
+                    <select required>
+                        <option value="">Select purpose</option>
+                        <option>Loan Interview</option>
+                        <option>Farm Inspection</option>
+                        <option>Payment Collection</option>
+                        <option>Follow-up Visit</option>
+                        <option>Training Session</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('visitScheduleModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Schedule Visit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Offline functionality
+        let isOnline = navigator.onLine;
+        let localData = JSON.parse(localStorage.getItem('fieldOfficerData') || '{}');
+
+        // Update connection status
+        function updateConnectionStatus() {
+            const statusIndicator = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('connectionText');
+            const offlineIndicator = document.getElementById('offlineIndicator');
+
+            if (isOnline) {
+                statusIndicator.classList.remove('status-offline');
+                statusText.textContent = 'Online';
+                offlineIndicator.style.display = 'none';
+            } else {
+                statusIndicator.classList.add('status-offline');
+                statusText.textContent = 'Offline';
+                offlineIndicator.style.display = 'block';
+            }
+        }
+
+        // Listen for online/offline events
+        window.addEventListener('online', () => {
+            isOnline = true;
+            updateConnectionStatus();
+            syncData();
+        });
+
+        window.addEventListener('offline', () => {
+            isOnline = false;
+            updateConnectionStatus();
+        });
+
+        // Initialize connection status
+        updateConnectionStatus();
+
+        // GPS functionality
+        function getCurrentLocation() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject('Geolocation not supported');
+                    return;
+                }
+
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        resolve({
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude,
+                            accuracy: position.coords.accuracy
+                        });
+                    },
+                    error => reject(error),
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+                );
+            });
+        }
+
+        // Photo preview
+        function previewPhoto(input, previewId) {
+            const preview = document.getElementById(previewId);
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        // Modal functions
+        function openNewApplicationModal() {
+            document.getElementById('newApplicationModal').style.display = 'block';
+            getCurrentLocation().then(location => {
+                document.getElementById('gpsInfo').innerHTML = 
+                    `📍 Location: ${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)} (±${location.accuracy}m)`;
+            }).catch(error => {
+                document.getElementById('gpsInfo').innerHTML = '📍 Location unavailable';
+            });
+        }
+
+        function openVisitScheduleModal() {
+            document.getElementById('visitScheduleModal').style.display = 'block';
+        }
+
+        function openFarmerSearchModal() {
+            alert('Opening farmer search... This would show a searchable list of farmers with offline capability.');
+        }
+
+        function openReportModal() {
+            alert('Opening report submission... This would allow officers to submit daily/weekly reports.');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // Form submissions
+        function submitApplication(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            
+            // Store locally if offline
+            if (!isOnline) {
+                const applicationData = {
+                    id: Date.now(),
+                    timestamp: new Date().toISOString(),
+                    type: 'loan_application',
+                    data: Object.fromEntries(formData),
+                    synced: false
+                };
+                
+                if (!localData.pendingSubmissions) {
+                    localData.pendingSubmissions = [];
+                }
+                localData.pendingSubmissions.push(applicationData);
+                localStorage.setItem('fieldOfficerData', JSON.stringify(localData));
+                
+                alert('Application saved locally. Will sync when connection is restored.');
+            } else {
+                alert('Application submitted successfully!');
+            }
+            
+            closeModal('newApplicationModal');
+        }
+
+        function scheduleVisit(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            
+            if (!isOnline) {
+                const visitData = {
+                    id: Date.now(),
+                    timestamp: new Date().toISOString(),
+                    type: 'visit_schedule',
+                    data: Object.fromEntries(formData),
+                    synced: false
+                };
+                
+                if (!localData.pendingSubmissions) {
+                    localData.pendingSubmissions = [];
+                }
+                localData.pendingSubmissions.push(visitData);
+                localStorage.setItem('fieldOfficerData', JSON.stringify(localData));
+                
+                alert('Visit scheduled locally. Will sync when connection is restored.');
+            } else {
+                alert('Visit scheduled successfully!');
+            }
+            
+            closeModal('visitScheduleModal');
+        }
+
+        // Data synchronization
+        function syncData() {
+            if (!isOnline) {
+                alert('Cannot sync while offline. Data will sync automatically when connection is restored.');
+                return;
+            }
+
+            const pendingCount = localData.pendingSubmissions ? localData.pendingSubmissions.length : 0;
+            
+            if (pendingCount > 0) {
+                // Simulate sync process
+                setTimeout(() => {
+                    localData.pendingSubmissions = [];
+                    localStorage.setItem('fieldOfficerData', JSON.stringify(localData));
+                    document.getElementById('syncStatus').textContent = 'Last synced: Just now';
+                    alert(`Synced ${pendingCount} pending items successfully!`);
+                }, 1000);
+            } else {
+                document.getElementById('syncStatus').textContent = 'Last synced: Just now';
+                alert('All data is up to date!');
+            }
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        }
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load any cached data
+            if (localData.lastSync) {
+                document.getElementById('syncStatus').textContent = `Last synced: ${localData.lastSync}`;
+            }
+        });
+    </script>
+</body>
+</html>
+

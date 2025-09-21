@@ -1,0 +1,1557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farmer Management - MAGSASA-CARD ERP</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8fafc;
+            color: #334155;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .back-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        
+        .back-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .toolbar {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .search-filters {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .search-input, .filter-select {
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+        
+        .search-input {
+            min-width: 250px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-primary {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #059669;
+        }
+        
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+        
+        .btn-success {
+            background: #059669;
+            color: white;
+        }
+        
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .farmers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .farmer-card {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .farmer-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .farmer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+        
+        .farmer-name {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .farmer-id {
+            font-size: 0.75rem;
+            color: #64748b;
+            background: #f1f5f9;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+        }
+        
+        .farmer-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .info-item {
+            font-size: 0.875rem;
+        }
+        
+        .info-label {
+            color: #64748b;
+            font-weight: 500;
+        }
+        
+        .info-value {
+            color: #1e293b;
+        }
+        
+        .farmer-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .btn-sm {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.75rem;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #64748b;
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 2rem;
+        }
+        
+        .pagination button {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d1d5db;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .pagination button:hover:not(:disabled) {
+            background: #f3f4f6;
+        }
+        
+        .pagination button.active {
+            background: #10b981;
+            color: white;
+            border-color: #10b981;
+        }
+        
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 2% auto;
+            padding: 0;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #64748b;
+            padding: 0;
+            width: 2rem;
+            height: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .close-btn:hover {
+            color: #1e293b;
+        }
+        
+        .modal-body {
+            padding: 1.5rem;
+        }
+        
+        .modal-footer {
+            padding: 1.5rem;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+        
+        /* Form Styles */
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #374151;
+        }
+        
+        .form-input, .form-textarea, .form-select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            transition: border-color 0.2s;
+        }
+        
+        .form-input:focus, .form-textarea:focus, .form-select:focus {
+            outline: none;
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+        
+        .form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 1.5rem;
+        }
+        
+        .tab {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        
+        .tab:hover {
+            background: #f9fafb;
+        }
+        
+        .tab.active {
+            border-bottom-color: #10b981;
+            color: #10b981;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Order specific styles */
+        .order-history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .order-summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .summary-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .summary-card h4 {
+            font-size: 0.875rem;
+            color: #64748b;
+            margin-bottom: 0.5rem;
+        }
+        
+        .summary-card .value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .orders-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .orders-filters {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .order-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: box-shadow 0.2s;
+        }
+        
+        .order-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .order-number {
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .order-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .status-pending { background: #fef3c7; color: #92400e; }
+        .status-approved { background: #d1fae5; color: #065f46; }
+        .status-processing { background: #dbeafe; color: #1e40af; }
+        .status-shipped { background: #e0e7ff; color: #5b21b6; }
+        .status-delivered { background: #d1fae5; color: #065f46; }
+        .status-canceled { background: #fee2e2; color: #991b1b; }
+        
+        .order-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .order-detail {
+            font-size: 0.875rem;
+        }
+        
+        .order-detail-label {
+            color: #64748b;
+            font-weight: 500;
+        }
+        
+        .order-detail-value {
+            color: #1e293b;
+        }
+        
+        .order-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        /* Product ordering styles */
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .product-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1rem;
+            transition: all 0.2s;
+        }
+        
+        .product-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .product-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+        }
+        
+        .product-name {
+            font-weight: 600;
+            color: #1e293b;
+        }
+        
+        .product-sku {
+            font-size: 0.75rem;
+            color: #64748b;
+            background: #f1f5f9;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+        }
+        
+        .product-info {
+            margin-bottom: 1rem;
+        }
+        
+        .product-price {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #059669;
+            margin-bottom: 0.5rem;
+        }
+        
+        .product-stock {
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+        
+        .product-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .quantity-input {
+            width: 60px;
+            padding: 0.25rem;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .cart-summary {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1.5rem;
+            position: sticky;
+            top: 2rem;
+        }
+        
+        .cart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        
+        .cart-item:last-child {
+            border-bottom: none;
+        }
+        
+        .cart-total {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #1e293b;
+            padding-top: 1rem;
+            border-top: 1px solid #e5e7eb;
+            margin-top: 1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .search-filters {
+                flex-direction: column;
+            }
+            
+            .search-input {
+                min-width: auto;
+            }
+            
+            .farmers-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .modal-content {
+                width: 95%;
+                margin: 5% auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>👨‍🌾 Farmer Management</h1>
+        <a href="/" class="back-btn">← Back to Dashboard</a>
+    </div>
+    
+    <div class="container">
+        <div class="toolbar">
+            <div class="search-filters">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search farmers by name, ID, or location...">
+                <select id="locationFilter" class="filter-select">
+                    <option value="">All Locations</option>
+                </select>
+                <select id="cropFilter" class="filter-select">
+                    <option value="">All Crops</option>
+                </select>
+                <select id="loanStatusFilter" class="filter-select">
+                    <option value="">All Loan Status</option>
+                    <option value="None">None</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Disbursed">Disbursed</option>
+                    <option value="Repaying">Repaying</option>
+                    <option value="Repaid">Repaid</option>
+                    <option value="Rejected">Rejected</option>
+                    <option value="Defaulted">Defaulted</option>
+                </select>
+            </div>
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="exportFarmers()">📊 Export</button>
+                <button class="btn btn-primary" onclick="openAddFarmerModal()">+ Add Farmer</button>
+            </div>
+        </div>
+        
+        <div id="farmersContainer" class="farmers-grid">
+            <div class="loading">Loading farmers...</div>
+        </div>
+        
+        <div id="pagination" class="pagination"></div>
+    </div>
+    
+    <!-- Farmer Details Modal with Ordering -->
+    <div id="farmerDetailsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="farmerDetailsTitle">Farmer Details</h2>
+                <button class="close-btn" onclick="closeFarmerDetailsModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="tabs">
+                    <div class="tab active" onclick="switchTab('profile')">Profile</div>
+                    <div class="tab" onclick="switchTab('orders')">Orders</div>
+                    <div class="tab" onclick="switchTab('create-order')">Create Order</div>
+                </div>
+                
+                <!-- Profile Tab -->
+                <div id="profileTab" class="tab-content active">
+                    <div id="farmerProfileContent">
+                        <!-- Farmer profile content will be loaded here -->
+                    </div>
+                </div>
+                
+                <!-- Orders Tab -->
+                <div id="ordersTab" class="tab-content">
+                    <div class="order-summary-cards">
+                        <div class="summary-card">
+                            <h4>Total Orders</h4>
+                            <div class="value" id="totalOrders">0</div>
+                        </div>
+                        <div class="summary-card">
+                            <h4>Total Spent</h4>
+                            <div class="value" id="totalSpent">₱0</div>
+                        </div>
+                        <div class="summary-card">
+                            <h4>Pending Orders</h4>
+                            <div class="value" id="pendingOrders">0</div>
+                        </div>
+                        <div class="summary-card">
+                            <h4>Completed Orders</h4>
+                            <div class="value" id="completedOrders">0</div>
+                        </div>
+                    </div>
+                    
+                    <div class="orders-header">
+                        <h4>Order History</h4>
+                        <div class="orders-filters">
+                            <select id="orderStatusFilter">
+                                <option value="">All Status</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Approved">Approved</option>
+                                <option value="Processing">Processing</option>
+                                <option value="Shipped">Shipped</option>
+                                <option value="Delivered">Delivered</option>
+                                <option value="Canceled">Canceled</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="ordersList" class="orders-container">
+                        <div class="loading">Loading orders...</div>
+                    </div>
+                </div>
+                
+                <!-- Create Order Tab -->
+                <div id="createOrderTab" class="tab-content">
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+                        <div>
+                            <div class="order-history-header">
+                                <h4>Product Catalog</h4>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <input type="text" id="productSearch" placeholder="Search products..." style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px;">
+                                    <select id="categoryFilter" style="padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 4px;">
+                                        <option value="">All Categories</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div id="productsGrid" class="product-grid">
+                                <div class="loading">Loading products...</div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div class="cart-summary">
+                                <div class="cart-header">
+                                    <h4>Order Summary</h4>
+                                    <button class="btn btn-secondary btn-sm" onclick="clearCart()">Clear</button>
+                                </div>
+                                
+                                <div id="cartItems">
+                                    <p style="text-align: center; color: #64748b; padding: 2rem;">Cart is empty</p>
+                                </div>
+                                
+                                <div class="cart-total">
+                                    <div style="display: flex; justify-content: space-between;">
+                                        <span>Total:</span>
+                                        <span id="cartTotal">₱0.00</span>
+                                    </div>
+                                </div>
+                                
+                                <div style="margin-top: 1rem;">
+                                    <label class="form-label">Delivery Address</label>
+                                    <textarea id="deliveryAddress" class="form-textarea" placeholder="Enter delivery address..."></textarea>
+                                </div>
+                                
+                                <div style="margin-top: 1rem;">
+                                    <label class="form-label">Order Notes</label>
+                                    <textarea id="orderNotes" class="form-textarea" placeholder="Additional notes..."></textarea>
+                                </div>
+                                
+                                <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="submitOrder()" id="submitOrderBtn" disabled>
+                                    Submit Order
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add/Edit Farmer Modal -->
+    <div id="farmerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Add New Farmer</h2>
+                <button class="close-btn" onclick="closeFarmerModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="farmerForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Full Name *</label>
+                            <input type="text" id="fullName" class="form-input" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Mobile Number</label>
+                            <input type="tel" id="mobileNumber" class="form-input">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Email</label>
+                            <input type="email" id="email" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Barangay</label>
+                            <input type="text" id="barangay" class="form-input">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Land Size (Hectares)</label>
+                            <input type="number" id="landSizeHa" class="form-input" step="0.1" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Farming Experience (Years)</label>
+                            <input type="number" id="farmingExperience" class="form-input" min="0">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Crop Types</label>
+                            <input type="text" id="cropTypes" class="form-input" placeholder="e.g., Rice, Corn, Vegetables">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Digital Wallet</label>
+                            <input type="text" id="digitalWallet" class="form-input" placeholder="GCash/PayMaya number">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeFarmerModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveFarmer()">Save Farmer</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        let currentFarmerId = null;
+        let currentCart = [];
+        let products = [];
+        let categories = [];
+        
+        // Load farmers on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFarmers();
+            setupEventListeners();
+        });
+        
+        function setupEventListeners() {
+            // Search and filter event listeners
+            document.getElementById('searchInput').addEventListener('input', debounce(loadFarmers, 300));
+            document.getElementById('locationFilter').addEventListener('change', loadFarmers);
+            document.getElementById('cropFilter').addEventListener('change', loadFarmers);
+            document.getElementById('loanStatusFilter').addEventListener('change', loadFarmers);
+            
+            // Product search and filter
+            document.getElementById('productSearch').addEventListener('input', debounce(filterProducts, 300));
+            document.getElementById('categoryFilter').addEventListener('change', filterProducts);
+        }
+        
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
+        async function loadFarmers(page = 1) {
+            try {
+                const search = document.getElementById('searchInput').value;
+                const location = document.getElementById('locationFilter').value;
+                const cropType = document.getElementById('cropFilter').value;
+                const loanStatus = document.getElementById('loanStatusFilter').value;
+                
+                const params = new URLSearchParams({
+                    page: page,
+                    per_page: 10,
+                    search: search,
+                    location: location,
+                    crop_type: cropType,
+                    loan_status: loanStatus
+                });
+                
+                const response = await fetch(`/api/farmers?${params}`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayFarmers(data.farmers);
+                    displayPagination(data);
+                    currentPage = page;
+                } else {
+                    throw new Error(data.error || 'Failed to load farmers');
+                }
+            } catch (error) {
+                console.error('Error loading farmers:', error);
+                document.getElementById('farmersContainer').innerHTML = '<div class="loading">Error loading farmers. Please try again.</div>';
+            }
+        }
+        
+        function displayFarmers(farmers) {
+            const container = document.getElementById('farmersContainer');
+            
+            if (farmers.length === 0) {
+                container.innerHTML = '<div class="loading">No farmers found.</div>';
+                return;
+            }
+            
+            container.innerHTML = farmers.map(farmer => `
+                <div class="farmer-card">
+                    <div class="farmer-header">
+                        <div>
+                            <div class="farmer-name">${farmer.name || farmer.full_name || 'N/A'}</div>
+                            <div class="farmer-id">ID: ${farmer.unique_id || farmer.id}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="farmer-info">
+                        <div class="info-item">
+                            <div class="info-label">Mobile</div>
+                            <div class="info-value">${farmer.mobile || farmer.mobile_number || 'N/A'}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Location</div>
+                            <div class="info-value">${farmer.barangay || 'N/A'}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Land Size</div>
+                            <div class="info-value">${farmer.land_size_ha || farmer.land_size || 'N/A'} ha</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Crops</div>
+                            <div class="info-value">${farmer.crop_types || farmer.crops || 'N/A'}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">AgScore</div>
+                            <div class="info-value">${farmer.agscore || 'N/A'} (${farmer.agscore_grade || 'N/A'})</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Loan Status</div>
+                            <div class="info-value">${farmer.loan_status || 'None'}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="farmer-actions">
+                        <button class="btn btn-primary btn-sm" onclick="showFarmerDetails(${farmer.id})">
+                            👁️ View Details
+                        </button>
+                        <button class="btn btn-success btn-sm" onclick="showFarmerOrders(${farmer.id})">
+                            🛒 Orders
+                        </button>
+                        <button class="btn btn-warning btn-sm" onclick="editFarmer(${farmer.id})">
+                            ✏️ Edit
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteFarmer(${farmer.id})">
+                            🗑️ Delete
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function displayPagination(data) {
+            const container = document.getElementById('pagination');
+            const totalPages = data.pages || 1;
+            const currentPage = data.page || 1;
+            
+            let paginationHTML = '';
+            
+            // Previous button
+            paginationHTML += `<button onclick="loadFarmers(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>Previous</button>`;
+            
+            // Page numbers
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === currentPage) {
+                    paginationHTML += `<button class="active">${i}</button>`;
+                } else {
+                    paginationHTML += `<button onclick="loadFarmers(${i})">${i}</button>`;
+                }
+            }
+            
+            // Next button
+            paginationHTML += `<button onclick="loadFarmers(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>`;
+            
+            container.innerHTML = paginationHTML;
+        }
+        
+        // Tab switching
+        function switchTab(tabName) {
+            // Remove active class from all tabs and tab contents
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // Add active class to clicked tab and corresponding content
+            event.target.classList.add('active');
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            
+            // Load content based on tab
+            if (tabName === 'orders' && currentFarmerId) {
+                loadFarmerOrders(currentFarmerId);
+            } else if (tabName === 'create-order' && currentFarmerId) {
+                loadProductsForOrdering();
+                loadCategories();
+            }
+        }
+        
+        // Farmer details and ordering functions
+        async function showFarmerDetails(farmerId) {
+            currentFarmerId = farmerId;
+            
+            try {
+                const response = await fetch(`/api/farmers/${farmerId}`);
+                const farmer = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('farmerDetailsTitle').textContent = `${farmer.name || farmer.full_name} - Details & Orders`;
+                    
+                    // Load profile content
+                    const profileContent = document.getElementById('farmerProfileContent');
+                    profileContent.innerHTML = `
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                            <div class="info-item">
+                                <div class="info-label">Full Name</div>
+                                <div class="info-value">${farmer.name || farmer.full_name || 'N/A'}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Mobile Number</div>
+                                <div class="info-value">${farmer.mobile || farmer.mobile_number || 'N/A'}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Email</div>
+                                <div class="info-value">${farmer.email || 'N/A'}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Barangay</div>
+                                <div class="info-value">${farmer.barangay || 'N/A'}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Land Size</div>
+                                <div class="info-value">${farmer.land_size_ha || farmer.land_size || 'N/A'} hectares</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Farming Experience</div>
+                                <div class="info-value">${farmer.farming_experience || 'N/A'} years</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Crop Types</div>
+                                <div class="info-value">${farmer.crop_types || farmer.crops || 'N/A'}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Digital Wallet</div>
+                                <div class="info-value">${farmer.digital_wallet || 'N/A'}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">AgScore</div>
+                                <div class="info-value">${farmer.agscore || 'N/A'} (${farmer.agscore_grade || 'N/A'})</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Loan Status</div>
+                                <div class="info-value">${farmer.loan_status || 'None'}</div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Reset to profile tab
+                    switchTab('profile');
+                    
+                    document.getElementById('farmerDetailsModal').style.display = 'block';
+                } else {
+                    throw new Error(farmer.error || 'Failed to load farmer details');
+                }
+            } catch (error) {
+                console.error('Error loading farmer details:', error);
+                alert('Error loading farmer details. Please try again.');
+            }
+        }
+        
+        async function showFarmerOrders(farmerId) {
+            currentFarmerId = farmerId;
+            await showFarmerDetails(farmerId);
+            switchTab('orders');
+        }
+        
+        async function loadFarmerOrders(farmerId) {
+            try {
+                const response = await fetch(`/api/farmers/${farmerId}/orders`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Update summary cards
+                    const summary = data.orders.reduce((acc, order) => {
+                        acc.total++;
+                        acc.totalSpent += order.total_amount || 0;
+                        if (order.status === 'Pending') acc.pending++;
+                        if (order.status === 'Delivered') acc.completed++;
+                        return acc;
+                    }, { total: 0, totalSpent: 0, pending: 0, completed: 0 });
+                    
+                    document.getElementById('totalOrders').textContent = summary.total;
+                    document.getElementById('totalSpent').textContent = `₱${summary.totalSpent.toLocaleString()}`;
+                    document.getElementById('pendingOrders').textContent = summary.pending;
+                    document.getElementById('completedOrders').textContent = summary.completed;
+                    
+                    // Display orders
+                    const ordersList = document.getElementById('ordersList');
+                    if (data.orders.length === 0) {
+                        ordersList.innerHTML = '<p style="text-align: center; color: #64748b; padding: 2rem;">No orders found for this farmer.</p>';
+                    } else {
+                        ordersList.innerHTML = data.orders.map(order => `
+                            <div class="order-card">
+                                <div class="order-header">
+                                    <div class="order-number">${order.order_number}</div>
+                                    <div class="order-status status-${order.status.toLowerCase()}">${order.status}</div>
+                                </div>
+                                <div class="order-details">
+                                    <div class="order-detail">
+                                        <div class="order-detail-label">Date</div>
+                                        <div class="order-detail-value">${new Date(order.order_date || order.created_at).toLocaleDateString()}</div>
+                                    </div>
+                                    <div class="order-detail">
+                                        <div class="order-detail-label">Amount</div>
+                                        <div class="order-detail-value">₱${(order.total_amount || 0).toLocaleString()}</div>
+                                    </div>
+                                    <div class="order-detail">
+                                        <div class="order-detail-label">Items</div>
+                                        <div class="order-detail-value">${order.item_count || 0} items</div>
+                                    </div>
+                                    <div class="order-detail">
+                                        <div class="order-detail-label">Created By</div>
+                                        <div class="order-detail-value">${order.created_by || 'N/A'}</div>
+                                    </div>
+                                </div>
+                                <div class="order-actions">
+                                    <button class="btn btn-primary btn-sm" onclick="viewOrderDetails(${order.id})">View Details</button>
+                                    ${order.status === 'Pending' ? `<button class="btn btn-success btn-sm" onclick="updateOrderStatus(${order.id}, 'Approved')">Approve</button>` : ''}
+                                    ${order.status === 'Pending' ? `<button class="btn btn-danger btn-sm" onclick="updateOrderStatus(${order.id}, 'Canceled')">Cancel</button>` : ''}
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                } else {
+                    throw new Error(data.error || 'Failed to load orders');
+                }
+            } catch (error) {
+                console.error('Error loading farmer orders:', error);
+                document.getElementById('ordersList').innerHTML = '<p style="text-align: center; color: #ef4444; padding: 2rem;">Error loading orders. Please try again.</p>';
+            }
+        }
+        
+        async function loadProductsForOrdering() {
+            try {
+                const response = await fetch('/api/products');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    products = data.products || data;
+                    displayProducts(products);
+                } else {
+                    throw new Error(data.error || 'Failed to load products');
+                }
+            } catch (error) {
+                console.error('Error loading products:', error);
+                document.getElementById('productsGrid').innerHTML = '<div class="loading">Error loading products. Please try again.</div>';
+            }
+        }
+        
+        async function loadCategories() {
+            try {
+                const response = await fetch('/api/categories');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    categories = data.categories || data;
+                    const categoryFilter = document.getElementById('categoryFilter');
+                    categoryFilter.innerHTML = '<option value="">All Categories</option>' + 
+                        categories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
+                }
+            } catch (error) {
+                console.error('Error loading categories:', error);
+            }
+        }
+        
+        function displayProducts(productsToShow) {
+            const container = document.getElementById('productsGrid');
+            
+            if (productsToShow.length === 0) {
+                container.innerHTML = '<div class="loading">No products found.</div>';
+                return;
+            }
+            
+            container.innerHTML = productsToShow.map(product => `
+                <div class="product-card">
+                    <div class="product-header">
+                        <div class="product-name">${product.name}</div>
+                        <div class="product-sku">${product.sku}</div>
+                    </div>
+                    <div class="product-info">
+                        <div class="product-price">₱${(product.selling_price || 0).toLocaleString()}</div>
+                        <div class="product-stock">Stock: ${product.stock_on_hand || 0} ${product.unit_of_measure || 'units'}</div>
+                        ${product.brand ? `<div style="font-size: 0.875rem; color: #64748b;">Brand: ${product.brand}</div>` : ''}
+                    </div>
+                    <div class="product-actions">
+                        <input type="number" class="quantity-input" id="qty-${product.id}" value="1" min="1" max="${product.stock_on_hand || 0}">
+                        <button class="btn btn-primary btn-sm" onclick="addToCart(${product.id})" ${(product.stock_on_hand || 0) === 0 ? 'disabled' : ''}>
+                            Add to Cart
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function filterProducts() {
+            const search = document.getElementById('productSearch').value.toLowerCase();
+            const categoryId = document.getElementById('categoryFilter').value;
+            
+            let filtered = products.filter(product => {
+                const matchesSearch = !search || 
+                    product.name.toLowerCase().includes(search) ||
+                    product.sku.toLowerCase().includes(search) ||
+                    (product.brand && product.brand.toLowerCase().includes(search));
+                
+                const matchesCategory = !categoryId || product.category_id == categoryId;
+                
+                return matchesSearch && matchesCategory;
+            });
+            
+            displayProducts(filtered);
+        }
+        
+        function addToCart(productId) {
+            const product = products.find(p => p.id === productId);
+            const quantityInput = document.getElementById(`qty-${productId}`);
+            const quantity = parseInt(quantityInput.value) || 1;
+            
+            if (!product) return;
+            
+            // Check if product already in cart
+            const existingItem = currentCart.find(item => item.product_id === productId);
+            
+            if (existingItem) {
+                existingItem.quantity += quantity;
+            } else {
+                currentCart.push({
+                    product_id: productId,
+                    product_name: product.name,
+                    product_sku: product.sku,
+                    unit_price: product.selling_price,
+                    quantity: quantity
+                });
+            }
+            
+            updateCartDisplay();
+            quantityInput.value = 1;
+        }
+        
+        function removeFromCart(productId) {
+            currentCart = currentCart.filter(item => item.product_id !== productId);
+            updateCartDisplay();
+        }
+        
+        function updateCartQuantity(productId, newQuantity) {
+            const item = currentCart.find(item => item.product_id === productId);
+            if (item) {
+                item.quantity = Math.max(1, parseInt(newQuantity) || 1);
+                updateCartDisplay();
+            }
+        }
+        
+        function updateCartDisplay() {
+            const cartItems = document.getElementById('cartItems');
+            const cartTotal = document.getElementById('cartTotal');
+            const submitBtn = document.getElementById('submitOrderBtn');
+            
+            if (currentCart.length === 0) {
+                cartItems.innerHTML = '<p style="text-align: center; color: #64748b; padding: 2rem;">Cart is empty</p>';
+                cartTotal.textContent = '₱0.00';
+                submitBtn.disabled = true;
+                return;
+            }
+            
+            let total = 0;
+            cartItems.innerHTML = currentCart.map(item => {
+                const itemTotal = item.quantity * item.unit_price;
+                total += itemTotal;
+                
+                return `
+                    <div class="cart-item">
+                        <div>
+                            <div style="font-weight: 500;">${item.product_name}</div>
+                            <div style="font-size: 0.75rem; color: #64748b;">${item.product_sku}</div>
+                            <div style="font-size: 0.875rem;">₱${item.unit_price.toLocaleString()} × 
+                                <input type="number" value="${item.quantity}" min="1" 
+                                       style="width: 50px; padding: 0.25rem; border: 1px solid #d1d5db; border-radius: 4px;"
+                                       onchange="updateCartQuantity(${item.product_id}, this.value)">
+                            </div>
+                        </div>
+                        <div>
+                            <div style="font-weight: 600;">₱${itemTotal.toLocaleString()}</div>
+                            <button onclick="removeFromCart(${item.product_id})" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 0.75rem;">Remove</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            cartTotal.textContent = `₱${total.toLocaleString()}`;
+            submitBtn.disabled = false;
+        }
+        
+        function clearCart() {
+            currentCart = [];
+            updateCartDisplay();
+        }
+        
+        async function submitOrder() {
+            if (currentCart.length === 0) {
+                alert('Cart is empty');
+                return;
+            }
+            
+            const deliveryAddress = document.getElementById('deliveryAddress').value;
+            const orderNotes = document.getElementById('orderNotes').value;
+            
+            try {
+                const orderData = {
+                    cart_items: currentCart,
+                    delivery_address: deliveryAddress,
+                    notes: orderNotes,
+                    created_by: 'CARD MRI Officer'
+                };
+                
+                const response = await fetch(`/api/farmers/${currentFarmerId}/orders`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(orderData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert(`Order created successfully!\nOrder Number: ${result.order.order_number}`);
+                    clearCart();
+                    document.getElementById('deliveryAddress').value = '';
+                    document.getElementById('orderNotes').value = '';
+                    
+                    // Switch to orders tab to show the new order
+                    switchTab('orders');
+                } else {
+                    throw new Error(result.error || 'Failed to create order');
+                }
+            } catch (error) {
+                console.error('Error creating order:', error);
+                alert('Error creating order: ' + error.message);
+            }
+        }
+        
+        async function updateOrderStatus(orderId, newStatus) {
+            try {
+                const response = await fetch(`/api/farmers/${currentFarmerId}/orders/${orderId}/status`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert(`Order status updated to ${newStatus}`);
+                    loadFarmerOrders(currentFarmerId);
+                } else {
+                    throw new Error(result.error || 'Failed to update order status');
+                }
+            } catch (error) {
+                console.error('Error updating order status:', error);
+                alert('Error updating order status. Please try again.');
+            }
+        }
+        
+        function closeFarmerDetailsModal() {
+            document.getElementById('farmerDetailsModal').style.display = 'none';
+            currentFarmerId = null;
+            currentCart = [];
+            updateCartDisplay();
+        }
+        
+        // Existing farmer management functions
+        function openAddFarmerModal() {
+            currentFarmerId = null;
+            document.getElementById('modalTitle').textContent = 'Add New Farmer';
+            document.getElementById('farmerForm').reset();
+            document.getElementById('farmerModal').style.display = 'block';
+        }
+        
+        function closeFarmerModal() {
+            document.getElementById('farmerModal').style.display = 'none';
+        }
+        
+        async function editFarmer(farmerId) {
+            try {
+                const response = await fetch(`/api/farmers/${farmerId}`);
+                const farmer = await response.json();
+                
+                if (response.ok) {
+                    currentFarmerId = farmerId;
+                    document.getElementById('modalTitle').textContent = 'Edit Farmer';
+                    
+                    // Populate form fields
+                    document.getElementById('fullName').value = farmer.name || farmer.full_name || '';
+                    document.getElementById('mobileNumber').value = farmer.mobile || farmer.mobile_number || '';
+                    document.getElementById('email').value = farmer.email || '';
+                    document.getElementById('barangay').value = farmer.barangay || '';
+                    document.getElementById('landSizeHa').value = farmer.land_size_ha || farmer.land_size || '';
+                    document.getElementById('farmingExperience').value = farmer.farming_experience || '';
+                    document.getElementById('cropTypes').value = farmer.crop_types || farmer.crops || '';
+                    document.getElementById('digitalWallet').value = farmer.digital_wallet || '';
+                    
+                    document.getElementById('farmerModal').style.display = 'block';
+                } else {
+                    throw new Error(farmer.error || 'Failed to load farmer details');
+                }
+            } catch (error) {
+                console.error('Error loading farmer details:', error);
+                alert('Error loading farmer details. Please try again.');
+            }
+        }
+        
+        async function saveFarmer() {
+            try {
+                const formData = {
+                    full_name: document.getElementById('fullName').value,
+                    mobile_number: document.getElementById('mobileNumber').value,
+                    email: document.getElementById('email').value,
+                    barangay: document.getElementById('barangay').value,
+                    land_size_ha: parseFloat(document.getElementById('landSizeHa').value) || null,
+                    farming_experience: parseInt(document.getElementById('farmingExperience').value) || null,
+                    crop_types: document.getElementById('cropTypes').value,
+                    digital_wallet: document.getElementById('digitalWallet').value
+                };
+                
+                const url = currentFarmerId ? `/api/farmers/${currentFarmerId}` : '/api/farmers';
+                const method = currentFarmerId ? 'PUT' : 'POST';
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    closeFarmerModal();
+                    loadFarmers(currentPage);
+                    alert(currentFarmerId ? 'Farmer updated successfully!' : 'Farmer added successfully!');
+                } else {
+                    throw new Error(result.error || 'Failed to save farmer');
+                }
+            } catch (error) {
+                console.error('Error saving farmer:', error);
+                alert('Error saving farmer. Please try again.');
+            }
+        }
+        
+        async function deleteFarmer(farmerId) {
+            if (!confirm('Are you sure you want to delete this farmer? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/farmers/${farmerId}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    loadFarmers(currentPage);
+                    alert('Farmer deleted successfully!');
+                } else {
+                    throw new Error(result.error || 'Failed to delete farmer');
+                }
+            } catch (error) {
+                console.error('Error deleting farmer:', error);
+                alert('Error deleting farmer. Please try again.');
+            }
+        }
+        
+        async function exportFarmers() {
+            try {
+                const response = await fetch('/api/farmers/export?format=csv');
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `farmers_export_${new Date().toISOString().split('T')[0]}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                } else {
+                    throw new Error('Failed to export farmers');
+                }
+            } catch (error) {
+                console.error('Error exporting farmers:', error);
+                alert('Error exporting farmers. Please try again.');
+            }
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const farmerModal = document.getElementById('farmerModal');
+            const detailsModal = document.getElementById('farmerDetailsModal');
+            
+            if (event.target === farmerModal) {
+                closeFarmerModal();
+            } else if (event.target === detailsModal) {
+                closeFarmerDetailsModal();
+            }
+        }
+    </script>
+</body>
+</html>
+

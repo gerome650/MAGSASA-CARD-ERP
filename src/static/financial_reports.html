@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Reports - MAGSASA-CARD ERP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        .metric-card {
+            transition: all 0.3s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .loading-spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #10b981;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <div id="navigation-placeholder"></div>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Page Header -->
+        <div class="mb-8">
+            <div class="flex items-center space-x-4 mb-4">
+                <div class="bg-green-500 p-3 rounded-lg">
+                    <i class="fas fa-money-bill-wave text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Financial Reports</h1>
+                    <p class="text-gray-600">Revenue tracking, margin analysis, and comprehensive financial summaries</p>
+                </div>
+            </div>
+        </div>
+        <!-- Financial Overview Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="metric-card bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Total Revenue</p>
+                        <p class="text-2xl font-bold text-gray-900" id="total-revenue">₱0</p>
+                        <p class="text-sm text-green-600 mt-1">
+                            <i class="fas fa-arrow-up"></i>
+                            <span id="revenue-growth">0%</span> from last month
+                        </p>
+                    </div>
+                    <div class="bg-blue-100 p-3 rounded-full">
+                        <i class="fas fa-chart-line text-blue-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-card bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Gross Profit</p>
+                        <p class="text-2xl font-bold text-gray-900" id="gross-profit">₱0</p>
+                        <p class="text-sm text-gray-600 mt-1">
+                            <span id="gross-margin">0%</span> margin
+                        </p>
+                    </div>
+                    <div class="bg-green-100 p-3 rounded-full">
+                        <i class="fas fa-coins text-green-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-card bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Total Commissions</p>
+                        <p class="text-2xl font-bold text-gray-900" id="total-commissions">₱0</p>
+                        <p class="text-sm text-orange-600 mt-1">
+                            <span id="pending-commissions">₱0</span> pending
+                        </p>
+                    </div>
+                    <div class="bg-orange-100 p-3 rounded-full">
+                        <i class="fas fa-handshake text-orange-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-card bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-gray-600">Avg Order Value</p>
+                        <p class="text-2xl font-bold text-gray-900" id="avg-order-value">₱0</p>
+                        <p class="text-sm text-gray-600 mt-1">
+                            Per transaction
+                        </p>
+                    </div>
+                    <div class="bg-purple-100 p-3 rounded-full">
+                        <i class="fas fa-shopping-cart text-purple-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <!-- Revenue Trend Chart -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Revenue Trend</h3>
+                    <select id="revenue-period" class="border border-gray-300 rounded-md px-3 py-1 text-sm">
+                        <option value="12">Last 12 Months</option>
+                        <option value="6">Last 6 Months</option>
+                        <option value="3">Last 3 Months</option>
+                    </select>
+                </div>
+                <div class="chart-container">
+                    <canvas id="revenue-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Revenue by Category Chart -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Revenue by Category</h3>
+                <div class="chart-container">
+                    <canvas id="category-chart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Financial Reports Tabs -->
+        <div class="bg-white rounded-lg shadow">
+            <div class="border-b border-gray-200">
+                <nav class="-mb-px flex space-x-8 px-6">
+                    <button class="tab-button active py-4 px-1 border-b-2 border-green-500 font-medium text-sm text-green-600" data-tab="profit-loss">
+                        Profit & Loss
+                    </button>
+                    <button class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300" data-tab="cash-flow">
+                        Cash Flow
+                    </button>
+                    <button class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300" data-tab="margin-analysis">
+                        Margin Analysis
+                    </button>
+                    <button class="tab-button py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300" data-tab="kpis">
+                        KPIs & Ratios
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="p-6">
+                <!-- Profit & Loss Tab -->
+                <div id="profit-loss-tab" class="tab-content">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-lg font-semibold text-gray-900">Profit & Loss Statement</h3>
+                        <div class="flex space-x-4">
+                            <input type="date" id="pl-start-date" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                            <input type="date" id="pl-end-date" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                            <button onclick="loadProfitLoss()" class="bg-green-600 text-white px-4 py-2 rounded-md text-sm hover:bg-green-700">
+                                Generate Report
+                            </button>
+                            <button onclick="exportReport('profit-loss')" class="bg-gray-600 text-white px-4 py-2 rounded-md text-sm hover:bg-gray-700">
+                                <i class="fas fa-download mr-2"></i>Export
+                            </button>
+                        </div>
+                    </div>
+                    <div id="profit-loss-content" class="space-y-4">
+                        <div class="text-center py-8">
+                            <div class="loading-spinner mx-auto mb-4"></div>
+                            <p class="text-gray-600">Loading profit & loss statement...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cash Flow Tab -->
+                <div id="cash-flow-tab" class="tab-content hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-lg font-semibold text-gray-900">Cash Flow Analysis</h3>
+                        <div class="flex space-x-4">
+                            <input type="date" id="cf-start-date" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                            <input type="date" id="cf-end-date" class="border border-gray-300 rounded-md px-3 py-2 text-sm">
+                            <button onclick="loadCashFlow()" class="bg-green-600 text-white px-4 py-2 rounded-md text-sm hover:bg-green-700">
+                                Generate Report
+                            </button>
+                            <button onclick="exportReport('cash-flow')" class="bg-gray-600 text-white px-4 py-2 rounded-md text-sm hover:bg-gray-700">
+                                <i class="fas fa-download mr-2"></i>Export
+                            </button>
+                        </div>
+                    </div>
+                    <div id="cash-flow-content" class="space-y-4">
+                        <div class="text-center py-8">
+                            <div class="loading-spinner mx-auto mb-4"></div>
+                            <p class="text-gray-600">Loading cash flow analysis...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Margin Analysis Tab -->
+                <div id="margin-analysis-tab" class="tab-content hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-lg font-semibold text-gray-900">Margin Analysis</h3>
+                        <button onclick="exportReport('margin-analysis')" class="bg-gray-600 text-white px-4 py-2 rounded-md text-sm hover:bg-gray-700">
+                            <i class="fas fa-download mr-2"></i>Export
+                        </button>
+                    </div>
+                    <div id="margin-analysis-content" class="space-y-4">
+                        <div class="text-center py-8">
+                            <div class="loading-spinner mx-auto mb-4"></div>
+                            <p class="text-gray-600">Loading margin analysis...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPIs Tab -->
+                <div id="kpis-tab" class="tab-content hidden">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-lg font-semibold text-gray-900">Key Performance Indicators</h3>
+                        <button onclick="exportReport('kpis')" class="bg-gray-600 text-white px-4 py-2 rounded-md text-sm hover:bg-gray-700">
+                            <i class="fas fa-download mr-2"></i>Export
+                        </button>
+                    </div>
+                    <div id="kpis-content" class="space-y-4">
+                        <div class="text-center py-8">
+                            <div class="loading-spinner mx-auto mb-4"></div>
+                            <p class="text-gray-600">Loading KPIs and ratios...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let revenueChart = null;
+        let categoryChart = null;
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFinancialDashboard();
+            loadRevenueAnalysis();
+            loadProfitLoss();
+            setupTabNavigation();
+            setupDateDefaults();
+        });
+
+        function setupDateDefaults() {
+            const today = new Date();
+            const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            
+            document.getElementById('pl-start-date').value = firstDayOfMonth.toISOString().split('T')[0];
+            document.getElementById('pl-end-date').value = today.toISOString().split('T')[0];
+            document.getElementById('cf-start-date').value = firstDayOfMonth.toISOString().split('T')[0];
+            document.getElementById('cf-end-date').value = today.toISOString().split('T')[0];
+        }
+
+        function setupTabNavigation() {
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const tabName = button.getAttribute('data-tab');
+                    
+                    // Update button states
+                    tabButtons.forEach(btn => {
+                        btn.classList.remove('active', 'border-green-500', 'text-green-600');
+                        btn.classList.add('border-transparent', 'text-gray-500');
+                    });
+                    button.classList.add('active', 'border-green-500', 'text-green-600');
+                    button.classList.remove('border-transparent', 'text-gray-500');
+                    
+                    // Update content visibility
+                    tabContents.forEach(content => {
+                        content.classList.add('hidden');
+                    });
+                    document.getElementById(tabName + '-tab').classList.remove('hidden');
+                    
+                    // Load content based on tab
+                    if (tabName === 'cash-flow') {
+                        loadCashFlow();
+                    } else if (tabName === 'margin-analysis') {
+                        loadMarginAnalysis();
+                    } else if (tabName === 'kpis') {
+                        loadKPIs();
+                    }
+                });
+            });
+        }
+
+        async function loadFinancialDashboard() {
+            try {
+                const response = await fetch('/api/financial/dashboard');
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error('Error loading dashboard:', data.error);
+                    return;
+                }
+                
+                // Update overview metrics
+                document.getElementById('total-revenue').textContent = formatCurrency(data.overview.total_revenue);
+                document.getElementById('gross-profit').textContent = formatCurrency(data.overview.gross_profit);
+                document.getElementById('gross-margin').textContent = data.overview.gross_margin_percentage + '%';
+                document.getElementById('total-commissions').textContent = formatCurrency(data.overview.total_commissions_paid);
+                document.getElementById('pending-commissions').textContent = formatCurrency(data.overview.pending_commissions);
+                document.getElementById('avg-order-value').textContent = formatCurrency(data.overview.avg_order_value);
+                
+            } catch (error) {
+                console.error('Error loading financial dashboard:', error);
+            }
+        }
+
+        async function loadRevenueAnalysis() {
+            try {
+                const response = await fetch('/api/financial/revenue-analysis');
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error('Error loading revenue analysis:', data.error);
+                    return;
+                }
+                
+                // Create revenue trend chart
+                createRevenueChart(data.monthly_revenue);
+                
+                // Create category chart
+                createCategoryChart(data.revenue_by_category);
+                
+            } catch (error) {
+                console.error('Error loading revenue analysis:', error);
+            }
+        }
+
+        function createRevenueChart(monthlyData) {
+            const ctx = document.getElementById('revenue-chart').getContext('2d');
+            
+            if (revenueChart) {
+                revenueChart.destroy();
+            }
+            
+            revenueChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: monthlyData.map(item => item.month),
+                    datasets: [{
+                        label: 'Revenue',
+                        data: monthlyData.map(item => item.revenue),
+                        borderColor: 'rgb(34, 197, 94)',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '₱' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createCategoryChart(categoryData) {
+            const ctx = document.getElementById('category-chart').getContext('2d');
+            
+            if (categoryChart) {
+                categoryChart.destroy();
+            }
+            
+            const colors = [
+                'rgb(34, 197, 94)',
+                'rgb(59, 130, 246)',
+                'rgb(249, 115, 22)',
+                'rgb(168, 85, 247)',
+                'rgb(236, 72, 153)'
+            ];
+            
+            categoryChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: categoryData.map(item => item.category),
+                    datasets: [{
+                        data: categoryData.map(item => item.revenue),
+                        backgroundColor: colors.slice(0, categoryData.length),
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        async function loadProfitLoss() {
+            try {
+                const startDate = document.getElementById('pl-start-date').value;
+                const endDate = document.getElementById('pl-end-date').value;
+                
+                const response = await fetch(`/api/financial/profit-loss?start_date=${startDate}&end_date=${endDate}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error('Error loading P&L:', data.error);
+                    return;
+                }
+                
+                const content = document.getElementById('profit-loss-content');
+                content.innerHTML = `
+                    <div class="bg-gray-50 rounded-lg p-6">
+                        <h4 class="font-semibold text-gray-900 mb-4">Period: ${data.period.start_date} to ${data.period.end_date}</h4>
+                        
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center py-2 border-b border-gray-200">
+                                <span class="font-medium text-gray-900">Total Revenue</span>
+                                <span class="font-bold text-green-600">${formatCurrency(data.revenue.total_revenue)}</span>
+                            </div>
+                            
+                            <div class="flex justify-between items-center py-2 border-b border-gray-200">
+                                <span class="text-gray-700">Cost of Goods Sold</span>
+                                <span class="text-red-600">(${formatCurrency(data.cost_of_goods_sold.total_cogs)})</span>
+                            </div>
+                            
+                            <div class="flex justify-between items-center py-2 border-b border-gray-200 bg-green-50 px-4 rounded">
+                                <span class="font-medium text-gray-900">Gross Profit</span>
+                                <span class="font-bold text-green-600">${formatCurrency(data.gross_profit.amount)} (${data.gross_profit.margin_percentage}%)</span>
+                            </div>
+                            
+                            <div class="ml-4 space-y-2">
+                                <div class="flex justify-between items-center py-1">
+                                    <span class="text-gray-600">Commission Expenses</span>
+                                    <span class="text-red-600">(${formatCurrency(data.operating_expenses.commission_expenses)})</span>
+                                </div>
+                                <div class="flex justify-between items-center py-1">
+                                    <span class="text-gray-600">Salary Expenses</span>
+                                    <span class="text-red-600">(${formatCurrency(data.operating_expenses.salary_expenses)})</span>
+                                </div>
+                                <div class="flex justify-between items-center py-1">
+                                    <span class="text-gray-600">Marketing Expenses</span>
+                                    <span class="text-red-600">(${formatCurrency(data.operating_expenses.marketing_expenses)})</span>
+                                </div>
+                                <div class="flex justify-between items-center py-1">
+                                    <span class="text-gray-600">Operational Expenses</span>
+                                    <span class="text-red-600">(${formatCurrency(data.operating_expenses.operational_expenses)})</span>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-between items-center py-2 border-b border-gray-200">
+                                <span class="font-medium text-gray-900">Total Operating Expenses</span>
+                                <span class="font-bold text-red-600">(${formatCurrency(data.operating_expenses.total_operating_expenses)})</span>
+                            </div>
+                            
+                            <div class="flex justify-between items-center py-2 border-b border-gray-200 bg-blue-50 px-4 rounded">
+                                <span class="font-medium text-gray-900">Operating Income</span>
+                                <span class="font-bold text-blue-600">${formatCurrency(data.operating_income.amount)} (${data.operating_income.margin_percentage}%)</span>
+                            </div>
+                            
+                            <div class="flex justify-between items-center py-3 border-t-2 border-gray-300 bg-gray-100 px-4 rounded">
+                                <span class="font-bold text-gray-900 text-lg">Net Income</span>
+                                <span class="font-bold text-lg ${data.net_income.amount >= 0 ? 'text-green-600' : 'text-red-600'}">${formatCurrency(data.net_income.amount)} (${data.net_income.margin_percentage}%)</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('Error loading P&L statement:', error);
+                document.getElementById('profit-loss-content').innerHTML = `
+                    <div class="text-center py-8">
+                        <p class="text-red-600">Error loading profit & loss statement</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function loadCashFlow() {
+            try {
+                const startDate = document.getElementById('cf-start-date').value;
+                const endDate = document.getElementById('cf-end-date').value;
+                
+                const response = await fetch(`/api/financial/cash-flow?start_date=${startDate}&end_date=${endDate}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error('Error loading cash flow:', data.error);
+                    return;
+                }
+                
+                const content = document.getElementById('cash-flow-content');
+                content.innerHTML = `
+                    <div class="bg-gray-50 rounded-lg p-6">
+                        <h4 class="font-semibold text-gray-900 mb-4">Period: ${data.period.start_date} to ${data.period.end_date}</h4>
+                        
+                        <div class="space-y-6">
+                            <div>
+                                <h5 class="font-medium text-gray-900 mb-3">Operating Activities</h5>
+                                <div class="ml-4 space-y-2">
+                                    <div class="flex justify-between items-center py-1">
+                                        <span class="text-gray-600">Cash from Sales</span>
+                                        <span class="text-green-600">${formatCurrency(data.operating_activities.cash_from_sales)}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center py-1">
+                                        <span class="text-gray-600">Commission Payments</span>
+                                        <span class="text-red-600">(${formatCurrency(data.operating_activities.commission_payments)})</span>
+                                    </div>
+                                    <div class="flex justify-between items-center py-1">
+                                        <span class="text-gray-600">Operating Expenses</span>
+                                        <span class="text-red-600">(${formatCurrency(data.operating_activities.operating_expenses)})</span>
+                                    </div>
+                                    <div class="flex justify-between items-center py-2 border-t border-gray-200 font-medium">
+                                        <span class="text-gray-900">Net Cash from Operations</span>
+                                        <span class="${data.operating_activities.net_cash_from_operations >= 0 ? 'text-green-600' : 'text-red-600'}">${formatCurrency(data.operating_activities.net_cash_from_operations)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h5 class="font-medium text-gray-900 mb-3">Investing Activities</h5>
+                                <div class="ml-4 space-y-2">
+                                    <div class="flex justify-between items-center py-1">
+                                        <span class="text-gray-600">Capital Expenditures</span>
+                                        <span class="text-red-600">(${formatCurrency(data.investing_activities.capital_expenditures)})</span>
+                                    </div>
+                                    <div class="flex justify-between items-center py-2 border-t border-gray-200 font-medium">
+                                        <span class="text-gray-900">Net Cash from Investing</span>
+                                        <span class="${data.investing_activities.net_cash_from_investing >= 0 ? 'text-green-600' : 'text-red-600'}">${formatCurrency(data.investing_activities.net_cash_from_investing)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h5 class="font-medium text-gray-900 mb-3">Financing Activities</h5>
+                                <div class="ml-4 space-y-2">
+                                    <div class="flex justify-between items-center py-1">
+                                        <span class="text-gray-600">Loan Proceeds</span>
+                                        <span class="text-green-600">${formatCurrency(data.financing_activities.loan_proceeds)}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center py-1">
+                                        <span class="text-gray-600">Loan Payments</span>
+                                        <span class="text-red-600">(${formatCurrency(data.financing_activities.loan_payments)})</span>
+                                    </div>
+                                    <div class="flex justify-between items-center py-2 border-t border-gray-200 font-medium">
+                                        <span class="text-gray-900">Net Cash from Financing</span>
+                                        <span class="${data.financing_activities.net_cash_from_financing >= 0 ? 'text-green-600' : 'text-red-600'}">${formatCurrency(data.financing_activities.net_cash_from_financing)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-between items-center py-3 border-t-2 border-gray-300 bg-gray-100 px-4 rounded">
+                                <span class="font-bold text-gray-900 text-lg">Net Cash Flow</span>
+                                <span class="font-bold text-lg ${data.net_cash_flow >= 0 ? 'text-green-600' : 'text-red-600'}">${formatCurrency(data.net_cash_flow)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('Error loading cash flow:', error);
+                document.getElementById('cash-flow-content').innerHTML = `
+                    <div class="text-center py-8">
+                        <p class="text-red-600">Error loading cash flow analysis</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function loadMarginAnalysis() {
+            try {
+                const response = await fetch('/api/financial/margin-analysis');
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error('Error loading margin analysis:', data.error);
+                    return;
+                }
+                
+                const content = document.getElementById('margin-analysis-content');
+                content.innerHTML = `
+                    <div class="space-y-6">
+                        <div class="bg-gray-50 rounded-lg p-6">
+                            <h4 class="font-semibold text-gray-900 mb-4">Margin by Category</h4>
+                            <div class="space-y-3">
+                                ${data.category_margins.map(category => `
+                                    <div class="flex justify-between items-center py-2 border-b border-gray-200">
+                                        <div>
+                                            <span class="font-medium text-gray-900">${category.category}</span>
+                                            <span class="text-sm text-gray-600 ml-2">(${category.product_count} products)</span>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="font-bold text-gray-900">${formatCurrency(category.total_margin)}</div>
+                                            <div class="text-sm text-gray-600">${category.margin_percentage}% margin</div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <div class="bg-gray-50 rounded-lg p-6">
+                            <h4 class="font-semibold text-gray-900 mb-4">Product Margin Details</h4>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-100">
+                                        <tr>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                                            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Cost</th>
+                                            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Selling Price</th>
+                                            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Margin %</th>
+                                            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Units Sold</th>
+                                            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Total Margin</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        ${data.product_margins.map(product => `
+                                            <tr>
+                                                <td class="px-4 py-2 text-sm text-gray-900">${product.product_name}</td>
+                                                <td class="px-4 py-2 text-sm text-gray-600">${product.category}</td>
+                                                <td class="px-4 py-2 text-sm text-right text-gray-900">${formatCurrency(product.cost_price)}</td>
+                                                <td class="px-4 py-2 text-sm text-right text-gray-900">${formatCurrency(product.selling_price)}</td>
+                                                <td class="px-4 py-2 text-sm text-right font-medium ${product.margin_percentage >= 20 ? 'text-green-600' : product.margin_percentage >= 10 ? 'text-yellow-600' : 'text-red-600'}">${product.margin_percentage}%</td>
+                                                <td class="px-4 py-2 text-sm text-right text-gray-900">${product.units_sold}</td>
+                                                <td class="px-4 py-2 text-sm text-right font-medium text-gray-900">${formatCurrency(product.total_margin)}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('Error loading margin analysis:', error);
+                document.getElementById('margin-analysis-content').innerHTML = `
+                    <div class="text-center py-8">
+                        <p class="text-red-600">Error loading margin analysis</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function loadKPIs() {
+            try {
+                const response = await fetch('/api/financial/kpis');
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error('Error loading KPIs:', data.error);
+                    return;
+                }
+                
+                const content = document.getElementById('kpis-content');
+                content.innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="bg-blue-50 rounded-lg p-6">
+                            <h4 class="font-semibold text-blue-900 mb-4">Revenue Metrics</h4>
+                            <div class="space-y-3">
+                                <div class="flex justify-between">
+                                    <span class="text-blue-700">Total Revenue</span>
+                                    <span class="font-bold text-blue-900">${formatCurrency(data.revenue_metrics.total_revenue)}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-blue-700">Avg Order Value</span>
+                                    <span class="font-bold text-blue-900">${formatCurrency(data.revenue_metrics.avg_order_value)}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-blue-700">Revenue per Farmer</span>
+                                    <span class="font-bold text-blue-900">${formatCurrency(data.revenue_metrics.revenue_per_farmer)}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-blue-700">Monthly Growth</span>
+                                    <span class="font-bold ${data.revenue_metrics.monthly_growth_rate >= 0 ? 'text-green-600' : 'text-red-600'}">${data.revenue_metrics.monthly_growth_rate}%</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-green-50 rounded-lg p-6">
+                            <h4 class="font-semibold text-green-900 mb-4">Customer Metrics</h4>
+                            <div class="space-y-3">
+                                <div class="flex justify-between">
+                                    <span class="text-green-700">Total Farmers</span>
+                                    <span class="font-bold text-green-900">${data.customer_metrics.total_farmers.toLocaleString()}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-green-700">Repeat Customers</span>
+                                    <span class="font-bold text-green-900">${data.customer_metrics.repeat_customers.toLocaleString()}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-green-700">Retention Rate</span>
+                                    <span class="font-bold text-green-900">${data.customer_metrics.customer_retention_rate}%</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-purple-50 rounded-lg p-6">
+                            <h4 class="font-semibold text-purple-900 mb-4">Operational Metrics</h4>
+                            <div class="space-y-3">
+                                <div class="flex justify-between">
+                                    <span class="text-purple-700">Total Orders</span>
+                                    <span class="font-bold text-purple-900">${data.operational_metrics.total_orders.toLocaleString()}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-purple-700">Inventory Turnover</span>
+                                    <span class="font-bold text-purple-900">${data.operational_metrics.inventory_turnover}x</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-orange-50 rounded-lg p-6 md:col-span-2 lg:col-span-3">
+                            <h4 class="font-semibold text-orange-900 mb-4">Profitability Metrics</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="text-center">
+                                    <div class="text-2xl font-bold text-orange-900">${data.profitability_metrics.gross_margin_percentage}%</div>
+                                    <div class="text-orange-700">Gross Margin</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-2xl font-bold text-orange-900">${data.profitability_metrics.operating_margin_percentage}%</div>
+                                    <div class="text-orange-700">Operating Margin</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-2xl font-bold text-orange-900">${data.profitability_metrics.net_margin_percentage}%</div>
+                                    <div class="text-orange-700">Net Margin</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('Error loading KPIs:', error);
+                document.getElementById('kpis-content').innerHTML = `
+                    <div class="text-center py-8">
+                        <p class="text-red-600">Error loading KPIs and ratios</p>
+                    </div>
+                `;
+            }
+        }
+
+        function exportReport(reportType) {
+            window.open(`/api/financial/export/${reportType}`, '_blank');
+        }
+
+        function formatCurrency(amount) {
+            return '₱' + Number(amount).toLocaleString('en-PH', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            });
+        }
+    </script>
+    
+    <!-- Load Navigation Component -->
+    <script>
+        // Load navigation component
+        fetch('/components/navigation.html')
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('navigation-placeholder').innerHTML = html;
+                // Set active page
+                const activeLink = document.querySelector('a[href*="reports"]');
+                if (activeLink) {
+                    activeLink.classList.add('bg-green-700');
+                }
+            })
+            .catch(error => console.error('Error loading navigation:', error));
+    </script>
+</body>
+</html>
+

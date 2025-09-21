@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAGSASA-CARD - Farmer Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Robinhood-inspired custom styles for mobile-first farmer dashboard */
+        :root {
+            --rh-green: #00C805;
+            --rh-green-dark: #00B004;
+            --rh-green-light: #E8F5E8;
+            --rh-black: #040404;
+            --rh-gray-900: #1A1A1A;
+            --rh-gray-800: #2D2D2D;
+            --rh-gray-700: #404040;
+            --rh-gray-600: #6B6B6B;
+            --rh-gray-500: #8B8B8B;
+            --rh-gray-400: #B3B3B3;
+            --rh-gray-300: #D1D1D1;
+            --rh-gray-200: #E8E8E8;
+            --rh-gray-100: #F5F5F5;
+            --rh-white: #FFFFFF;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #f8fffe 0%, #f0fdf4 100%);
+            min-height: 100vh;
+            padding-bottom: 80px; /* Space for bottom navigation */
+        }
+
+        .rh-card {
+            background: var(--rh-white);
+            border-radius: 16px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+            border: 1px solid var(--rh-gray-200);
+            transition: all 0.2s ease;
+        }
+
+        .rh-card:hover {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .rh-button-primary {
+            background: var(--rh-green);
+            color: var(--rh-white);
+            border: none;
+            border-radius: 12px;
+            padding: 14px 24px;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .rh-button-primary:hover {
+            background: var(--rh-green-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 200, 5, 0.3);
+        }
+
+        .rh-button-secondary {
+            background: var(--rh-gray-100);
+            color: var(--rh-gray-700);
+            border: 2px solid var(--rh-gray-200);
+            border-radius: 12px;
+            padding: 12px 20px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .rh-button-secondary:hover {
+            background: var(--rh-gray-200);
+            border-color: var(--rh-gray-300);
+        }
+
+        .loan-progress-bar {
+            background: var(--rh-gray-200);
+            border-radius: 8px;
+            height: 8px;
+            overflow: hidden;
+        }
+
+        .loan-progress-fill {
+            background: linear-gradient(90deg, var(--rh-green) 0%, var(--rh-green-dark) 100%);
+            height: 100%;
+            border-radius: 8px;
+            transition: width 0.3s ease;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-active {
+            background: var(--rh-green-light);
+            color: var(--rh-green-dark);
+        }
+
+        .status-pending {
+            background: #FEF3C7;
+            color: #D97706;
+        }
+
+        .status-overdue {
+            background: #FEE2E2;
+            color: #DC2626;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--rh-white);
+            border-top: 1px solid var(--rh-gray-200);
+            padding: 12px 0 8px;
+            z-index: 50;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 8px;
+            border-radius: 12px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .nav-item.active {
+            background: var(--rh-green-light);
+            color: var(--rh-green-dark);
+        }
+
+        .nav-item:not(.active) {
+            color: var(--rh-gray-500);
+        }
+
+        .nav-item:hover {
+            background: var(--rh-gray-100);
+        }
+
+        .nav-item.active:hover {
+            background: var(--rh-green-light);
+        }
+
+        .header-gradient {
+            background: linear-gradient(135deg, var(--rh-black) 0%, var(--rh-gray-800) 100%);
+        }
+
+        .balance-card {
+            background: linear-gradient(135deg, var(--rh-green) 0%, var(--rh-green-dark) 100%);
+            color: var(--rh-white);
+        }
+
+        .quick-action-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        @media (min-width: 640px) {
+            .quick-action-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        .notification-dot {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 8px;
+            height: 8px;
+            background: #EF4444;
+            border-radius: 50%;
+            border: 2px solid var(--rh-white);
+        }
+
+        .weather-alert {
+            background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+            color: var(--rh-white);
+        }
+
+        .tip-card {
+            background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+            color: var(--rh-white);
+        }
+
+        /* Marketplace Styles */
+        .marketplace-filter-btn {
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            color: #6b7280;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+        
+        .marketplace-filter-btn.active,
+        .marketplace-filter-btn:hover {
+            background: var(--rh-green);
+            color: white;
+            border-color: var(--rh-green);
+        }
+        
+        .product-card-marketplace {
+            background: white;
+            border-radius: 12px;
+            padding: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border: 1px solid #e5e7eb;
+            transition: all 0.2s;
+        }
+        
+        .product-card-marketplace:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .product-image-marketplace {
+            width: 100%;
+            height: 80px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        .product-price {
+            color: var(--rh-green);
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .product-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+        
+        .product-description {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+        
+        .order-btn {
+            width: 100%;
+            background: var(--rh-green);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: none;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .order-btn:hover {
+            background: var(--rh-green-dark);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header-gradient text-white p-4 pb-6">
+        <div class="flex items-center justify-between mb-4">
+            <!-- Notification Bell moved to left -->
+            <div class="relative">
+                <i class="fas fa-bell text-xl cursor-pointer hover:text-green-300 transition-colors"></i>
+                <div class="notification-dot"></div>
+            </div>
+            
+            <!-- KaAni Button on right -->
+            <button onclick="toggleKaAniChat()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 transition-all duration-200 shadow-lg hover:shadow-xl">
+                <i class="fas fa-comments"></i>
+                <span>Ask KaAni</span>
+            </button>
+        </div>
+        
+        <!-- Welcome Message -->
+        <div class="mb-4">
+            <h2 class="text-2xl font-bold mb-1">Good morning, Carlos!</h2>
+            <p class="text-sm opacity-75">Here's your farming overview for today</p>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="px-4 -mt-2">
+        <!-- Simplified Loan Status Card -->
+        <div class="rh-card balance-card p-6 mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <p class="text-sm opacity-75 mb-1">Your Loan</p>
+                    <h3 class="text-xl font-bold">Rice Production</h3>
+                </div>
+                <div class="status-badge status-active">
+                    ✓ ACTIVE
+                </div>
+            </div>
+            
+            <!-- Simplified: Focus on what matters most -->
+            <div class="text-center mb-4">
+                <p class="text-sm opacity-75 mb-1">Amount Left to Pay</p>
+                <p class="text-3xl font-bold">₱30,000</p>
+                <p class="text-sm opacity-75">out of ₱45,000 total</p>
+            </div>
+            
+            <!-- Simple progress indicator -->
+            <div class="mb-4">
+                <div class="loan-progress-bar">
+                    <div class="loan-progress-fill" style="width: 33%"></div>
+                </div>
+                <p class="text-center text-sm opacity-75 mt-2">1/3 paid ✓</p>
+            </div>
+            
+            <!-- Most important info: Next payment -->
+            <div class="bg-white bg-opacity-20 rounded-lg p-3 text-center">
+                <p class="text-sm opacity-75">Next Payment Due</p>
+                <p class="text-lg font-bold">Sep 30 • ₱3,750</p>
+            </div>
+        </div>
+
+        <!-- Simplified Quick Actions -->
+        <div class="mb-6">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">What would you like to do?</h3>
+            <div class="space-y-3">
+                <!-- Primary Action: Make Payment -->
+                <button class="rh-card p-4 w-full text-left hover:shadow-lg transition-all border-2 border-green-200" onclick="window.location.href='/farmer/loans'">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-money-bill-wave text-green-600 text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-gray-900">Make Payment</p>
+                            <p class="text-sm text-gray-600">Pay your loan installment</p>
+                        </div>
+                        <i class="fas fa-chevron-right text-gray-400 ml-auto"></i>
+                    </div>
+                </button>
+                
+                <!-- Secondary Actions -->
+                <div class="grid grid-cols-2 gap-3">
+                    <button class="rh-card p-4 text-center hover:shadow-lg transition-all">
+                        <i class="fas fa-phone text-blue-500 text-2xl mb-2"></i>
+                        <p class="text-sm font-semibold text-gray-700">Call Officer</p>
+                    </button>
+                    <button class="rh-card p-4 text-center hover:shadow-lg transition-all">
+                        <i class="fas fa-file-alt text-purple-500 text-2xl mb-2"></i>
+                        <p class="text-sm font-semibold text-gray-700">New Loan</p>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Simplified: Focus on next payment only -->
+        <div class="mb-6">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">Your Next Payment</h3>
+            <div class="rh-card p-4 border-l-4 border-orange-400">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="font-semibold text-gray-900">September 30, 2025</p>
+                        <p class="text-sm text-gray-600">📅 9 days from now</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-2xl font-bold text-gray-900">₱3,750</p>
+                        <span class="status-badge status-pending">Due Soon</span>
+                    </div>
+                </div>
+                <button class="w-full mt-3 bg-green-500 text-white py-2 rounded-lg font-medium hover:bg-green-600 transition-colors">
+                    Pay Now
+                </button>
+            </div>
+        </div>
+
+        <!-- Weather Alert -->
+        <div class="weather-alert rh-card p-4 mb-6">
+            <div class="flex items-start gap-3">
+                <i class="fas fa-cloud-rain text-2xl mt-1"></i>
+                <div>
+                    <h4 class="font-bold mb-1">Weather Alert</h4>
+                    <p class="text-sm opacity-90">Heavy rainfall expected this weekend. Consider covering your rice crops and ensure proper drainage.</p>
+                    <button class="text-sm underline mt-2 opacity-75 hover:opacity-100">View Details</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- KaAni Chat Interface (moved to overlay from header button) -->
+        <div id="kaani-chat-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+            <div class="flex items-center justify-center min-h-screen p-4">
+                <div class="bg-white rounded-lg w-full max-w-md" style="height: 500px;">
+                    <!-- Chat Header -->
+                    <div class="bg-green-500 text-white p-4 rounded-t-lg flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-robot"></i>
+                            <span class="font-medium">KaAni - Your Farming Advisor</span>
+                        </div>
+                        <button onclick="closeKaAniChat()" class="text-white hover:text-green-200">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Quick Action Buttons -->
+                    <div class="p-3 bg-gray-50 border-b">
+                        <div class="grid grid-cols-3 gap-2">
+                            <button onclick="getQuickAdvice('soil')" class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-medium hover:bg-green-200 transition-colors">
+                                🌱 Soil
+                            </button>
+                            <button onclick="getQuickAdvice('weather')" class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-medium hover:bg-blue-200 transition-colors">
+                                🌦️ Weather
+                            </button>
+                            <button onclick="getQuickAdvice('pests')" class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-medium hover:bg-red-200 transition-colors">
+                                🐛 Pests
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Chat Messages -->
+                    <div id="chat-messages" class="p-3 overflow-y-auto bg-gray-50" style="height: 300px;">
+                        <div class="message bot-message mb-3">
+                            <div class="flex items-start gap-2">
+                                <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white text-sm">
+                                    <i class="fas fa-robot"></i>
+                                </div>
+                                <div class="bg-white p-3 rounded-lg shadow-sm max-w-xs">
+                                    <p class="text-sm">Kumusta, Kuya Carlos! Ako si KaAni, ang inyong agricultural advisor. Ano ang maitutulong ko sa inyong farm ngayon?</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Chat Input -->
+                    <div class="p-3 bg-white border-t rounded-b-lg">
+                        <div class="flex gap-2">
+                            <input type="text" id="chat-input" class="flex-1 border rounded-lg px-3 py-2 text-sm" placeholder="Ask about your rice crops, soil, weather..." onkeypress="handleChatKeyPress(event)">
+                            <button onclick="sendChatMessage()" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors" id="send-btn">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                        <div id="chat-loading" class="text-center mt-2 hidden">
+                            <small class="text-gray-500">
+                                <i class="fas fa-spinner fa-spin mr-1"></i>KaAni is thinking...
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Farmer Marketplace Section -->
+        <div id="marketplace-section" class="hidden">
+            <div class="mb-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-2">🛒 Agricultural Marketplace</h3>
+                <p class="text-sm text-gray-600 mb-4">Browse and order farming supplies and equipment</p>
+                
+                <!-- Search Bar -->
+                <div class="mb-4">
+                    <input type="text" id="marketplace-search" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Search for seeds, fertilizers, tools...">
+                </div>
+                
+                <!-- Category Filters -->
+                <div class="flex gap-2 mb-4 overflow-x-auto">
+                    <button onclick="filterMarketplace('all')" class="marketplace-filter-btn active" data-category="all">All</button>
+                    <button onclick="filterMarketplace('seeds')" class="marketplace-filter-btn" data-category="seeds">Seeds</button>
+                    <button onclick="filterMarketplace('fertilizer')" class="marketplace-filter-btn" data-category="fertilizer">Fertilizers</button>
+                    <button onclick="filterMarketplace('tools')" class="marketplace-filter-btn" data-category="tools">Tools</button>
+                    <button onclick="filterMarketplace('pesticide')" class="marketplace-filter-btn" data-category="pesticide">Pesticides</button>
+                </div>
+                
+                <!-- Products Grid -->
+                <div id="marketplace-products" class="grid grid-cols-2 gap-3">
+                    <!-- Products will be loaded here -->
+                </div>
+                
+                <!-- Back Button -->
+                <button onclick="hideMarketplace()" class="w-full mt-6 bg-gray-500 text-white py-2 rounded-lg font-medium hover:bg-gray-600 transition-colors">
+                    ← Back to Dashboard
+                </button>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="mb-6">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">Recent Activity</h3>
+            <div class="space-y-3">
+                <div class="rh-card p-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-check text-green-600"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-semibold text-gray-900">Payment Received</p>
+                            <p class="text-sm text-gray-600">₱3,750 payment processed successfully</p>
+                            <p class="text-xs text-gray-500">2 days ago</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="rh-card p-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <i class="fas fa-user text-blue-600"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="font-semibold text-gray-900">Field Officer Visit</p>
+                            <p class="text-sm text-gray-600">Officer Maria visited your farm for inspection</p>
+                            <p class="text-xs text-gray-500">1 week ago</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <div class="flex justify-around items-center max-w-md mx-auto">
+            <div class="nav-item active">
+                <i class="fas fa-home text-lg"></i>
+                <span class="text-xs font-medium">Home</span>
+            </div>
+            <div class="nav-item">
+                <i class="fas fa-money-bill text-lg"></i>
+                <span class="text-xs font-medium">Loans</span>
+            </div>
+            <div class="nav-item" onclick="showMarketplace()">
+                <i class="fas fa-store text-lg"></i>
+                <span class="text-xs font-medium">Marketplace</span>
+            </div>
+            <div class="nav-item">
+                <i class="fas fa-chart-bar text-lg"></i>
+                <span class="text-xs font-medium">Reports</span>
+            </div>
+            <div class="nav-item">
+                <i class="fas fa-user text-lg"></i>
+                <span class="text-xs font-medium">Profile</span>
+            </div>
+            <div class="nav-item" onclick="logout()">
+                <i class="fas fa-sign-out-alt text-lg text-red-500"></i>
+                <span class="text-xs font-medium text-red-500">Logout</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Bottom navigation functionality
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', function() {
+                // Remove active class from all items
+                document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+                // Add active class to clicked item
+                this.classList.add('active');
+            });
+        });
+
+        // Quick action functionality
+        document.querySelectorAll('.quick-action-grid button').forEach(button => {
+            button.addEventListener('click', function() {
+                const action = this.querySelector('p').textContent;
+                alert(`${action} feature coming soon!`);
+            });
+        });
+
+        // Notification bell functionality
+        document.querySelector('.fa-bell').addEventListener('click', function() {
+            alert('You have 2 new notifications:\n1. Payment reminder for Sep 30\n2. Weather alert for this weekend');
+        });
+
+        // Simulate real-time updates
+        function updateDateTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { 
+                hour: 'numeric', 
+                minute: '2-digit',
+                hour12: true 
+            });
+            
+            // Update greeting based on time
+            const hour = now.getHours();
+            let greeting = 'Good morning';
+            if (hour >= 12 && hour < 17) greeting = 'Good afternoon';
+            else if (hour >= 17) greeting = 'Good evening';
+            
+            document.querySelector('h2').textContent = `${greeting}, Carlos!`;
+        }
+
+        // Update time every minute
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
+
+        // Add touch feedback for mobile
+        document.querySelectorAll('.rh-card, .rh-button-primary, .rh-button-secondary').forEach(element => {
+            element.addEventListener('touchstart', function() {
+                this.style.transform = 'scale(0.98)';
+            });
+            
+            element.addEventListener('touchend', function() {
+                this.style.transform = '';
+            });
+        });
+
+        // Enhanced KaAni API Integration Functions
+        let conversationHistory = [];
+        let currentThreadId = null;
+        let userRole = 'farmer'; // Default role for farmer dashboard
+        
+        // Initialize KaAni on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeKaAni();
+        });
+        
+        async function initializeKaAni() {
+            try {
+                // Check KaAni status and get initial greeting
+                const response = await fetch('/api/kaani/status', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'active') {
+                    console.log('KaAni Enhanced Assistant ready:', data.version);
+                    // Load conversation history if available
+                    await loadConversationHistory();
+                }
+            } catch (error) {
+                console.error('KaAni initialization error:', error);
+            }
+        }
+        
+        async function loadConversationHistory() {
+            try {
+                const response = await fetch(`/api/kaani/conversation-history?role=${userRole}`, {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.conversation) {
+                    currentThreadId = data.thread_id;
+                    
+                    // Clear existing messages except the default greeting
+                    const messagesContainer = document.getElementById('chat-messages');
+                    messagesContainer.innerHTML = '';
+                    
+                    // Display conversation history
+                    data.conversation.forEach(msg => {
+                        if (msg.role === 'assistant') {
+                            addMessageToChat('bot', msg.content, false);
+                        } else if (msg.role === 'user') {
+                            addMessageToChat('user', msg.content, false);
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading conversation history:', error);
+            }
+        }
+        
+        function openKaAni() {
+            const chatDiv = document.getElementById('kaani-chat');
+            const openBtn = document.getElementById('kaani-open-btn');
+            
+            // Show chat interface
+            chatDiv.classList.remove('hidden');
+            openBtn.classList.add('hidden');
+            
+            // Scroll to KaAni section
+            document.querySelector('.kaani-advisor').scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center' 
+            });
+            
+            // Load conversation history if not already loaded
+            if (!currentThreadId) {
+                loadConversationHistory();
+            }
+        }
+        
+        function closeKaAni() {
+            const chatDiv = document.getElementById('kaani-chat');
+            const openBtn = document.getElementById('kaani-open-btn');
+            
+            // Hide chat interface
+            chatDiv.classList.add('hidden');
+            openBtn.classList.remove('hidden');
+        }
+        
+        async function getQuickAdvice(category) {
+            // Open chat interface first
+            openKaAni();
+            
+            // Show loading
+            showChatLoading(true);
+            
+            try {
+                const response = await fetch('/api/kaani/quick-advice', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ 
+                        category: category,
+                        role: userRole
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Add KaAni's response to chat
+                    addMessageToChat('bot', data.response);
+                    
+                    // Update thread ID if provided
+                    if (data.thread_id) {
+                        currentThreadId = data.thread_id;
+                    }
+                } else {
+                    addMessageToChat('bot', 'Sorry, I encountered an error. Please try asking your question directly.');
+                }
+            } catch (error) {
+                console.error('Quick advice error:', error);
+                addMessageToChat('bot', 'Sorry, I\'m having trouble connecting right now. Please try again in a moment.');
+            } finally {
+                showChatLoading(false);
+            }
+        }
+        
+        async function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Add user message to chat
+            addMessageToChat('user', message);
+            input.value = '';
+            
+            // Show loading
+            showChatLoading(true);
+            
+            try {
+                const response = await fetch('/api/kaani/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ 
+                        message: message,
+                        role: userRole
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Add KaAni's response to chat
+                    addMessageToChat('bot', data.response);
+                    
+                    // Update thread ID
+                    if (data.thread_id) {
+                        currentThreadId = data.thread_id;
+                    }
+                    
+                    // Show conversation length for debugging
+                    if (data.conversation_length) {
+                        console.log(`Conversation length: ${data.conversation_length} messages`);
+                    }
+                } else {
+                    addMessageToChat('bot', 'Sorry, I encountered an error. Please try asking your question again.');
+                }
+            } catch (error) {
+                console.error('Chat error:', error);
+                addMessageToChat('bot', 'Sorry, I\'m having trouble connecting right now. Please try again in a moment.');
+            } finally {
+                showChatLoading(false);
+            }
+        }
+        
+        function addMessageToChat(sender, message, scrollToBottom = true) {
+            const messagesContainer = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message mb-3`;
+            
+            if (sender === 'bot') {
+                messageDiv.innerHTML = `
+                    <div class="flex items-start gap-2">
+                        <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-content-center text-white text-sm">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg shadow-sm max-w-xs">
+                            <p class="text-sm">${message}</p>
+                        </div>
+                    </div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div class="flex items-start gap-2 justify-end">
+                        <div class="bg-green-500 text-white p-3 rounded-lg shadow-sm max-w-xs">
+                            <p class="text-sm">${message}</p>
+                        </div>
+                        <div class="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-content-center text-white text-sm">
+                            <i class="fas fa-user"></i>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            messagesContainer.appendChild(messageDiv);
+            
+            // Scroll to bottom if requested
+            if (scrollToBottom) {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+        }
+        
+        function showChatLoading(show) {
+            const loading = document.getElementById('chat-loading');
+            const sendBtn = document.getElementById('send-btn');
+            
+            if (show) {
+                loading.classList.remove('hidden');
+                sendBtn.disabled = true;
+                sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            } else {
+                loading.classList.add('hidden');
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
+            }
+        }
+        
+        function handleChatKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendChatMessage();
+            }
+        }
+
+        // New functions for header KaAni button and overlay
+        function toggleKaAniChat() {
+            const overlay = document.getElementById('kaani-chat-overlay');
+            overlay.classList.remove('hidden');
+        }
+
+        function closeKaAniChat() {
+            const overlay = document.getElementById('kaani-chat-overlay');
+            overlay.classList.add('hidden');
+        }
+
+        // Update existing functions to work with new overlay
+        function openKaAni() {
+            toggleKaAniChat();
+        }
+
+        function closeKaAni() {
+            closeKaAniChat();
+        }
+
+        // Marketplace functionality
+        const marketplaceProducts = [
+            { id: 1, name: "Rice Seeds Premium", category: "seeds", price: 450, description: "High-yield hybrid rice seeds", icon: "🌾" },
+            { id: 2, name: "Organic Fertilizer", category: "fertilizer", price: 280, description: "Natural compost fertilizer", icon: "🌱" },
+            { id: 3, name: "Hand Tractor", category: "tools", price: 25000, description: "Small farming tractor", icon: "🚜" },
+            { id: 4, name: "Pesticide Spray", category: "pesticide", price: 320, description: "Organic pest control", icon: "🧴" },
+            { id: 5, name: "Corn Seeds", category: "seeds", price: 380, description: "Sweet corn variety", icon: "🌽" },
+            { id: 6, name: "NPK Fertilizer", category: "fertilizer", price: 520, description: "Balanced nutrient mix", icon: "💊" },
+            { id: 7, name: "Water Pump", category: "tools", price: 8500, description: "Irrigation water pump", icon: "⚡" },
+            { id: 8, name: "Herbicide", category: "pesticide", price: 290, description: "Weed control solution", icon: "🌿" }
+        ];
+
+        function showMarketplace() {
+            // Hide main dashboard content
+            document.querySelector('.px-4').style.display = 'none';
+            // Show marketplace section
+            document.getElementById('marketplace-section').classList.remove('hidden');
+            // Load products
+            loadMarketplaceProducts();
+        }
+
+        function hideMarketplace() {
+            // Show main dashboard content
+            document.querySelector('.px-4').style.display = 'block';
+            // Hide marketplace section
+            document.getElementById('marketplace-section').classList.add('hidden');
+        }
+
+        function loadMarketplaceProducts(category = 'all') {
+            const container = document.getElementById('marketplace-products');
+            const filteredProducts = category === 'all' ? 
+                marketplaceProducts : 
+                marketplaceProducts.filter(p => p.category === category);
+
+            container.innerHTML = filteredProducts.map(product => `
+                <div class="product-card-marketplace">
+                    <div class="product-image-marketplace">
+                        ${product.icon}
+                    </div>
+                    <div class="product-name">${product.name}</div>
+                    <div class="product-description">${product.description}</div>
+                    <div class="product-price">₱${product.price.toLocaleString()}</div>
+                    <button class="order-btn" onclick="orderProduct(${product.id})">
+                        Order Now
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function filterMarketplace(category) {
+            // Update active filter button
+            document.querySelectorAll('.marketplace-filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Load filtered products
+            loadMarketplaceProducts(category);
+        }
+
+        function orderProduct(productId) {
+            const product = marketplaceProducts.find(p => p.id === productId);
+            if (product) {
+                const quantity = prompt(`How many ${product.name} would you like to order?`);
+                if (quantity && !isNaN(quantity) && quantity > 0) {
+                    const total = product.price * quantity;
+                    alert(`Order placed!\n\n${quantity}x ${product.name}\nTotal: ₱${total.toLocaleString()}\n\nYour order will be processed and delivered within 3-5 business days.`);
+                }
+            }
+        }
+
+        // Logout function
+        async function logout() {
+            try {
+                // Call server logout API to clear server-side session
+                const response = await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include' // Include session cookies
+                });
+                
+                const data = await response.json();
+                console.log('Logout response:', data);
+                
+            } catch (error) {
+                console.error('Logout API error:', error);
+                // Continue with logout even if API call fails
+            }
+            
+            // Clear client-side session data
+            sessionStorage.clear();
+            localStorage.clear();
+            
+            // Redirect to login page
+            window.location.href = '/login.html';
+        }
+    </script>
+</body>
+</html>
+
