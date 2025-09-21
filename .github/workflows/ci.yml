@@ -1,0 +1,154 @@
+name: MAGSASA-CARD ERP CI/CD
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: [3.11]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest flake8 bandit safety
+    
+    - name: Lint with flake8
+      run: |
+        # Stop the build if there are Python syntax errors or undefined names
+        flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Exit-zero treats all errors as warnings. GitHub editor is 127 chars wide
+        flake8 src/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Security scan with bandit
+      run: |
+        bandit -r src/ -f json -o bandit-report.json || true
+        bandit -r src/ --severity-level medium
+    
+    - name: Check for known security vulnerabilities
+      run: |
+        safety check --json --output safety-report.json || true
+        safety check
+    
+    - name: Run tests
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        FLASK_SECRET_KEY: ${{ secrets.FLASK_SECRET_KEY }}
+      run: |
+        # Create test database
+        python -c "
+        import sqlite3
+        conn = sqlite3.connect('test.db')
+        conn.close()
+        "
+        
+        # Run all test files
+        python -m pytest test_*.py -v --tb=short
+        
+        # Clean up
+        rm -f test.db
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results
+        path: |
+          bandit-report.json
+          safety-report.json
+    
+    - name: Check code formatting
+      run: |
+        pip install black
+        black --check src/ || echo "Code formatting issues found. Run 'black src/' to fix."
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build Docker image
+      run: |
+        echo "FROM python:3.11-slim
+        WORKDIR /app
+        COPY requirements.txt .
+        RUN pip install --no-cache-dir -r requirements.txt
+        COPY src/ ./src/
+        COPY .env.example .env
+        EXPOSE 5000
+        CMD [\"python\", \"src/main.py\"]" > Dockerfile
+        
+        docker build -t magsasa-card-erp:latest .
+    
+    - name: Test Docker image
+      run: |
+        # Test that the image builds and starts
+        docker run --rm -d --name test-container -p 5001:5000 magsasa-card-erp:latest
+        sleep 10
+        docker logs test-container
+        docker stop test-container
+
+  deploy-staging:
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/dev'
+    
+    steps:
+    - name: Deploy to staging
+      run: |
+        echo "🚀 Deploying to staging environment..."
+        echo "This would deploy to your staging server"
+        # Add your staging deployment commands here
+    
+    - name: Notify deployment
+      run: |
+        echo "✅ Staging deployment completed"
+        echo "🔗 Staging URL: https://staging.magsasa-card.com"
+
+  deploy-production:
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - name: Deploy to production
+      run: |
+        echo "🚀 Deploying to production environment..."
+        echo "This would deploy to your production server"
+        # Add your production deployment commands here
+    
+    - name: Notify deployment
+      run: |
+        echo "✅ Production deployment completed"
+        echo "🔗 Production URL: https://magsasa-card.com"
