@@ -30,6 +30,8 @@ class LoadTestConfig:
     target_url: str = "http://localhost:8000"
     endpoints: Dict[str, float] = None  # endpoint -> weight
     request_patterns: str = "sustained"  # burst, sustained, ramp-up
+    request_timeout: float = 30.0  # seconds
+    min_sample_size: int = 100  # minimum requests for valid test
     
     def __post_init__(self):
         if self.endpoints is None:
@@ -82,7 +84,8 @@ class LoadTestEngine:
         start_time = time.time()
         
         try:
-            async with self.session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as response:
+            timeout = aiohttp.ClientTimeout(total=self.config.request_timeout)
+            async with self.session.get(url, timeout=timeout) as response:
                 await response.text()
                 latency = time.time() - start_time
                 success = 200 <= response.status < 400
@@ -157,13 +160,28 @@ class LoadTestEngine:
             
             actual_duration = time.time() - self.start_time
             
+            # Validate minimum sample size
+            if total_requests < self.config.min_sample_size:
+                self.logger.warning(f"Low sample size: {total_requests} requests (minimum: {self.config.min_sample_size})")
+                self.logger.warning("Results may not be statistically significant")
+            
             # Calculate metrics
-            if all_latencies:
+            if all_latencies and len(all_latencies) >= 10:  # Ensure we have enough samples for percentiles
                 p50_latency = statistics.median(all_latencies)
-                p95_latency = statistics.quantiles(all_latencies, n=20)[18]  # 95th percentile
-                p99_latency = statistics.quantiles(all_latencies, n=100)[98]  # 99th percentile
+                if len(all_latencies) >= 20:
+                    p95_latency = statistics.quantiles(all_latencies, n=20)[18]  # 95th percentile
+                else:
+                    # Use 95th percentile approximation for small samples
+                    p95_latency = sorted(all_latencies)[int(len(all_latencies) * 0.95)]
+                
+                if len(all_latencies) >= 100:
+                    p99_latency = statistics.quantiles(all_latencies, n=100)[98]  # 99th percentile
+                else:
+                    # Use 99th percentile approximation for small samples
+                    p99_latency = sorted(all_latencies)[int(len(all_latencies) * 0.99)]
             else:
                 p50_latency = p95_latency = p99_latency = 0
+                self.logger.warning("Insufficient data for reliable percentile calculations")
             
             throughput = total_requests / actual_duration if actual_duration > 0 else 0
             error_rate = (total_errors / total_requests * 100) if total_requests > 0 else 0
@@ -218,6 +236,38 @@ class LoadTestEngine:
                         memory_mb = None
                     
                     return cpu_percent, memory_mb
+        except Exception:
+            pass
+        
+        # Fallback to system monitoring using psutil
+        try:
+            import psutil
+            cpu_percent = psutil.cpu_percent(interval=1)
+            memory = psutil.virtual_memory()
+            memory_mb = memory.used / (1024 * 1024)  # Convert to MB
+            return cpu_percent, memory_mb
+        except ImportError:
+            self.logger.debug("psutil not available for system monitoring")
+        except Exception as e:
+            self.logger.debug(f"System monitoring failed: {e}")
+        
+        # Final fallback - try top command
+        try:
+            result = subprocess.run(
+                ["top", "-l", "1", "-n", "0"], 
+                capture_output=True, text=True, timeout=5
+            )
+            if result.returncode == 0:
+                # Parse CPU usage from top output (macOS/Linux)
+                lines = result.stdout.split('\n')
+                for line in lines:
+                    if 'CPU usage:' in line or 'Cpu(s):' in line:
+                        # Extract CPU percentage (simplified parsing)
+                        import re
+                        cpu_match = re.search(r'(\d+\.?\d*)%', line)
+                        if cpu_match:
+                            cpu_percent = float(cpu_match.group(1))
+                            return cpu_percent, None
         except Exception:
             pass
         
@@ -383,6 +433,10 @@ async def main():
                        help="Output file for Prometheus metrics")
     parser.add_argument("--fail-on-violation", action="store_true",
                        help="Exit with non-zero code if SLOs are violated")
+    parser.add_argument("--timeout", type=float, default=30.0,
+                       help="Request timeout in seconds (default: 30.0)")
+    parser.add_argument("--min-sample-size", type=int, default=100,
+                       help="Minimum sample size for valid test (default: 100)")
     
     args = parser.parse_args()
     
@@ -391,7 +445,9 @@ async def main():
         concurrency=args.concurrency,
         duration=args.duration,
         target_url=args.target,
-        request_patterns=args.pattern
+        request_patterns=args.pattern,
+        request_timeout=args.timeout,
+        min_sample_size=args.min_sample_size
     )
     
     # Run load test

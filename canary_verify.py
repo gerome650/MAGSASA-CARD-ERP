@@ -16,8 +16,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 # Import load testing components
-sys.path.append(str(Path(__file__).parent))
-from deploy.load_test import LoadTestEngine, LoadTestConfig, PerformanceValidator
+sys.path.append(str(Path(__file__).parent / "deploy"))
+from load_test import LoadTestEngine, LoadTestConfig, PerformanceValidator
 
 
 class CanaryVerifier:
