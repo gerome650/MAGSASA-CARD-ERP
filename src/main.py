@@ -127,4 +127,11 @@ with app.app_context():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    # Security: Use environment variables for host and debug settings
+    # Default to secure values: localhost binding and debug off
+    flask_host = os.getenv('FLASK_HOST', '127.0.0.1')
+    flask_debug = os.getenv('FLASK_DEBUG', 'False').lower() in ('true', '1', 'yes')
+    
+    # Note: For Docker/load testing, set FLASK_HOST=0.0.0.0 in environment
+    # This avoids hardcoding bind-all-interfaces (Bandit B104)
+    app.run(host=flask_host, port=5001, debug=flask_debug)  # nosec B104
