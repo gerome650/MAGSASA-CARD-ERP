@@ -1,0 +1,263 @@
+name: Load Testing & Performance Validation
+
+on:
+  workflow_call:
+    inputs:
+      target_url:
+        description: 'Target URL for load testing'
+        required: true
+        type: string
+      concurrency:
+        description: 'Number of concurrent users'
+        required: false
+        type: number
+        default: 500
+      duration:
+        description: 'Test duration in seconds'
+        required: false
+        type: number
+        default: 300
+      environment:
+        description: 'Environment name (staging/production)'
+        required: false
+        type: string
+        default: 'staging'
+      fail_on_violation:
+        description: 'Fail workflow if SLOs are violated'
+        required: false
+        type: boolean
+        default: true
+    outputs:
+      performance_passed:
+        description: 'Whether performance tests passed'
+        value: ${{ jobs.load-test.outputs.performance_passed }}
+      report_url:
+        description: 'URL to performance report artifact'
+        value: ${{ jobs.load-test.outputs.report_url }}
+
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: 'Target URL for load testing'
+        required: true
+        type: string
+      concurrency:
+        description: 'Number of concurrent users'
+        required: false
+        type: number
+        default: 100
+      duration:
+        description: 'Test duration in seconds'
+        required: false
+        type: number
+        default: 180
+      environment:
+        description: 'Environment name'
+        required: false
+        type: string
+        default: 'staging'
+
+env:
+  ENVIRONMENT: ${{ inputs.environment }}
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  load-test:
+    name: Performance Load Testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    outputs:
+      performance_passed: ${{ steps.validate.outputs.performance_passed }}
+      report_url: ${{ steps.upload.outputs.artifact-url }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install aiohttp pyyaml requests
+          
+          # Install additional monitoring tools if available
+          pip install psutil docker || true
+      
+      - name: Verify target availability
+        run: |
+          echo "🔍 Checking target availability: ${{ inputs.target_url }}"
+          
+          # Wait for service to be ready (max 5 minutes)
+          timeout=300
+          interval=10
+          elapsed=0
+          
+          while [ $elapsed -lt $timeout ]; do
+            if curl -f -s "${{ inputs.target_url }}/api/health" > /dev/null 2>&1; then
+              echo "✅ Target is ready"
+              break
+            fi
+            
+            echo "⏳ Waiting for target to be ready... (${elapsed}s/${timeout}s)"
+            sleep $interval
+            elapsed=$((elapsed + interval))
+          done
+          
+          if [ $elapsed -ge $timeout ]; then
+            echo "❌ Target not ready after ${timeout}s"
+            exit 1
+          fi
+      
+      - name: Run load test
+        id: loadtest
+        run: |
+          echo "🚀 Starting load test"
+          echo "Target: ${{ inputs.target_url }}"
+          echo "Concurrency: ${{ inputs.concurrency }}"
+          echo "Duration: ${{ inputs.duration }}s"
+          echo "Environment: ${{ inputs.environment }}"
+          
+          # Create output directory
+          mkdir -p deploy/reports
+          
+          # Set environment-specific config if available
+          config_file="deploy/performance_config.yml"
+          if [ "${{ inputs.environment }}" != "staging" ]; then
+            # Override thresholds for different environments
+            export ENVIRONMENT="${{ inputs.environment }}"
+          fi
+          
+          # Run the load test
+          python3 deploy/load_test.py \
+            --target "${{ inputs.target_url }}" \
+            --concurrency ${{ inputs.concurrency }} \
+            --duration ${{ inputs.duration }} \
+            --config "$config_file" \
+            --output "deploy/reports/performance_report_$(date +%Y%m%d_%H%M%S).md" \
+            --prometheus-output "deploy/reports/metrics.prom" \
+            --fail-on-violation
+        
+        continue-on-error: true
+      
+      - name: Validate performance results
+        id: validate
+        run: |
+          # Check if load test passed based on exit code
+          if [ ${{ steps.loadtest.outcome }} == "success" ]; then
+            echo "✅ Load test passed - all SLOs met"
+            echo "performance_passed=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Load test failed - SLO violations detected"
+            echo "performance_passed=false" >> $GITHUB_OUTPUT
+            
+            # Extract violations from report if available
+            if [ -f deploy/reports/performance_report_*.md ]; then
+              echo "📋 Performance violations:"
+              grep -A 10 "SLO Violations" deploy/reports/performance_report_*.md || true
+            fi
+          fi
+      
+      - name: Generate summary report
+        run: |
+          echo "# 📊 Load Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Target:** ${{ inputs.target_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Concurrency:** ${{ inputs.concurrency }} users" >> $GITHUB_STEP_SUMMARY
+          echo "**Duration:** ${{ inputs.duration }}s" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.validate.outputs.performance_passed }}" == "true" ]; then
+            echo "## ✅ Performance Test PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "All SLO thresholds were met." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ❌ Performance Test FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "One or more SLO thresholds were violated." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Add metrics summary if available
+          if [ -f deploy/reports/performance_report_*.md ]; then
+            echo "## 📈 Key Metrics" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Extract metrics table from report
+            sed -n '/## Test Results/,/##/p' deploy/reports/performance_report_*.md | \
+              grep -E '^\|' >> $GITHUB_STEP_SUMMARY || true
+          fi
+      
+      - name: Upload performance reports
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-reports-${{ inputs.environment }}-${{ github.run_number }}
+          path: |
+            deploy/reports/
+            deploy/performance_config.yml
+          retention-days: 30
+        if: always()
+      
+      - name: Export Prometheus metrics
+        run: |
+          if [ -f deploy/reports/metrics.prom ]; then
+            echo "📊 Prometheus metrics:"
+            cat deploy/reports/metrics.prom
+            
+            # If running in a cluster with Prometheus, push metrics
+            if [ -n "${{ secrets.PROMETHEUS_PUSHGATEWAY_URL }}" ]; then
+              echo "📤 Pushing metrics to Prometheus"
+              curl -X POST \
+                "${{ secrets.PROMETHEUS_PUSHGATEWAY_URL }}/metrics/job/loadtest/instance/${{ github.run_id }}" \
+                --data-binary @deploy/reports/metrics.prom || true
+            fi
+          fi
+      
+      - name: Notify on failure
+        if: failure() && inputs.fail_on_violation
+        run: |
+          echo "🚨 Load test failed - notifying stakeholders"
+          
+          # Slack notification if webhook is configured
+          if [ -n "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+            curl -X POST -H 'Content-type: application/json' \
+              --data "{
+                \"text\": \"🚨 Load Test Failed\",
+                \"blocks\": [
+                  {
+                    \"type\": \"section\",
+                    \"text\": {
+                      \"type\": \"mrkdwn\",
+                      \"text\": \"*Load Test Failed* ❌\\n\\n*Target:* ${{ inputs.target_url }}\\n*Environment:* ${{ inputs.environment }}\\n*Workflow:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Details>\"
+                    }
+                  }
+                ]
+              }" \
+              "${{ secrets.SLACK_WEBHOOK_URL }}" || true
+          fi
+      
+      - name: Fail workflow if performance test failed
+        if: inputs.fail_on_violation && steps.validate.outputs.performance_passed != 'true'
+        run: |
+          echo "❌ Failing workflow due to performance test violations"
+          exit 1
+
+  # Optional: Resource cleanup job
+  cleanup:
+    name: Cleanup Test Resources
+    runs-on: ubuntu-latest
+    needs: load-test
+    if: always()
+    
+    steps:
+      - name: Cleanup test artifacts
+        run: |
+          echo "🧹 Cleaning up test resources"
+          # Add any cleanup logic here (e.g., stopping test containers, cleaning temp files)
+          echo "Cleanup completed"
