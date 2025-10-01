@@ -1,0 +1,154 @@
+🧪 Stage 6.4 – Automated Load Simulation & Performance Validation
+
+Prompt for Manus (Builder)
+
+🎯 GOAL
+
+Simulate real-world production traffic against backend-v2 before promotion to ensure scalability, latency, and error rates remain within defined SLOs — and automatically halt rollout or trigger rollback if performance degrades.
+
+✅ REQUIREMENTS
+1. Load Simulation Engine (deploy/load_test.py)
+
+Build a standalone script that generates synthetic traffic based on real API usage patterns.
+
+Must support:
+
+Configurable concurrency (e.g., 100 → 10,000 users)
+
+Variable request patterns (burst, sustained, ramp-up)
+
+Endpoint-specific weight distribution
+
+Output metrics:
+
+P50 / P95 / P99 latency
+
+Throughput (req/sec)
+
+Error rate (%)
+
+Resource usage (CPU, memory from Docker stats or K8s metrics)
+
+2. CI/CD Integration
+
+Add .github/workflows/loadtest.yml to run after shadow testing (Stage 6.3).
+
+The workflow must:
+
+Execute load_test.py against backend-v2
+
+Fail if metrics exceed thresholds (e.g., P95 > 250 ms or error_rate > 0.5 %)
+
+Upload results as an artifact (deploy/performance_report.md)
+
+3. Canary + Progressive Integration
+
+Add --load-test flag to canary_verify.py and progressive_rollout.py:
+
+When enabled, run the load test before promotion.
+
+Block promotion if SLO thresholds are not met.
+
+Add optional --auto-rollback-on-loadfail flag to automatically roll back on failure.
+
+4. Performance Threshold Config (deploy/performance_config.yml)
+
+Define acceptable SLOs:
+
+latency:
+  p50: 100ms
+  p95: 250ms
+  p99: 400ms
+error_rate: 0.5%
+throughput: 1000 req/sec
+
+
+Allow overrides via CLI flags or environment variables.
+
+5. Observability & Metrics
+
+Export Prometheus metrics:
+
+loadtest_latency_p95
+
+loadtest_throughput_rps
+
+loadtest_error_rate
+
+Append results to deploy/deployment_report.md with:
+
+Pass/fail reason
+
+Metrics summary
+
+Auto-rollback triggered? (Y/N)
+
+6. Documentation (docs/LOAD_TEST_AUTOMATION.md)
+
+Include:
+
+How to run load tests locally & in CI
+
+Explanation of KPIs
+
+How to tune SLO thresholds
+
+Troubleshooting guide for degraded performance
+
+📁 FILES TO CREATE / MODIFY
+
+deploy/load_test.py – load simulation engine
+
+deploy/performance_config.yml – SLO thresholds
+
+deploy/performance_report.md – test results log
+
+.github/workflows/loadtest.yml – CI workflow
+
+canary_verify.py – add --load-test support
+
+progressive_rollout.py – add load test pre-check
+
+docs/LOAD_TEST_AUTOMATION.md – documentation
+
+📜 USAGE EXAMPLES
+
+Manual Load Test:
+
+python3 deploy/load_test.py --concurrency 500 --duration 300 --target backend-v2
+
+
+Canary with Load Test:
+
+python3 canary_verify.py --shadow-test --load-test --auto-rollback-on-loadfail
+
+
+CI/CD Workflow:
+
+jobs:
+  shadow-test:
+    uses: ./.github/workflows/shadow-test.yml
+  load-test:
+    needs: shadow-test
+    uses: ./.github/workflows/loadtest.yml
+
+🎯 ACCEPTANCE CRITERIA
+
+✅ Load testing runs automatically after shadow testing
+✅ Promotion is blocked if SLOs fail
+✅ Auto-rollback triggered if enabled
+✅ Performance metrics logged and exported
+✅ GitHub Actions workflow passes only when backend-v2 meets thresholds
+✅ Documentation complete with troubleshooting and tuning guide
+
+📈 STAGE 6.4 IMPACT
+
+🔥 Pre-deployment stress testing
+
+🧠 SLO-enforced deployment gates
+
+🤖 Auto-halt or rollback on degradation
+
+📊 Performance observability for every release
+
+✅ Manus instructions: Implement all components above, following the [Handoff Protocol] — include project metadata, file overview, known limitations, and review objectives with your output so Cursor can perform a complete QA pass.

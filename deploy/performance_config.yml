@@ -1,0 +1,103 @@
+# Performance SLO Configuration
+# Define acceptable performance thresholds for load testing
+
+thresholds:
+  # Latency thresholds in milliseconds
+  latency:
+    p50: 100    # 50th percentile (median) latency
+    p95: 250    # 95th percentile latency
+    p99: 400    # 99th percentile latency
+  
+  # Error rate threshold as percentage
+  error_rate: 0.5  # Maximum acceptable error rate (%)
+  
+  # Minimum throughput requirement
+  throughput: 1000  # Minimum requests per second
+
+# Environment-specific overrides
+environments:
+  staging:
+    thresholds:
+      latency:
+        p50: 150
+        p95: 300
+        p99: 500
+      error_rate: 1.0
+      throughput: 500
+  
+  production:
+    thresholds:
+      latency:
+        p50: 80
+        p95: 200
+        p99: 350
+      error_rate: 0.1
+      throughput: 2000
+
+# Load test configuration defaults
+load_test:
+  # Default endpoint weights for realistic traffic simulation
+  endpoints:
+    "/api/health": 0.05      # Health checks
+    "/api/users": 0.25       # User operations
+    "/api/orders": 0.30      # Order processing (highest load)
+    "/api/products": 0.20    # Product catalog
+    "/api/analytics": 0.10   # Analytics queries
+    "/api/search": 0.10      # Search functionality
+  
+  # Request pattern configurations
+  patterns:
+    sustained:
+      description: "Consistent load over time"
+      inter_request_delay: [0.01, 0.1]  # Random delay range in seconds
+    
+    burst:
+      description: "Burst traffic with pauses"
+      burst_size: 10
+      burst_pause: [0.5, 2.0]  # Pause range after burst
+    
+    ramp_up:
+      description: "Gradual increase in load"
+      ramp_duration: 30  # Seconds to reach full concurrency
+
+# Alerting configuration
+alerts:
+  # Slack webhook for notifications (optional)
+  slack_webhook: "${SLACK_WEBHOOK_URL}"
+  
+  # Email notifications (optional)
+  email:
+    enabled: false
+    smtp_server: "smtp.gmail.com"
+    smtp_port: 587
+    from_email: "alerts@company.com"
+    to_emails: ["devops@company.com"]
+
+# Prometheus metrics configuration
+prometheus:
+  # Metrics prefix
+  prefix: "loadtest_"
+  
+  # Additional labels to add to metrics
+  labels:
+    service: "backend-v2"
+    environment: "${ENVIRONMENT:-staging}"
+    version: "${BUILD_VERSION:-unknown}"
+
+# Resource monitoring
+monitoring:
+  # Docker container monitoring
+  docker:
+    enabled: true
+    container_pattern: "backend-v2*"
+  
+  # Kubernetes monitoring
+  kubernetes:
+    enabled: false
+    namespace: "default"
+    deployment: "backend-v2"
+  
+  # System monitoring
+  system:
+    enabled: true
+    metrics: ["cpu", "memory", "disk", "network"]

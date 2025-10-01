@@ -24,7 +24,8 @@ jobs:
         python-version: ${{ matrix.python-version }}
     
     - name: Cache pip dependencies
-      uses: actions/cache@v3
+      # Updated to v4 due to deprecation of v3 (Oct 2024 GitHub Actions update)
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
@@ -73,7 +74,8 @@ jobs:
         rm -f test.db
     
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      # Updated to v4 due to deprecation of v3 (Oct 2024 GitHub Actions update)
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: test-results
