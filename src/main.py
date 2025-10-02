@@ -30,6 +30,7 @@ from src.routes.image_upload import image_bp
 from src.routes.farmer_loans import farmer_loans_bp
 from src.routes.kaani_enhanced import kaani_enhanced_bp
 from src.routes.prequalification import prequalification_bp
+from src.routes.health import health_bp
 from src.simple_auth import simple_auth_bp
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
@@ -64,6 +65,7 @@ app.register_blueprint(image_bp)
 app.register_blueprint(farmer_loans_bp)
 app.register_blueprint(kaani_enhanced_bp)  # Enhanced KaAni Assistant integration
 app.register_blueprint(prequalification_bp)  # Pre-qualification assessment API
+app.register_blueprint(health_bp)  # Health check endpoints for monitoring and chaos engineering
 
 # Add root route handler
 @app.route('/')

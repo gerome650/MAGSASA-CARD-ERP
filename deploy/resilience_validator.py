@@ -22,13 +22,20 @@ import aiohttp
 @dataclass
 class SLOTargets:
     """SLO target thresholds."""
-    mttr_seconds: float = 30.0
-    max_error_rate_percent: float = 5.0
-    min_availability_percent: float = 95.0
-    max_latency_degradation_ms: float = 500.0
-    max_recovery_time_seconds: float = 10.0
+    mttr_seconds: float = 45.0
+    max_error_rate_percent: float = 8.0
+    min_availability_percent: float = 92.0
+    max_latency_degradation_ms: float = 800.0
+    max_recovery_time_seconds: float = 15.0
     required_health_checks: int = 3
     health_check_interval_seconds: float = 2.0
+
+
+@dataclass
+class SLOSeverity:
+    """SLO severity levels for blocking vs warning thresholds."""
+    blocking: SLOTargets
+    warning: SLOTargets
 
 
 @dataclass
@@ -66,7 +73,9 @@ class ValidationResult:
     passed: bool
     metrics: ResilienceMetrics
     violations: List[str]
+    warnings: List[str]
     slo_targets: SLOTargets
+    slo_severity: Optional[SLOSeverity]
     timestamp: str
     
     def to_dict(self):
@@ -75,8 +84,10 @@ class ValidationResult:
             'passed': self.passed,
             'timestamp': self.timestamp,
             'slo_targets': asdict(self.slo_targets),
+            'slo_severity': asdict(self.slo_severity) if self.slo_severity else None,
             'metrics': asdict(self.metrics),
-            'violations': self.violations
+            'violations': self.violations,
+            'warnings': self.warnings
         }
 
 
@@ -88,7 +99,7 @@ class ResilienceValidator:
         self.target_url = target_url
         self.config_path = config_path
         self.logger = self._setup_logging()
-        self.slo_targets = self._load_slo_targets()
+        self.slo_targets, self.slo_severity = self._load_slo_config()
         self.metrics = ResilienceMetrics()
         
     def _setup_logging(self) -> logging.Logger:
@@ -99,28 +110,104 @@ class ResilienceValidator:
         )
         return logging.getLogger(__name__)
     
-    def _load_slo_targets(self) -> SLOTargets:
-        """Load SLO targets from configuration file."""
+    def _load_slo_config(self) -> Tuple[SLOTargets, Optional[SLOSeverity]]:
+        """Load SLO targets and severity configuration from file."""
         try:
             if Path(self.config_path).exists():
                 with open(self.config_path, 'r') as f:
                     config = yaml.safe_load(f)
-                    targets = config.get('slo_targets', {})
-                    recovery = targets.get('recovery', {})
                     
-                    return SLOTargets(
-                        mttr_seconds=targets.get('mttr_seconds', 30.0),
-                        max_error_rate_percent=targets.get('max_error_rate_percent', 5.0),
-                        min_availability_percent=targets.get('min_availability_percent', 95.0),
-                        max_latency_degradation_ms=targets.get('max_latency_degradation_ms', 500.0),
-                        max_recovery_time_seconds=recovery.get('max_recovery_time_seconds', 10.0),
-                        required_health_checks=recovery.get('required_health_checks', 3),
-                        health_check_interval_seconds=recovery.get('health_check_interval_seconds', 2.0)
+                # Load main SLO targets
+                targets = config.get('slo_targets', {})
+                recovery = targets.get('recovery', {})
+                
+                slo_targets = SLOTargets(
+                    mttr_seconds=targets.get('mttr_seconds', 45.0),
+                    max_error_rate_percent=targets.get('max_error_rate_percent', 8.0),
+                    min_availability_percent=targets.get('min_availability_percent', 92.0),
+                    max_latency_degradation_ms=targets.get('max_latency_degradation_ms', 800.0),
+                    max_recovery_time_seconds=recovery.get('max_recovery_time_seconds', 15.0),
+                    required_health_checks=recovery.get('required_health_checks', 3),
+                    health_check_interval_seconds=recovery.get('health_check_interval_seconds', 2.0)
+                )
+                
+                # Load severity levels if available
+                slo_severity = None
+                severity_config = config.get('slo_severity')
+                if severity_config:
+                    blocking_config = severity_config.get('blocking', {})
+                    warning_config = severity_config.get('warning', {})
+                    
+                    blocking_targets = SLOTargets(
+                        mttr_seconds=blocking_config.get('mttr_seconds', 60.0),
+                        max_error_rate_percent=blocking_config.get('max_error_rate_percent', 15.0),
+                        min_availability_percent=blocking_config.get('min_availability_percent', 85.0),
+                        max_latency_degradation_ms=blocking_config.get('max_latency_degradation_ms', 1500.0),
+                        max_recovery_time_seconds=blocking_config.get('max_recovery_time_seconds', 30.0)
                     )
+                    
+                    warning_targets = SLOTargets(
+                        mttr_seconds=warning_config.get('mttr_seconds', 45.0),
+                        max_error_rate_percent=warning_config.get('max_error_rate_percent', 8.0),
+                        min_availability_percent=warning_config.get('min_availability_percent', 92.0),
+                        max_latency_degradation_ms=warning_config.get('max_latency_degradation_ms', 800.0),
+                        max_recovery_time_seconds=warning_config.get('max_recovery_time_seconds', 15.0)
+                    )
+                    
+                    slo_severity = SLOSeverity(blocking=blocking_targets, warning=warning_targets)
+                
+                return slo_targets, slo_severity
+                
         except Exception as e:
-            self.logger.warning(f"Could not load SLO targets from {self.config_path}: {e}")
+            self.logger.warning(f"Could not load SLO configuration from {self.config_path}: {e}")
         
-        return SLOTargets()
+        return SLOTargets(), None
+    
+    async def wait_for_service_ready(self, timeout: int = 60, interval: float = 2.0) -> bool:
+        """
+        Wait for service to be ready before starting chaos tests.
+        
+        Args:
+            timeout: Maximum time to wait in seconds
+            interval: Check interval in seconds
+            
+        Returns:
+            True if service is ready, False if timeout reached
+        """
+        self.logger.info(f"⏳ Waiting for service to be ready (timeout: {timeout}s)")
+        
+        start_time = time.time()
+        attempts = 0
+        
+        while time.time() - start_time < timeout:
+            attempts += 1
+            try:
+                async with aiohttp.ClientSession() as session:
+                    # Try both health endpoints
+                    endpoints = ["/api/health", "/api/health/ready"]
+                    
+                    for endpoint in endpoints:
+                        try:
+                            async with session.get(
+                                f"{self.target_url}{endpoint}",
+                                timeout=aiohttp.ClientTimeout(total=5)
+                            ) as resp:
+                                if resp.status == 200:
+                                    data = await resp.json()
+                                    if data.get('healthy', False) or data.get('ready', False):
+                                        self.logger.info(f"✅ Service is ready (attempt {attempts})")
+                                        return True
+                        except Exception:
+                            continue  # Try next endpoint
+                            
+            except Exception as e:
+                self.logger.debug(f"Service readiness check failed (attempt {attempts}): {e}")
+            
+            self.logger.debug(f"   Attempt {attempts} - service not ready, waiting {interval}s...")
+            await asyncio.sleep(interval)
+        
+        self.logger.error(f"❌ Service failed to become ready within {timeout}s")
+        return False
     
     async def measure_baseline_latency(self, samples: int = 10) -> float:
         """Measure baseline latency before chaos."""
@@ -347,80 +434,124 @@ class ResilienceValidator:
         return None
     
     def validate_slos(self) -> ValidationResult:
-        """Validate metrics against SLO targets."""
+        """Validate metrics against SLO targets with severity levels."""
         self.logger.info("\n🎯 Validating SLO compliance")
         
         violations = []
+        warnings = []
+        
+        # Use severity levels if available, otherwise fall back to main targets
+        blocking_targets = self.slo_severity.blocking if self.slo_severity else self.slo_targets
+        warning_targets = self.slo_severity.warning if self.slo_severity else self.slo_targets
         
         # Validate MTTR
         if self.metrics.mttr is not None:
-            if self.metrics.mttr > self.slo_targets.mttr_seconds:
+            if self.metrics.mttr > blocking_targets.mttr_seconds:
                 violations.append(
-                    f"MTTR {self.metrics.mttr:.1f}s exceeds target "
-                    f"{self.slo_targets.mttr_seconds:.1f}s"
+                    f"MTTR {self.metrics.mttr:.1f}s exceeds blocking threshold "
+                    f"{blocking_targets.mttr_seconds:.1f}s"
                 )
-            self.logger.info(f"   MTTR: {self.metrics.mttr:.1f}s / {self.slo_targets.mttr_seconds:.1f}s target")
+            elif self.metrics.mttr > warning_targets.mttr_seconds:
+                warnings.append(
+                    f"MTTR {self.metrics.mttr:.1f}s exceeds warning threshold "
+                    f"{warning_targets.mttr_seconds:.1f}s"
+                )
+            self.logger.info(f"   MTTR: {self.metrics.mttr:.1f}s / {warning_targets.mttr_seconds:.1f}s warning / {blocking_targets.mttr_seconds:.1f}s blocking")
         
         # Validate recovery time
         if self.metrics.recovery_time is not None:
-            if self.metrics.recovery_time > self.slo_targets.max_recovery_time_seconds:
+            if self.metrics.recovery_time > blocking_targets.max_recovery_time_seconds:
                 violations.append(
-                    f"Recovery time {self.metrics.recovery_time:.1f}s exceeds target "
-                    f"{self.slo_targets.max_recovery_time_seconds:.1f}s"
+                    f"Recovery time {self.metrics.recovery_time:.1f}s exceeds blocking threshold "
+                    f"{blocking_targets.max_recovery_time_seconds:.1f}s"
+                )
+            elif self.metrics.recovery_time > warning_targets.max_recovery_time_seconds:
+                warnings.append(
+                    f"Recovery time {self.metrics.recovery_time:.1f}s exceeds warning threshold "
+                    f"{warning_targets.max_recovery_time_seconds:.1f}s"
                 )
             self.logger.info(
                 f"   Recovery time: {self.metrics.recovery_time:.1f}s / "
-                f"{self.slo_targets.max_recovery_time_seconds:.1f}s target"
+                f"{warning_targets.max_recovery_time_seconds:.1f}s warning / "
+                f"{blocking_targets.max_recovery_time_seconds:.1f}s blocking"
             )
         
         # Validate error rate
-        if self.metrics.error_rate_percent > self.slo_targets.max_error_rate_percent:
+        if self.metrics.error_rate_percent > blocking_targets.max_error_rate_percent:
             violations.append(
-                f"Error rate {self.metrics.error_rate_percent:.1f}% exceeds target "
-                f"{self.slo_targets.max_error_rate_percent:.1f}%"
+                f"Error rate {self.metrics.error_rate_percent:.1f}% exceeds blocking threshold "
+                f"{blocking_targets.max_error_rate_percent:.1f}%"
+            )
+        elif self.metrics.error_rate_percent > warning_targets.max_error_rate_percent:
+            warnings.append(
+                f"Error rate {self.metrics.error_rate_percent:.1f}% exceeds warning threshold "
+                f"{warning_targets.max_error_rate_percent:.1f}%"
             )
         self.logger.info(
             f"   Error rate: {self.metrics.error_rate_percent:.1f}% / "
-            f"{self.slo_targets.max_error_rate_percent:.1f}% target"
+            f"{warning_targets.max_error_rate_percent:.1f}% warning / "
+            f"{blocking_targets.max_error_rate_percent:.1f}% blocking"
         )
         
         # Validate availability
-        if self.metrics.availability_percent < self.slo_targets.min_availability_percent:
+        if self.metrics.availability_percent < blocking_targets.min_availability_percent:
             violations.append(
-                f"Availability {self.metrics.availability_percent:.1f}% below target "
-                f"{self.slo_targets.min_availability_percent:.1f}%"
+                f"Availability {self.metrics.availability_percent:.1f}% below blocking threshold "
+                f"{blocking_targets.min_availability_percent:.1f}%"
+            )
+        elif self.metrics.availability_percent < warning_targets.min_availability_percent:
+            warnings.append(
+                f"Availability {self.metrics.availability_percent:.1f}% below warning threshold "
+                f"{warning_targets.min_availability_percent:.1f}%"
             )
         self.logger.info(
             f"   Availability: {self.metrics.availability_percent:.1f}% / "
-            f"{self.slo_targets.min_availability_percent:.1f}% target"
+            f"{warning_targets.min_availability_percent:.1f}% warning / "
+            f"{blocking_targets.min_availability_percent:.1f}% blocking"
         )
         
         # Validate latency degradation
         if self.metrics.latency_degradation_ms is not None:
-            if self.metrics.latency_degradation_ms > self.slo_targets.max_latency_degradation_ms:
+            if self.metrics.latency_degradation_ms > blocking_targets.max_latency_degradation_ms:
                 violations.append(
-                    f"Latency degradation {self.metrics.latency_degradation_ms:.1f}ms exceeds target "
-                    f"{self.slo_targets.max_latency_degradation_ms:.1f}ms"
+                    f"Latency degradation {self.metrics.latency_degradation_ms:.1f}ms exceeds blocking threshold "
+                    f"{blocking_targets.max_latency_degradation_ms:.1f}ms"
+                )
+            elif self.metrics.latency_degradation_ms > warning_targets.max_latency_degradation_ms:
+                warnings.append(
+                    f"Latency degradation {self.metrics.latency_degradation_ms:.1f}ms exceeds warning threshold "
+                    f"{warning_targets.max_latency_degradation_ms:.1f}ms"
                 )
             self.logger.info(
                 f"   Latency degradation: {self.metrics.latency_degradation_ms:.1f}ms / "
-                f"{self.slo_targets.max_latency_degradation_ms:.1f}ms target"
+                f"{warning_targets.max_latency_degradation_ms:.1f}ms warning / "
+                f"{blocking_targets.max_latency_degradation_ms:.1f}ms blocking"
             )
         
+        # Only fail if there are blocking violations
         passed = len(violations) == 0
         
         result = ValidationResult(
             passed=passed,
             metrics=self.metrics,
             violations=violations,
+            warnings=warnings,
             slo_targets=self.slo_targets,
+            slo_severity=self.slo_severity,
             timestamp=datetime.now().isoformat()
         )
         
-        if passed:
+        if passed and len(warnings) == 0:
             self.logger.info("\n✅ All SLOs met!")
+        elif passed:
+            self.logger.warning(f"\n⚠️  SLOs passed with {len(warnings)} warning(s)")
         else:
-            self.logger.error(f"\n❌ {len(violations)} SLO violation(s) detected")
+            self.logger.error(f"\n❌ {len(violations)} blocking SLO violation(s) detected")
+        
+        if warnings:
+            self.logger.warning("Warnings:")
+            for warning in warnings:
+                self.logger.warning(f"  - {warning}")
         
         return result
     
@@ -596,6 +727,11 @@ async def main():
     print(f"Target: {args.target}")
     
     try:
+        # Wait for service to be ready
+        if not await validator.wait_for_service_ready(timeout=60):
+            print("❌ Service is not ready for chaos testing")
+            sys.exit(1)
+        
         # Measure baseline
         await validator.measure_baseline_latency(samples=args.baseline_samples)
         

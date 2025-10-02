@@ -64,20 +64,34 @@ echo -e "  Dry Run:   ${DRY_RUN}"
 echo -e "  Results:   ${RESULTS_DIR}"
 echo ""
 
-# Function to check if service is healthy
+# Function to check if service is healthy and ready
 check_service_health() {
-    echo -e "${YELLOW}⏳ Checking service health...${NC}"
+    echo -e "${YELLOW}⏳ Checking service health and readiness...${NC}"
     
-    for i in {1..10}; do
+    # First check basic health
+    for i in {1..30}; do
         if curl -f -s "${TARGET_URL}/api/health" > /dev/null 2>&1; then
-            echo -e "${GREEN}✅ Service is healthy${NC}"
-            return 0
+            echo -e "${GREEN}✅ Service health check passed${NC}"
+            break
+        elif curl -f -s "${TARGET_URL}/api/health/live" > /dev/null 2>&1; then
+            echo -e "${GREEN}✅ Service liveness check passed${NC}"
+            break
         fi
-        echo -e "  Attempt $i/10..."
+        echo -e "  Health check attempt $i/30..."
         sleep 2
     done
     
-    echo -e "${RED}❌ Service health check failed${NC}"
+    # Then check readiness
+    for i in {1..15}; do
+        if curl -f -s "${TARGET_URL}/api/health/ready" > /dev/null 2>&1; then
+            echo -e "${GREEN}✅ Service is ready for chaos testing${NC}"
+            return 0
+        fi
+        echo -e "  Readiness check attempt $i/15..."
+        sleep 2
+    done
+    
+    echo -e "${RED}❌ Service readiness check failed${NC}"
     return 1
 }
 
