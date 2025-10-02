@@ -1,0 +1,329 @@
+# Chaos Engineering Scenarios Configuration
+# Stage 6.5 - Fault Injection & Resilience Testing
+
+# SLO Targets for Resilience Validation
+slo_targets:
+  # Mean Time To Recovery (MTTR) - maximum acceptable recovery time
+  mttr_seconds: 30
+  
+  # Maximum acceptable error rate during chaos
+  max_error_rate_percent: 5.0
+  
+  # Minimum acceptable availability during chaos
+  min_availability_percent: 95.0
+  
+  # Maximum acceptable latency degradation
+  max_latency_degradation_ms: 500
+  
+  # Recovery validation
+  recovery:
+    # Maximum time to return to normal operation after chaos ends
+    max_recovery_time_seconds: 10
+    
+    # Required consecutive successful health checks
+    required_health_checks: 3
+    
+    # Interval between health checks
+    health_check_interval_seconds: 2
+
+# Chaos Scenarios
+scenarios:
+  # CPU Exhaustion Tests
+  - name: "Light CPU Stress"
+    type: "cpu_exhaust"
+    intensity: "light"
+    duration: 30
+    description: "Moderate CPU load to test graceful degradation"
+    parameters:
+      cpu_workers: 2
+      expected_impact: "minimal"
+  
+  - name: "Medium CPU Stress"
+    type: "cpu_exhaust"
+    intensity: "medium"
+    duration: 45
+    description: "Heavy CPU load to test system stability under pressure"
+    parameters:
+      cpu_workers: 4
+      expected_impact: "moderate"
+  
+  - name: "Heavy CPU Stress"
+    type: "cpu_exhaust"
+    intensity: "heavy"
+    duration: 60
+    description: "Extreme CPU exhaustion to test maximum resilience"
+    parameters:
+      cpu_workers: 8
+      expected_impact: "severe"
+  
+  # Memory Stress Tests
+  - name: "Light Memory Stress"
+    type: "memory_leak"
+    intensity: "light"
+    duration: 30
+    description: "Gradual memory pressure to test memory management"
+    parameters:
+      memory_size: "256M"
+      expected_impact: "minimal"
+  
+  - name: "Medium Memory Stress"
+    type: "memory_leak"
+    intensity: "medium"
+    duration: 45
+    description: "Significant memory allocation to test swapping behavior"
+    parameters:
+      memory_size: "512M"
+      expected_impact: "moderate"
+  
+  - name: "Heavy Memory Stress"
+    type: "memory_leak"
+    intensity: "heavy"
+    duration: 60
+    description: "Extreme memory pressure to test OOM handling"
+    parameters:
+      memory_size: "1G"
+      expected_impact: "severe"
+  
+  # Network Latency Tests
+  - name: "Light Network Delay"
+    type: "network_delay"
+    intensity: "light"
+    duration: 30
+    description: "50ms latency injection to test timeout handling"
+    parameters:
+      delay_ms: 50
+      interface: "lo"
+      expected_impact: "minimal"
+  
+  - name: "Medium Network Delay"
+    type: "network_delay"
+    intensity: "medium"
+    duration: 45
+    description: "200ms latency injection to test user experience degradation"
+    parameters:
+      delay_ms: 200
+      interface: "lo"
+      expected_impact: "moderate"
+  
+  - name: "Heavy Network Delay"
+    type: "network_delay"
+    intensity: "heavy"
+    duration: 60
+    description: "500ms latency injection to test timeout resilience"
+    parameters:
+      delay_ms: 500
+      interface: "lo"
+      expected_impact: "severe"
+  
+  # Network Packet Loss Tests
+  - name: "Light Packet Loss"
+    type: "network_loss"
+    intensity: "light"
+    duration: 30
+    description: "5% packet loss to test retry mechanisms"
+    parameters:
+      loss_percent: 5
+      interface: "lo"
+      expected_impact: "minimal"
+  
+  - name: "Medium Packet Loss"
+    type: "network_loss"
+    intensity: "medium"
+    duration: 45
+    description: "15% packet loss to test connection stability"
+    parameters:
+      loss_percent: 15
+      interface: "lo"
+      expected_impact: "moderate"
+  
+  - name: "Heavy Packet Loss"
+    type: "network_loss"
+    intensity: "heavy"
+    duration: 30
+    description: "30% packet loss to test extreme network conditions"
+    parameters:
+      loss_percent: 30
+      interface: "lo"
+      expected_impact: "severe"
+  
+  # Container Crash Tests
+  - name: "Application Container Restart"
+    type: "container_crash"
+    intensity: "medium"
+    duration: 60
+    description: "Restart main application container to test recovery"
+    target: "backend-v2"
+    parameters:
+      container: "backend-v2"
+      expected_impact: "severe_temporary"
+      recovery_time_expected: 15
+  
+  # Database Failure Tests
+  - name: "Database Brief Outage"
+    type: "database_down"
+    intensity: "light"
+    duration: 10
+    description: "Brief database downtime to test connection pooling"
+    target: "postgres"
+    parameters:
+      database: "postgres"
+      expected_impact: "severe_temporary"
+      recovery_time_expected: 15
+  
+  - name: "Database Extended Outage"
+    type: "database_down"
+    intensity: "heavy"
+    duration: 30
+    description: "Extended database downtime to test fallback mechanisms"
+    target: "postgres"
+    parameters:
+      database: "postgres"
+      expected_impact: "critical"
+      recovery_time_expected: 20
+  
+  # Disk I/O Stress Tests
+  - name: "Light Disk Stress"
+    type: "disk_stress"
+    intensity: "light"
+    duration: 30
+    description: "Moderate disk I/O load to test file operations"
+    parameters:
+      io_workers: 1
+      expected_impact: "minimal"
+  
+  - name: "Medium Disk Stress"
+    type: "disk_stress"
+    intensity: "medium"
+    duration: 45
+    description: "Heavy disk I/O load to test performance degradation"
+    parameters:
+      io_workers: 2
+      expected_impact: "moderate"
+  
+  - name: "Heavy Disk Stress"
+    type: "disk_stress"
+    intensity: "heavy"
+    duration: 60
+    description: "Extreme disk I/O to test storage subsystem limits"
+    parameters:
+      io_workers: 4
+      expected_impact: "severe"
+
+# Scenario Groups - Run related scenarios together
+scenario_groups:
+  smoke_test:
+    description: "Quick smoke test with light chaos"
+    scenarios:
+      - "Light CPU Stress"
+      - "Light Memory Stress"
+      - "Light Network Delay"
+  
+  standard_test:
+    description: "Standard chaos test suite"
+    scenarios:
+      - "Medium CPU Stress"
+      - "Medium Memory Stress"
+      - "Medium Network Delay"
+      - "Light Packet Loss"
+      - "Light Disk Stress"
+  
+  stress_test:
+    description: "Heavy stress test for production validation"
+    scenarios:
+      - "Heavy CPU Stress"
+      - "Heavy Memory Stress"
+      - "Heavy Network Delay"
+      - "Medium Packet Loss"
+      - "Heavy Disk Stress"
+  
+  infrastructure_test:
+    description: "Test infrastructure failure scenarios"
+    scenarios:
+      - "Application Container Restart"
+      - "Database Brief Outage"
+  
+  production_readiness:
+    description: "Full production readiness validation"
+    scenarios:
+      - "Medium CPU Stress"
+      - "Medium Memory Stress"
+      - "Medium Network Delay"
+      - "Application Container Restart"
+      - "Database Brief Outage"
+
+# Monitoring Configuration
+monitoring:
+  # Metrics to collect during chaos
+  metrics:
+    - cpu_usage
+    - memory_usage
+    - disk_io
+    - network_latency
+    - error_rate
+    - response_time
+  
+  # Sampling interval in seconds
+  sampling_interval: 5
+  
+  # Health check configuration
+  health_check:
+    endpoint: "/api/health"
+    timeout: 5
+    interval: 2
+  
+  # Alert thresholds
+  alerts:
+    cpu_threshold: 90
+    memory_threshold: 85
+    error_rate_threshold: 10
+    response_time_threshold: 1000
+
+# Environment-specific configurations
+environments:
+  development:
+    slo_targets:
+      mttr_seconds: 60
+      max_error_rate_percent: 10.0
+      min_availability_percent: 90.0
+  
+  staging:
+    slo_targets:
+      mttr_seconds: 45
+      max_error_rate_percent: 5.0
+      min_availability_percent: 95.0
+  
+  production:
+    slo_targets:
+      mttr_seconds: 30
+      max_error_rate_percent: 1.0
+      min_availability_percent: 99.0
+    
+    # Only run safe scenarios in production
+    allowed_scenarios:
+      - "Light CPU Stress"
+      - "Light Memory Stress"
+      - "Light Network Delay"
+      - "Light Packet Loss"
+
+# Safety Settings
+safety:
+  # Automatically abort if these thresholds are exceeded
+  abort_conditions:
+    error_rate_percent: 50
+    consecutive_failures: 10
+    response_time_ms: 5000
+  
+  # Cooldown period between scenarios
+  cooldown_seconds: 5
+  
+  # Maximum total chaos duration
+  max_total_duration_seconds: 1800
+  
+  # Require confirmation for destructive scenarios
+  require_confirmation:
+    - "container_crash"
+    - "database_down"
+  
+  # Automatic rollback on critical failures
+  auto_rollback: true
+

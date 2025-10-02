@@ -1,0 +1,420 @@
+name: Chaos Engineering Tests
+
+on:
+  # Run on pull requests
+  pull_request:
+    branches:
+      - main
+      - develop
+      - 'feature/**'
+  
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      intensity:
+        description: 'Test intensity level'
+        required: true
+        default: 'standard'
+        type: choice
+        options:
+          - smoke_test
+          - standard_test
+          - stress_test
+      target_url:
+        description: 'Target URL for testing'
+        required: false
+        default: 'http://localhost:8000'
+  
+  # Scheduled runs (nightly)
+  schedule:
+    - cron: '0 2 * * *'  # 2 AM daily
+
+env:
+  PYTHON_VERSION: '3.11'
+  TARGET_URL: ${{ github.event.inputs.target_url || 'http://localhost:8000' }}
+  INTENSITY: ${{ github.event.inputs.intensity || 'standard_test' }}
+
+jobs:
+  setup:
+    name: Setup Environment
+    runs-on: ubuntu-latest
+    outputs:
+      target_url: ${{ steps.config.outputs.target_url }}
+      intensity: ${{ steps.config.outputs.intensity }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Configure test parameters
+        id: config
+        run: |
+          echo "target_url=${{ env.TARGET_URL }}" >> $GITHUB_OUTPUT
+          echo "intensity=${{ env.INTENSITY }}" >> $GITHUB_OUTPUT
+          
+          echo "📋 Configuration:"
+          echo "  Target URL: ${{ env.TARGET_URL }}"
+          echo "  Intensity: ${{ env.INTENSITY }}"
+      
+      - name: Validate configuration
+        run: |
+          if [ ! -f "deploy/chaos_scenarios.yml" ]; then
+            echo "❌ Chaos scenarios configuration not found"
+            exit 1
+          fi
+          
+          if [ ! -f "deploy/chaos_injector.py" ]; then
+            echo "❌ Chaos injector script not found"
+            exit 1
+          fi
+          
+          if [ ! -f "deploy/resilience_validator.py" ]; then
+            echo "❌ Resilience validator script not found"
+            exit 1
+          fi
+          
+          echo "✅ All required files present"
+
+  deploy_service:
+    name: Deploy Test Environment
+    runs-on: ubuntu-latest
+    needs: setup
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Start application service
+        run: |
+          echo "🚀 Starting application service..."
+          
+          # Start the application in the background
+          cd src
+          python main.py &
+          APP_PID=$!
+          echo $APP_PID > ../app.pid
+          
+          echo "Started application with PID: $APP_PID"
+          
+          # Wait for service to be ready
+          echo "⏳ Waiting for service to be ready..."
+          for i in {1..30}; do
+            if curl -f http://localhost:8000/api/health > /dev/null 2>&1; then
+              echo "✅ Service is ready"
+              exit 0
+            fi
+            echo "  Attempt $i/30..."
+            sleep 2
+          done
+          
+          echo "❌ Service failed to start"
+          exit 1
+      
+      - name: Verify service health
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/api/health)
+          if [ "$response" = "200" ]; then
+            echo "✅ Health check passed"
+          else
+            echo "❌ Health check failed with status: $response"
+            exit 1
+          fi
+      
+      - name: Save deployment info
+        run: |
+          echo "SERVICE_URL=http://localhost:8000" >> $GITHUB_ENV
+          echo "✅ Service deployed and verified"
+
+  chaos_injection:
+    name: Execute Chaos Scenarios
+    runs-on: ubuntu-latest
+    needs: [setup, deploy_service]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Install stress testing tools (optional)
+        run: |
+          # Try to install stress-ng for more realistic chaos
+          sudo apt-get update || true
+          sudo apt-get install -y stress-ng || echo "⚠️  stress-ng not available, will use Python fallback"
+      
+      - name: Make chaos injector executable
+        run: |
+          chmod +x deploy/chaos_injector.py
+      
+      - name: Run chaos injection
+        id: chaos
+        run: |
+          echo "🔥 Starting chaos injection..."
+          echo "Intensity: ${{ needs.setup.outputs.intensity }}"
+          
+          python deploy/chaos_injector.py \
+            --config deploy/chaos_scenarios.yml \
+            --target ${{ needs.setup.outputs.target_url }} \
+            --output deploy/chaos_results.json \
+            --verbose
+          
+          CHAOS_EXIT_CODE=$?
+          
+          if [ $CHAOS_EXIT_CODE -eq 0 ]; then
+            echo "✅ Chaos injection completed successfully"
+          else
+            echo "⚠️  Chaos injection completed with warnings"
+          fi
+          
+          echo "exit_code=$CHAOS_EXIT_CODE" >> $GITHUB_OUTPUT
+        continue-on-error: true
+      
+      - name: Upload chaos results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: chaos-results
+          path: |
+            deploy/chaos_results.json
+          retention-days: 30
+      
+      - name: Check chaos execution
+        if: steps.chaos.outputs.exit_code != '0'
+        run: |
+          echo "⚠️  Some chaos scenarios may have failed"
+          echo "Review the chaos results artifact for details"
+
+  resilience_validation:
+    name: Validate Resilience SLOs
+    runs-on: ubuntu-latest
+    needs: [setup, chaos_injection]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Download chaos results
+        uses: actions/download-artifact@v3
+        with:
+          name: chaos-results
+          path: deploy/
+      
+      - name: Make validator executable
+        run: |
+          chmod +x deploy/resilience_validator.py
+      
+      - name: Run resilience validation
+        id: validation
+        run: |
+          echo "🎯 Validating resilience SLOs..."
+          
+          python deploy/resilience_validator.py \
+            --target ${{ needs.setup.outputs.target_url }} \
+            --config deploy/chaos_scenarios.yml \
+            --chaos-results deploy/chaos_results.json \
+            --output deploy/resilience_validation.json \
+            --report deploy/chaos_report.md \
+            --fail-on-violation \
+            --verbose
+          
+          VALIDATION_EXIT_CODE=$?
+          echo "exit_code=$VALIDATION_EXIT_CODE" >> $GITHUB_OUTPUT
+          
+          exit $VALIDATION_EXIT_CODE
+      
+      - name: Upload validation results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: resilience-validation
+          path: |
+            deploy/resilience_validation.json
+            deploy/chaos_report.md
+          retention-days: 30
+      
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            
+            let report = '# 🧪 Chaos Engineering Test Results\n\n';
+            
+            try {
+              const reportContent = fs.readFileSync('deploy/chaos_report.md', 'utf8');
+              report += reportContent;
+            } catch (error) {
+              report += '⚠️ Unable to load chaos report\n';
+            }
+            
+            try {
+              const validationData = JSON.parse(fs.readFileSync('deploy/resilience_validation.json', 'utf8'));
+              
+              if (validationData.passed) {
+                report += '\n\n## ✅ All SLOs Met\n';
+              } else {
+                report += '\n\n## ❌ SLO Violations Detected\n';
+                report += `\n**Violations:** ${validationData.violations.length}\n`;
+              }
+            } catch (error) {
+              report += '\n\n⚠️ Unable to parse validation results\n';
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: report
+            });
+      
+      - name: Fail if SLOs violated
+        if: steps.validation.outputs.exit_code != '0'
+        run: |
+          echo "❌ Resilience SLOs not met"
+          echo "Review the validation results artifact for details"
+          exit 1
+
+  performance_comparison:
+    name: Compare with Baseline
+    runs-on: ubuntu-latest
+    needs: [chaos_injection, resilience_validation]
+    if: always()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts/
+      
+      - name: Compare with baseline
+        run: |
+          echo "📊 Comparing chaos results with baseline..."
+          
+          if [ -f "artifacts/chaos-results/chaos_results.json" ]; then
+            echo "✅ Current chaos results found"
+            
+            # Here you could implement comparison logic with historical data
+            # For now, we'll just report the current results
+            
+            echo "Current test summary:"
+            cat artifacts/chaos-results/chaos_results.json | python -m json.tool | head -20
+          else
+            echo "⚠️ No chaos results found"
+          fi
+      
+      - name: Generate trend report
+        run: |
+          echo "📈 Generating trend analysis..."
+          
+          # This could be enhanced with historical data storage and trending
+          echo "Trend analysis would compare:"
+          echo "  - MTTR over time"
+          echo "  - Error rates across builds"
+          echo "  - Recovery time improvements"
+          echo "  - Availability metrics"
+
+  cleanup:
+    name: Cleanup Test Environment
+    runs-on: ubuntu-latest
+    needs: [chaos_injection, resilience_validation]
+    if: always()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Stop application
+        run: |
+          if [ -f "app.pid" ]; then
+            APP_PID=$(cat app.pid)
+            echo "🛑 Stopping application (PID: $APP_PID)..."
+            kill $APP_PID || true
+            rm app.pid
+          fi
+      
+      - name: Cleanup resources
+        run: |
+          echo "🧹 Cleaning up test resources..."
+          
+          # Kill any lingering stress processes
+          pkill -f stress-ng || true
+          
+          # Clean temporary files
+          rm -f /tmp/chaos_* || true
+          
+          echo "✅ Cleanup completed"
+
+  summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [chaos_injection, resilience_validation, performance_comparison]
+    if: always()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: all-artifacts/
+      
+      - name: Generate summary
+        run: |
+          echo "# 🧪 Chaos Engineering Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Test Intensity:** ${{ env.INTENSITY }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Target URL:** ${{ env.TARGET_URL }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Build:** ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "all-artifacts/resilience-validation/chaos_report.md" ]; then
+            cat all-artifacts/resilience-validation/chaos_report.md >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Chaos report not available" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Check overall status
+        run: |
+          echo "📋 Overall Test Status:"
+          
+          if [ "${{ needs.resilience_validation.result }}" = "success" ]; then
+            echo "✅ Chaos engineering tests PASSED"
+            exit 0
+          else
+            echo "❌ Chaos engineering tests FAILED"
+            exit 1
+          fi
+

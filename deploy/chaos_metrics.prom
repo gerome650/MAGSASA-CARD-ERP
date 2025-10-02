@@ -1,0 +1,88 @@
+# HELP chaos_scenarios_total Total number of chaos scenarios executed
+# TYPE chaos_scenarios_total counter
+chaos_scenarios_total 18
+# HELP chaos_scenarios_successful Number of successful chaos scenarios
+# TYPE chaos_scenarios_successful counter
+chaos_scenarios_successful 18
+# HELP chaos_scenarios_failed Number of failed chaos scenarios
+# TYPE chaos_scenarios_failed counter
+chaos_scenarios_failed 0
+# HELP chaos_scenario_duration_seconds Duration of chaos scenario execution
+# TYPE chaos_scenario_duration_seconds gauge
+chaos_scenario_duration_seconds{scenario="light_cpu_stress",type="cpu_exhaust",intensity="light"} 1.0012900829315186
+chaos_scenario_duration_seconds{scenario="medium_cpu_stress",type="cpu_exhaust",intensity="medium"} 1.0012249946594238
+chaos_scenario_duration_seconds{scenario="heavy_cpu_stress",type="cpu_exhaust",intensity="heavy"} 1.001274824142456
+chaos_scenario_duration_seconds{scenario="light_memory_stress",type="memory_leak",intensity="light"} 1.001286268234253
+chaos_scenario_duration_seconds{scenario="medium_memory_stress",type="memory_leak",intensity="medium"} 1.001169204711914
+chaos_scenario_duration_seconds{scenario="heavy_memory_stress",type="memory_leak",intensity="heavy"} 1.0014238357543945
+chaos_scenario_duration_seconds{scenario="light_network_delay",type="network_delay",intensity="light"} 1.0009970664978027
+chaos_scenario_duration_seconds{scenario="medium_network_delay",type="network_delay",intensity="medium"} 1.0007667541503906
+chaos_scenario_duration_seconds{scenario="heavy_network_delay",type="network_delay",intensity="heavy"} 1.0012359619140625
+chaos_scenario_duration_seconds{scenario="light_packet_loss",type="network_loss",intensity="light"} 1.0012741088867188
+chaos_scenario_duration_seconds{scenario="medium_packet_loss",type="network_loss",intensity="medium"} 1.0010011196136475
+chaos_scenario_duration_seconds{scenario="heavy_packet_loss",type="network_loss",intensity="heavy"} 1.0012376308441162
+chaos_scenario_duration_seconds{scenario="application_container_restart",type="container_crash",intensity="medium"} 1.0012590885162354
+chaos_scenario_duration_seconds{scenario="database_brief_outage",type="database_down",intensity="light"} 1.0012779235839844
+chaos_scenario_duration_seconds{scenario="database_extended_outage",type="database_down",intensity="heavy"} 1.0012211799621582
+chaos_scenario_duration_seconds{scenario="light_disk_stress",type="disk_stress",intensity="light"} 1.0009760856628418
+chaos_scenario_duration_seconds{scenario="medium_disk_stress",type="disk_stress",intensity="medium"} 1.001216173171997
+chaos_scenario_duration_seconds{scenario="heavy_disk_stress",type="disk_stress",intensity="heavy"} 1.000488042831421
+# HELP chaos_scenario_success Success status of chaos scenario (1=success, 0=failure)
+# TYPE chaos_scenario_success gauge
+chaos_scenario_success{scenario="light_cpu_stress",type="cpu_exhaust",intensity="light"} 1
+chaos_scenario_success{scenario="medium_cpu_stress",type="cpu_exhaust",intensity="medium"} 1
+chaos_scenario_success{scenario="heavy_cpu_stress",type="cpu_exhaust",intensity="heavy"} 1
+chaos_scenario_success{scenario="light_memory_stress",type="memory_leak",intensity="light"} 1
+chaos_scenario_success{scenario="medium_memory_stress",type="memory_leak",intensity="medium"} 1
+chaos_scenario_success{scenario="heavy_memory_stress",type="memory_leak",intensity="heavy"} 1
+chaos_scenario_success{scenario="light_network_delay",type="network_delay",intensity="light"} 1
+chaos_scenario_success{scenario="medium_network_delay",type="network_delay",intensity="medium"} 1
+chaos_scenario_success{scenario="heavy_network_delay",type="network_delay",intensity="heavy"} 1
+chaos_scenario_success{scenario="light_packet_loss",type="network_loss",intensity="light"} 1
+chaos_scenario_success{scenario="medium_packet_loss",type="network_loss",intensity="medium"} 1
+chaos_scenario_success{scenario="heavy_packet_loss",type="network_loss",intensity="heavy"} 1
+chaos_scenario_success{scenario="application_container_restart",type="container_crash",intensity="medium"} 1
+chaos_scenario_success{scenario="database_brief_outage",type="database_down",intensity="light"} 1
+chaos_scenario_success{scenario="database_extended_outage",type="database_down",intensity="heavy"} 1
+chaos_scenario_success{scenario="light_disk_stress",type="disk_stress",intensity="light"} 1
+chaos_scenario_success{scenario="medium_disk_stress",type="disk_stress",intensity="medium"} 1
+chaos_scenario_success{scenario="heavy_disk_stress",type="disk_stress",intensity="heavy"} 1
+# HELP chaos_error_rate_percent Error rate during chaos as percentage
+# TYPE chaos_error_rate_percent gauge
+chaos_error_rate_percent 0.0
+# HELP chaos_error_rate_target_percent Target error rate threshold
+# TYPE chaos_error_rate_target_percent gauge
+chaos_error_rate_target_percent 5.0
+# HELP chaos_availability_percent System availability during chaos
+# TYPE chaos_availability_percent gauge
+chaos_availability_percent 0.0
+# HELP chaos_availability_target_percent Target availability threshold
+# TYPE chaos_availability_target_percent gauge
+chaos_availability_target_percent 95.0
+# HELP chaos_recovery_time_seconds Time to full recovery after chaos
+# TYPE chaos_recovery_time_seconds gauge
+chaos_recovery_time_seconds 60.09701991081238
+# HELP chaos_recovery_time_target_seconds Target recovery time threshold
+# TYPE chaos_recovery_time_target_seconds gauge
+chaos_recovery_time_target_seconds 10
+# HELP chaos_uptime_seconds System uptime during chaos
+# TYPE chaos_uptime_seconds gauge
+chaos_uptime_seconds 0.0
+# HELP chaos_downtime_seconds System downtime during chaos
+# TYPE chaos_downtime_seconds gauge
+chaos_downtime_seconds 0.0
+# HELP chaos_requests_total Total requests during chaos
+# TYPE chaos_requests_total counter
+chaos_requests_total 0
+# HELP chaos_requests_failed Failed requests during chaos
+# TYPE chaos_requests_failed counter
+chaos_requests_failed 0
+# HELP chaos_slo_passed SLO validation status (1=passed, 0=failed)
+# TYPE chaos_slo_passed gauge
+chaos_slo_passed 0
+# HELP chaos_slo_violations_count Number of SLO violations detected
+# TYPE chaos_slo_violations_count gauge
+chaos_slo_violations_count 2
+# HELP chaos_test_timestamp_seconds Unix timestamp of chaos test execution
+# TYPE chaos_test_timestamp_seconds gauge
+chaos_test_timestamp_seconds 1759363801.486848

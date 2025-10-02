@@ -1,14 +1,16 @@
 # Python dependencies for Automated Load Simulation & Performance Validation
 # Stage 6.4 - Backend-v2 Deployment Pipeline
+# Stage 6.5 - Chaos Engineering & Fault Injection Automation
 
-# Core load testing dependencies
+# Core load testing and chaos engineering dependencies
 aiohttp>=3.8.0
 pyyaml>=6.0
 requests>=2.28.0
 
-# Optional monitoring and metrics dependencies
+# Monitoring and metrics dependencies
 psutil>=5.9.0
 docker>=6.0.0
+prometheus-client>=0.16.0
 
 # Development and testing dependencies (optional)
 pytest>=7.0.0
