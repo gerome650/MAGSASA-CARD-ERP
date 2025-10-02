@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 # DON'T CHANGE THIS !!!
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
@@ -110,6 +111,43 @@ def offline_sync_demo():
     """Offline synchronization demo for field officers"""
     return send_from_directory(app.static_folder, 'offline_sync_demo.html')
 
+# Simple test endpoint
+@app.route('/api/test')
+def test_endpoint():
+    """Simple test endpoint"""
+    return {'message': 'test works'}, 200
+
+# Health check endpoint for monitoring and chaos testing
+@app.route('/api/health')
+def health_check():
+    """Health check endpoint for monitoring and chaos testing"""
+    try:
+        # Basic health check - verify database connection
+        db_status = 'unknown'
+        try:
+            with app.app_context():
+                # Use text() for SQLAlchemy 2.0 compatibility
+                from sqlalchemy import text
+                db.session.execute(text('SELECT 1'))
+                db_status = 'connected'
+        except Exception as db_error:
+            db_status = f'error: {str(db_error)}'
+        
+        return {
+            'status': 'healthy',
+            'timestamp': time.time(),
+            'service': 'MAGSASA-CARD-ERP',
+            'version': '1.0.0',
+            'database': db_status
+        }, 200
+    except Exception as e:
+        return {
+            'status': 'unhealthy',
+            'timestamp': time.time(),
+            'service': 'MAGSASA-CARD-ERP',
+            'error': str(e)
+        }, 503
+
 # Serve static files
 @app.route('/<path:filename>')
 def serve_static(filename):
@@ -132,6 +170,14 @@ if __name__ == '__main__':
     flask_host = os.getenv('FLASK_HOST', '127.0.0.1')
     flask_debug = os.getenv('FLASK_DEBUG', 'False').lower() in ('true', '1', 'yes')
     
+    # Port configuration with environment variable support
+    # Default to 8000 for consistency with chaos testing, fallback to 5001 for backward compatibility
+    flask_port = int(os.getenv('APP_PORT', os.getenv('FLASK_PORT', '8000')))
+    
+    print(f"🚀 Starting Flask application on {flask_host}:{flask_port}")
+    print(f"   Health endpoint: http://{flask_host}:{flask_port}/api/health")
+    print(f"   Set APP_PORT environment variable to change port")
+    
     # Note: For Docker/load testing, set FLASK_HOST=0.0.0.0 in environment
     # This avoids hardcoding bind-all-interfaces (Bandit B104)
-    app.run(host=flask_host, port=5001, debug=flask_debug)  # nosec B104
+    app.run(host=flask_host, port=flask_port, debug=flask_debug)  # nosec B104

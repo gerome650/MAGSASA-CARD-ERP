@@ -22,6 +22,37 @@ from typing import Dict, List, Optional, Tuple
 import aiohttp
 
 
+def auto_detect_target_url() -> str:
+    """Auto-detect target URL using port detector."""
+    # Check environment variables first
+    target_url = os.getenv('TARGET_URL')
+    if target_url:
+        return target_url
+    
+    chaos_port = os.getenv('CHAOS_TARGET_PORT')
+    if chaos_port:
+        return f"http://localhost:{chaos_port}"
+    
+    # Try to use port detector
+    try:
+        result = subprocess.run([
+            'python3', 'deploy/port_detector.py', 
+            '--url-only', '--quiet'
+        ], capture_output=True, text=True, timeout=10)
+        
+        if result.returncode == 0 and result.stdout.strip():
+            detected_url = result.stdout.strip()
+            print(f"🔍 Auto-detected target: {detected_url}")
+            return detected_url
+    except Exception as e:
+        print(f"Warning: Port auto-detection failed: {e}")
+    
+    # Fallback to default
+    fallback_url = "http://localhost:8000"
+    print(f"⚠️  Using fallback target: {fallback_url}")
+    return fallback_url
+
+
 @dataclass
 class ChaosScenario:
     """Configuration for a chaos scenario."""
@@ -690,8 +721,8 @@ async def main():
                        default="deploy/chaos_scenarios.yml",
                        help="Chaos scenarios configuration file")
     parser.add_argument("--target", type=str,
-                       default="http://localhost:8000",
-                       help="Target service URL")
+                       default=None,
+                       help="Target service URL (auto-detected if not provided)")
     parser.add_argument("--scenario", type=str,
                        help="Run specific scenario by name (optional)")
     parser.add_argument("--output", type=str,
@@ -707,10 +738,15 @@ async def main():
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
     
+    # Auto-detect target URL if not provided
+    target_url = args.target
+    if target_url is None:
+        target_url = auto_detect_target_url()
+    
     # Create chaos injector
     injector = ChaosInjector(
         config_path=args.config,
-        target_url=args.target,
+        target_url=target_url,
         dry_run=args.dry_run
     )
     

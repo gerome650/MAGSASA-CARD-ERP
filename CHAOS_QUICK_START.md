@@ -23,19 +23,39 @@ chmod +x deploy/run_chaos_tests.sh
 # Start your application first
 cd src && python main.py &
 
-# Wait for service to be ready (check health)
-curl http://localhost:8000/api/health
-
+# The chaos suite will auto-detect the running port!
 # Run complete chaos test suite
 cd ..
 ./deploy/run_chaos_tests.sh
 ```
 
 That's it! The script will:
-1. ✅ Check service health
-2. 🔥 Run chaos injection
-3. 📊 Validate resilience
-4. 📄 Generate report
+1. 🔍 **Auto-detect** the Flask service port
+2. ✅ Check service health
+3. 🔥 Run chaos injection
+4. 📊 Validate resilience
+5. 📄 Generate report
+
+### Port Configuration Options 🔧
+
+The chaos suite automatically detects your Flask service port, but you can override:
+
+```bash
+# Method 1: Environment variable (recommended)
+export APP_PORT=5001
+cd src && python main.py &
+./deploy/run_chaos_tests.sh
+
+# Method 2: Chaos-specific override
+export CHAOS_TARGET_PORT=5001
+./deploy/run_chaos_tests.sh
+
+# Method 3: Command line override
+./deploy/run_chaos_tests.sh --target http://localhost:5001
+
+# Method 4: Disable auto-detection
+./deploy/run_chaos_tests.sh --no-auto-detect --fallback-port 5001
+```
 
 ## Option B: Manual Control 🎮
 
@@ -48,19 +68,32 @@ cd ..
 
 ### Step 2: Run Chaos Injection
 ```bash
+# Auto-detects port, or specify manually
 python deploy/chaos_injector.py \
   --config deploy/chaos_scenarios.yml \
-  --target http://localhost:8000 \
   --output deploy/chaos_results.json
+
+# Or specify target manually:
+# python deploy/chaos_injector.py \
+#   --config deploy/chaos_scenarios.yml \
+#   --target http://localhost:5001 \
+#   --output deploy/chaos_results.json
 ```
 
 ### Step 3: Validate Resilience
 ```bash
+# Auto-detects port, or specify manually
 python deploy/resilience_validator.py \
-  --target http://localhost:8000 \
   --chaos-results deploy/chaos_results.json \
   --report deploy/chaos_report.md \
   --fail-on-violation
+
+# Or specify target manually:
+# python deploy/resilience_validator.py \
+#   --target http://localhost:5001 \
+#   --chaos-results deploy/chaos_results.json \
+#   --report deploy/chaos_report.md \
+#   --fail-on-violation
 ```
 
 ### Step 4: View Report
@@ -73,10 +106,13 @@ cat deploy/chaos_report.md
 Test without actual chaos:
 
 ```bash
+# Auto-detects port
 python deploy/chaos_injector.py \
   --config deploy/chaos_scenarios.yml \
-  --target http://localhost:8000 \
   --dry-run
+
+# Or with the automated script
+./deploy/run_chaos_tests.sh --dry-run
 ```
 
 ## Different Intensities 🎚️
@@ -109,11 +145,19 @@ cat deploy/resilience_validation.json | python -m json.tool
 
 ### Service health check fails
 ```bash
-# Check if service is running
-curl http://localhost:8000/api/health
+# Use the port detector to find your service
+python3 deploy/port_detector.py
+
+# Check if service is running on detected port
+curl $(python3 deploy/port_detector.py --url-only --quiet)/api/health
+
+# Check what's running on common ports
+for port in 8000 5000 5001 3000; do
+  echo "Port $port: $(curl -s http://localhost:$port/api/health 2>/dev/null || echo 'Not responding')"
+done
 
 # Check logs
-tail -f src/logs/*.log
+tail -f app.log
 ```
 
 ### Permission errors
@@ -124,12 +168,28 @@ chmod +x deploy/*.py deploy/*.sh
 
 ### Missing dependencies
 ```bash
-# Install requirements
+# Install requirements (includes psutil for port detection)
 pip install -r requirements.txt
 
 # Optional: Install stress-ng
 sudo apt-get install stress-ng  # Linux
 brew install stress-ng          # macOS
+```
+
+### Port detection issues
+```bash
+# Test port detection manually
+python3 deploy/port_detector.py --json
+
+# Force specific port
+export APP_PORT=5001
+cd src && python main.py &
+
+# Override chaos target
+./deploy/run_chaos_tests.sh --target http://localhost:5001
+
+# Disable auto-detection
+./deploy/run_chaos_tests.sh --no-auto-detect --fallback-port 5001
 ```
 
 ## Understanding Output 📈

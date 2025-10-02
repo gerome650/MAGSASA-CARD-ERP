@@ -12,17 +12,19 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-TARGET_URL="${TARGET_URL:-http://localhost:8000}"
 CONFIG_FILE="deploy/chaos_scenarios.yml"
 RESULTS_DIR="deploy/chaos_results_$(date +%Y%m%d_%H%M%S)"
 DRY_RUN=false
 INTENSITY="standard"
+AUTO_DETECT_PORT=true
+FALLBACK_PORT=8000
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
         --target)
             TARGET_URL="$2"
+            AUTO_DETECT_PORT=false
             shift 2
             ;;
         --dry-run)
@@ -33,14 +35,29 @@ while [[ $# -gt 0 ]]; do
             INTENSITY="$2"
             shift 2
             ;;
+        --no-auto-detect)
+            AUTO_DETECT_PORT=false
+            shift
+            ;;
+        --fallback-port)
+            FALLBACK_PORT="$2"
+            shift 2
+            ;;
         --help)
             echo "Usage: $0 [options]"
             echo ""
             echo "Options:"
-            echo "  --target URL         Target service URL (default: http://localhost:8000)"
+            echo "  --target URL         Target service URL (disables auto-detection)"
             echo "  --dry-run            Simulate chaos without actual injection"
             echo "  --intensity LEVEL    Test intensity: smoke, standard, stress (default: standard)"
+            echo "  --no-auto-detect     Disable automatic port detection"
+            echo "  --fallback-port PORT Fallback port if auto-detection fails (default: 8000)"
             echo "  --help               Show this help message"
+            echo ""
+            echo "Environment Variables:"
+            echo "  APP_PORT             Set Flask application port"
+            echo "  CHAOS_TARGET_PORT    Override target port for chaos testing"
+            echo "  TARGET_URL           Override target URL (same as --target)"
             exit 0
             ;;
         *)
@@ -50,6 +67,39 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# Auto-detect target URL if not provided
+if [ "$AUTO_DETECT_PORT" = true ] && [ -z "$TARGET_URL" ]; then
+    echo -e "${YELLOW}🔍 Auto-detecting Flask service port...${NC}"
+    
+    # Check for environment variable override
+    if [ -n "$CHAOS_TARGET_PORT" ]; then
+        TARGET_URL="http://localhost:${CHAOS_TARGET_PORT}"
+        echo -e "${GREEN}   Using CHAOS_TARGET_PORT: ${TARGET_URL}${NC}"
+    elif [ -n "$TARGET_URL" ]; then
+        echo -e "${GREEN}   Using TARGET_URL: ${TARGET_URL}${NC}"
+    else
+        # Use port detector
+        if [ -f "deploy/port_detector.py" ]; then
+            DETECTED_URL=$(python3 deploy/port_detector.py --fallback-port "$FALLBACK_PORT" --url-only --quiet 2>/dev/null)
+            if [ $? -eq 0 ] && [ -n "$DETECTED_URL" ]; then
+                TARGET_URL="$DETECTED_URL"
+                echo -e "${GREEN}   ✅ Auto-detected: ${TARGET_URL}${NC}"
+            else
+                TARGET_URL="http://localhost:${FALLBACK_PORT}"
+                echo -e "${YELLOW}   ⚠️  Using fallback: ${TARGET_URL}${NC}"
+            fi
+        else
+            TARGET_URL="http://localhost:${FALLBACK_PORT}"
+            echo -e "${YELLOW}   ⚠️  Port detector not found, using fallback: ${TARGET_URL}${NC}"
+        fi
+    fi
+else
+    # Use provided target or fallback
+    if [ -z "$TARGET_URL" ]; then
+        TARGET_URL="http://localhost:${FALLBACK_PORT}"
+    fi
+fi
+
 # Create results directory
 mkdir -p "$RESULTS_DIR"
 
@@ -58,26 +108,94 @@ echo -e "${BLUE}║       Chaos Engineering Test Suite - Stage 6.5        ║${N
 echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "${YELLOW}Configuration:${NC}"
-echo -e "  Target:    ${TARGET_URL}"
-echo -e "  Intensity: ${INTENSITY}"
-echo -e "  Dry Run:   ${DRY_RUN}"
-echo -e "  Results:   ${RESULTS_DIR}"
+echo -e "  Target:       ${TARGET_URL}"
+echo -e "  Auto-detect:  ${AUTO_DETECT_PORT}"
+echo -e "  Intensity:    ${INTENSITY}"
+echo -e "  Dry Run:      ${DRY_RUN}"
+echo -e "  Results:      ${RESULTS_DIR}"
 echo ""
 
 # Function to check if service is healthy
 check_service_health() {
-    echo -e "${YELLOW}⏳ Checking service health...${NC}"
+    echo -e "${YELLOW}⏳ Checking service health at ${TARGET_URL}/api/health...${NC}"
+    
+    # Extract port from TARGET_URL for diagnostics
+    TARGET_PORT=$(echo "$TARGET_URL" | sed -n 's/.*:\([0-9]*\).*/\1/p')
     
     for i in {1..10}; do
-        if curl -f -s "${TARGET_URL}/api/health" > /dev/null 2>&1; then
+        # Try health check
+        HEALTH_RESPONSE=$(curl -f -s "${TARGET_URL}/api/health" 2>&1)
+        CURL_EXIT_CODE=$?
+        
+        if [ $CURL_EXIT_CODE -eq 0 ]; then
             echo -e "${GREEN}✅ Service is healthy${NC}"
+            
+            # Show service info if available
+            if echo "$HEALTH_RESPONSE" | grep -q "service"; then
+                SERVICE_NAME=$(echo "$HEALTH_RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('service', 'Unknown'))" 2>/dev/null || echo "Unknown")
+                echo -e "${GREEN}   Service: ${SERVICE_NAME}${NC}"
+            fi
             return 0
         fi
-        echo -e "  Attempt $i/10..."
+        
+        echo -e "  Attempt $i/10 failed..."
+        
+        # Provide helpful diagnostics on last attempt
+        if [ $i -eq 10 ]; then
+            echo ""
+            echo -e "${RED}❌ Service health check failed after 10 attempts${NC}"
+            echo -e "${YELLOW}Diagnostic Information:${NC}"
+            
+            # Check if port is open
+            if command -v nc >/dev/null 2>&1; then
+                if nc -z localhost "$TARGET_PORT" 2>/dev/null; then
+                    echo -e "  ✅ Port ${TARGET_PORT} is open"
+                    echo -e "  ❌ But /api/health endpoint is not responding correctly"
+                    echo -e "     This might indicate:"
+                    echo -e "     - Flask app is running but health endpoint is missing"
+                    echo -e "     - Flask app is not fully initialized"
+                    echo -e "     - Different service running on this port"
+                else
+                    echo -e "  ❌ Port ${TARGET_PORT} is not open"
+                    echo -e "     This might indicate:"
+                    echo -e "     - Flask app is not running"
+                    echo -e "     - Flask app is running on a different port"
+                    echo -e "     - Firewall blocking the connection"
+                fi
+            fi
+            
+            # Show what's running on common ports
+            echo -e "  ${YELLOW}Checking common Flask ports:${NC}"
+            for port in 8000 5000 5001 3000; do
+                if command -v nc >/dev/null 2>&1 && nc -z localhost "$port" 2>/dev/null; then
+                    echo -e "    Port ${port}: ✅ Open"
+                    # Try to get service info
+                    SERVICE_INFO=$(curl -s "http://localhost:${port}/api/health" 2>/dev/null | head -c 100)
+                    if [ -n "$SERVICE_INFO" ]; then
+                        echo -e "      Response: ${SERVICE_INFO}..."
+                    fi
+                else
+                    echo -e "    Port ${port}: ❌ Closed"
+                fi
+            done
+            
+            echo ""
+            echo -e "${YELLOW}Troubleshooting Steps:${NC}"
+            echo -e "  1. Verify Flask app is running:"
+            echo -e "     cd src && python main.py"
+            echo -e "  2. Check if running on different port:"
+            echo -e "     python3 deploy/port_detector.py"
+            echo -e "  3. Set correct port manually:"
+            echo -e "     export APP_PORT=5001  # or your actual port"
+            echo -e "     ./deploy/run_chaos_tests.sh"
+            echo -e "  4. Override target URL:"
+            echo -e "     ./deploy/run_chaos_tests.sh --target http://localhost:5001"
+            echo ""
+        fi
+        
         sleep 2
     done
     
-    echo -e "${RED}❌ Service health check failed${NC}"
     return 1
 }
 

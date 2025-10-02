@@ -8,6 +8,7 @@ import argparse
 import asyncio
 import json
 import logging
+import os
 import statistics
 import sys
 import time
@@ -83,13 +84,49 @@ class ValidationResult:
 class ResilienceValidator:
     """Validates system resilience against SLO targets."""
     
-    def __init__(self, target_url: str = "http://localhost:8000",
+    def __init__(self, target_url: str = None,
                  config_path: str = "deploy/chaos_scenarios.yml"):
+        # Auto-detect target URL if not provided
+        if target_url is None:
+            target_url = self._auto_detect_target_url()
+        
         self.target_url = target_url
         self.config_path = config_path
         self.logger = self._setup_logging()
         self.slo_targets = self._load_slo_targets()
         self.metrics = ResilienceMetrics()
+    
+    def _auto_detect_target_url(self) -> str:
+        """Auto-detect target URL using port detector."""
+        import subprocess
+        
+        # Check environment variables first
+        target_url = os.getenv('TARGET_URL')
+        if target_url:
+            return target_url
+        
+        chaos_port = os.getenv('CHAOS_TARGET_PORT')
+        if chaos_port:
+            return f"http://localhost:{chaos_port}"
+        
+        # Try to use port detector
+        try:
+            result = subprocess.run([
+                'python3', 'deploy/port_detector.py', 
+                '--url-only', '--quiet'
+            ], capture_output=True, text=True, timeout=10)
+            
+            if result.returncode == 0 and result.stdout.strip():
+                detected_url = result.stdout.strip()
+                print(f"🔍 Auto-detected target: {detected_url}")
+                return detected_url
+        except Exception as e:
+            print(f"Warning: Port auto-detection failed: {e}")
+        
+        # Fallback to default
+        fallback_url = "http://localhost:8000"
+        print(f"⚠️  Using fallback target: {fallback_url}")
+        return fallback_url
         
     def _setup_logging(self) -> logging.Logger:
         """Setup logging configuration."""
@@ -558,8 +595,8 @@ async def main():
         description="Resilience Validator - Stage 6.5"
     )
     parser.add_argument("--target", type=str,
-                       default="http://localhost:8000",
-                       help="Target service URL")
+                       default=None,
+                       help="Target service URL (auto-detected if not provided)")
     parser.add_argument("--config", type=str,
                        default="deploy/chaos_scenarios.yml",
                        help="Chaos scenarios configuration file")
