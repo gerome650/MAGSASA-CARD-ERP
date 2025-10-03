@@ -42,10 +42,14 @@ jobs:
           kind create cluster --name chaos-ci --wait 180s
           kubectl cluster-info
 
+      - name: Ensure namespace exists
+        run: |
+          kubectl get ns "$NS" || kubectl create ns "$NS"
+
       - name: Apply RBAC + CI CronJob (public image)
         run: |
-          kubectl get ns $NS >/dev/null 2>&1 || kubectl create ns $NS
-          kubectl -n $NS apply -f infra/k8s/chaos-runner-rbac.yaml
+          set -euo pipefail
+          kubectl -n "$NS" apply -f infra/k8s/chaos-runner-rbac.yaml
           # CI-only CronJob uses a public image so the smoketest never blocks on private pulls
           cat > /tmp/cron-chaos-ci.yaml <<'YAML'
           apiVersion: batch/v1
@@ -65,7 +69,8 @@ jobs:
                         image: alpine:3.19
                         command: ["sh","-c","echo ok"]
           YAML
-          kubectl -n $NS apply -f /tmp/cron-chaos-ci.yaml
+          kubectl -n "$NS" apply -f /tmp/cron-chaos-ci.yaml
+          kubectl -n "$NS" get sa,role,rolebinding,cronjob
 
       - name: Deploy demo app (for remediation test)
         run: |
