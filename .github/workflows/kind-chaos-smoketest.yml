@@ -1,18 +1,66 @@
 name: Kind Chaos Smoketest
+
 on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main]
+  workflow_dispatch: {}
+  schedule:
+    - cron: "0 10 * * *"   # 03:00 America/Los_Angeles (GitHub cron is UTC)
+
 jobs:
   smoketest:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NS: staging-apps
+      JOB_NAME: chaos-manual-${{ github.run_id }}
     steps:
       - uses: actions/checkout@v4
-      - name: Install tools
+
+      - name: Install tools (jq, python deps)
         run: |
-          sudo apt-get update -y && sudo apt-get install -y curl
+          sudo apt-get update -y && sudo apt-get install -y jq
+          python -m pip install --upgrade pip
+          pip install yamllint jsonschema
           curl -L -o opa https://openpolicyagent.org/downloads/v0.68.0/opa_linux_amd64_static
-          chmod +x opa
-          sudo mv opa /usr/local/bin/opa
+          chmod +x opa && sudo mv opa /usr/local/bin/opa
           opa version
+
+      - name: Lint & validate configs
+        run: |
+          yamllint configs
+          python scripts/validate_configs.py
+          opa test platform/gatekeeper/policies -v
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl && sudo mv kubectl /usr/local/bin/kubectl
+
+      - name: Install kind & create cluster
+        run: |
+          curl -Lo kind https://kind.sigs.k8s.io/dl/v0.23.0/kind-linux-amd64
+          chmod +x kind && sudo mv kind /usr/local/bin/kind
+          kind create cluster --name chaos-ci --wait 180s
+          kubectl cluster-info
+
+      - name: Apply RBAC + CI CronJob (public image)
+        run: |
+          kubectl get ns $NS >/dev/null 2>&1 || kubectl create ns $NS
+          kubectl -n $NS apply -f infra/k8s/chaos-runner-rbac.yaml
+          # CI-only CronJob uses a public image so the smoketest never blocks on private pulls
+          cat > /tmp/cron-chaos-ci.yaml <<'YAML'
+          apiVersion: batch/v1
+          kind: CronJob
+          metadata:
+            name: chaos-nightly
+            namespace: staging-apps
+          spec:
+            schedule: "0 3 * * *"
+            jobTemplate:
+              spec:
+                template:
+                  spec:
+                    serviceAccountName: chaos-runner
+                    containers:
+                      - name: runner
+                        image: alpine:3.19
+                        command: ["sh","-c"]
