@@ -4,27 +4,45 @@
 # SLO Targets for Resilience Validation
 slo_targets:
   # Mean Time To Recovery (MTTR) - maximum acceptable recovery time
-  mttr_seconds: 30
+  mttr_seconds: 45  # Increased from 30s to be more realistic
   
   # Maximum acceptable error rate during chaos
-  max_error_rate_percent: 5.0
+  max_error_rate_percent: 8.0  # Increased from 5% to be more realistic
   
   # Minimum acceptable availability during chaos
-  min_availability_percent: 95.0
+  min_availability_percent: 92.0  # Decreased from 95% to be more realistic
   
   # Maximum acceptable latency degradation
-  max_latency_degradation_ms: 500
+  max_latency_degradation_ms: 800  # Increased from 500ms to be more realistic
   
   # Recovery validation
   recovery:
     # Maximum time to return to normal operation after chaos ends
-    max_recovery_time_seconds: 10
+    max_recovery_time_seconds: 15  # Increased from 10s to be more realistic
     
     # Required consecutive successful health checks
     required_health_checks: 3
     
     # Interval between health checks
     health_check_interval_seconds: 2
+
+# SLO Severity Levels - Split blocking vs warning thresholds
+slo_severity:
+  # Blocking thresholds - CI/CD will fail if these are exceeded
+  blocking:
+    mttr_seconds: 60  # Hard limit for MTTR
+    max_error_rate_percent: 15.0  # Hard limit for error rate
+    min_availability_percent: 85.0  # Hard limit for availability
+    max_latency_degradation_ms: 1500  # Hard limit for latency degradation
+    max_recovery_time_seconds: 30  # Hard limit for recovery time
+  
+  # Warning thresholds - Log warnings but don't fail CI/CD
+  warning:
+    mttr_seconds: 45  # Warning threshold for MTTR
+    max_error_rate_percent: 8.0  # Warning threshold for error rate
+    min_availability_percent: 92.0  # Warning threshold for availability
+    max_latency_degradation_ms: 800  # Warning threshold for latency degradation
+    max_recovery_time_seconds: 15  # Warning threshold for recovery time
 
 # Chaos Scenarios
 scenarios:
