@@ -1,0 +1,42 @@
+---
+apiVersion: remediation.ag/1
+kind: Rule
+metadata:
+  name: api-auto-restart
+  owners:
+    - sre
+conditions:
+  any:
+    - metric: "http_error_rate{service='api-gateway'}"
+      for: "2m"
+      op: ">"
+      value: 0.02
+    - alert: "KubePodCrashLooping"
+      for: "3m"
+actions:
+  sequence:
+    - type: k8s.rolloutRestart
+      target: "deploy/api-gateway"
+      waitReady: "5m"
+      maxUnavailable: 1
+    - type: verify.slo
+      references:
+        - error-rate-api
+guardrails:
+  changeFreeze:
+    windows:
+      - "Fri 18:00..Mon 08:00 TZ=America/Los_Angeles"
+    allowIf:
+      - "severity >= P1"
+      - "on-call-approved"
+  backoff:
+    initial: "30s"
+    max: "10m"
+    factor: 2.0
+  rateLimit:
+    actionsPerHour: 3
+observability:
+  annotate:
+    - pagerduty
+    - grafana
+  emitEvent: true

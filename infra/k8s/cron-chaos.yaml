@@ -1,0 +1,15 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata: { name: chaos-nightly }
+spec:
+  schedule: "0 3 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: chaos-runner
+          containers:
+            - name: runner
+              image: ghcr.io/agsense/resilience-runner:6.6
+              args: ["run", "--registry", "/configs/chaos-scenarios", "--env", "staging"]
+          restartPolicy: OnFailure

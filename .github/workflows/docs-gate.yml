@@ -1,0 +1,15 @@
+name: Docs Gate
+on: pull_request
+jobs:
+  docs_gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enforce doc coupling
+        run: |
+          BASE=origin/${{ github.base_ref }}
+          CHANGED=$(git diff --name-only $BASE...HEAD || true)
+          if echo "$CHANGED" | egrep -q '^(platform/|configs/|infra/|pipelines/)'; then
+            echo "$CHANGED" | egrep -q '^(docs/|ops/runbooks/)' || {
+              echo "Docs required: code/config changed but no docs/runbooks updated."; exit 1; }
+          fi

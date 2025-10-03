@@ -1,0 +1,40 @@
+---
+apiVersion: chaos.ag/1
+kind: Scenario
+metadata:
+  name: pod-kill-api
+  owners:
+    - platform-resilience
+schedule:
+  when:
+    - "cron: 0 3 * * *"
+    - "ci:on-pr"
+    - "ci:post-deploy"
+blastRadius:
+  namespaceAllowlist:
+    - stg-api
+    - prod-api
+  maxConcurrentTargets: 1
+  dryRun: false
+injection:
+  type: k8s.podKill
+  selector:
+    labels:
+      app: api-gateway
+  disruption:
+    killPercentage: 30
+validation:
+  healthEndpoints:
+    - url: "https://api.example.com/health"
+      method: GET
+      timeout: "5s"
+  sloChecks:
+    - sloRef: latency-p99-api
+      maxRegression: "5%"
+    - sloRef: error-rate-api
+      absoluteMax: "0.5%"
+evidence:
+  store: "s3://resilience-artifacts/${{ env }}/${{ run.id }}/"
+  redact:
+    - token
+    - password

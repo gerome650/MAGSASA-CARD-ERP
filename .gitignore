@@ -1,57 +1,9 @@
-# Python
+.venv/
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Flask
-instance/
-.webassets-cache
-
-# Environment variables
-.env
-.env.local
-.env.production
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# Logs
-*.log
-logs/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Temporary files
-*.tmp
-*.temp
-
-# Node modules (if any)
-node_modules/
-
-# Deployment
-.deployment/
 *.pyc
-__pycache__/
-setup_kaani_assistant.py
-.env
-*.log
-
+.DS_Store
+dist/
+build/
+.ops-cache/
 # Chaos outputs
 deploy/chaos_results_*/
