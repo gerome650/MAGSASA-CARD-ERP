@@ -39,6 +39,7 @@ if [[ -z "${KEY}" ]]; then
   read -r -p "Path to SSH private key [$DEF_KEY]: " KEY
   KEY="${KEY:-$DEF_KEY}"
 fi
+case "$KEY" in "~"/*) KEY="${KEY/#\~/$HOME}";; esac
 if [[ -z "${USER}" ]]; then
   USER="auto"
 fi

@@ -1,0 +1,91 @@
+name: Kind Chaos Smoketest
+
+on:
+  workflow_dispatch: {}   # run it manually from the Actions tab
+  # optional CI hooks:
+  # pull_request:
+  #   branches: [ main ]
+  # push:
+  #   branches: [ stage-6.6-bootstrap ]
+
+jobs:
+  smoketest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NS: staging-apps
+      JOB_NAME: chaos-manual-${{ github.run_id }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Python deps for lint/validate
+        run: |
+          python -m pip install --upgrade pip
+          pip install yamllint jsonschema
+
+      - name: Install OPA
+        run: |
+          curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64_static
+          chmod +x opa && sudo mv opa /usr/local/bin/opa
+          opa version
+
+      - name: Lint & validate configs
+        run: |
+          yamllint configs
+          python scripts/validate_configs.py
+
+      - name: OPA policy tests
+        run: |
+          opa test platform/gatekeeper/policies -v
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl && sudo mv kubectl /usr/local/bin/kubectl
+          kubectl version --client
+
+      - name: Install kind and create cluster
+        run: |
+          KIND_VERSION=v0.23.0
+          curl -Lo kind https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64
+          chmod +x kind && sudo mv kind /usr/local/bin/kind
+          kind create cluster --name chaos-ci --wait 180s
+          kubectl cluster-info
+
+      - name: Prep namespace and apply manifests
+        run: |
+          kubectl get ns $NS >/dev/null 2>&1 || kubectl create ns $NS
+          kubectl -n $NS apply -f infra/k8s/chaos-runner-rbac.yaml
+          kubectl -n $NS apply -f infra/k8s/cron-chaos.yaml
+          kubectl -n $NS get sa,role,rolebinding,cronjob chaos-nightly -o wide
+
+      - name: Trigger one-off run from CronJob
+        id: run
+        shell: bash
+        run: |
+          kubectl -n $NS create job --from=cronjob/chaos-nightly "$JOB_NAME"
+          echo "job=$JOB_NAME" >> "$GITHUB_OUTPUT"
+          # Wait up to 10 minutes for completion
+          kubectl -n $NS wait --for=condition=complete "job/$JOB_NAME" --timeout=600s || true
+          # Always collect pod status
+          kubectl -n $NS get pods -l job-name="$JOB_NAME" -o wide > pod_status.txt
+          # Collect logs (may be multiple pods)
+          kubectl -n $NS logs -l job-name="$JOB_NAME" --tail=-1 --prefix > chaos_job.log || true
+
+      - name: Upload artifacts (logs + status)
+        uses: actions/upload-artifact@v4
+        with:
+          name: chaos-smoketest-${{ github.run_id }}
+          path: |
+            chaos_job.log
+            pod_status.txt
+
+      - name: Fail if job did not complete
+        run: |
+          # If the job didn't complete successfully, fail the workflow but keep artifacts
+          kubectl -n $NS get job "${{ steps.run.outputs.job }}" -o jsonpath='{.status.succeeded}' | grep -q '^1$' || {
+            echo "::error::Chaos Job did not reach Succeeded=1"
+            exit 1
+          }
+
