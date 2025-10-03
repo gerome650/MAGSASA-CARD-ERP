@@ -1,0 +1,4 @@
+{ "$schema":"https://json-schema.org/draft/2020-12/schema","type":"object",
+  "required":["service","objective","target","window"],
+  "properties":{"service":{"type":"string"},"objective":{"type":"string"},
+    "target":{"type":["number","string"]},"window":{"type":"string"},"baseline":{"type":"object"}}}

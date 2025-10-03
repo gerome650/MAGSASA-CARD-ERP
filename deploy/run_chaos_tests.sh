@@ -115,7 +115,7 @@ echo -e "  Dry Run:      ${DRY_RUN}"
 echo -e "  Results:      ${RESULTS_DIR}"
 echo ""
 
-# Function to check if service is healthy
+# Function to check if service is healthy and ready
 check_service_health() {
     echo -e "${YELLOW}⏳ Checking service health at ${TARGET_URL}/api/health...${NC}"
     
@@ -214,6 +214,13 @@ run_chaos_injection() {
     
     if python3 deploy/chaos_injector.py $CHAOS_ARGS; then
         echo -e "${GREEN}✅ Chaos injection completed${NC}"
+        
+        # Ensure main chaos_results.json exists for compatibility
+        if [ -f "${RESULTS_DIR}/chaos_results.json" ] && [ ! -f "deploy/chaos_results.json" ]; then
+            cp "${RESULTS_DIR}/chaos_results.json" "deploy/chaos_results.json"
+            echo -e "${GREEN}   📋 Results copied to deploy/chaos_results.json${NC}"
+        fi
+        
         return 0
     else
         echo -e "${RED}❌ Chaos injection failed${NC}"

@@ -235,4 +235,3 @@ Manual trigger:
 **🎉 You're ready to test system resilience!**
 
 Start with: `./deploy/run_chaos_tests.sh`
-

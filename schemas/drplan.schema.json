@@ -1,0 +1,5 @@
+{ "$schema":"https://json-schema.org/draft/2020-12/schema","type":"object",
+  "required":["apiVersion","kind","metadata","steps"],
+  "properties":{"apiVersion":{"const":"dr.ag/1"},"kind":{"const":"DRPlan"},
+    "metadata":{"type":"object","required":["name","rtoTarget","rpoTarget"]},
+    "steps":{"type":"array","items":{"type":"object","required":["name","action"]}}}}

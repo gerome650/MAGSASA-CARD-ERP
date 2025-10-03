@@ -1,0 +1,14 @@
+{ "$schema":"https://json-schema.org/draft/2020-12/schema", "type":"object",
+  "required":["apiVersion","kind","metadata","injection","validation"],
+  "properties":{
+    "apiVersion":{"const":"chaos.ag/1"},
+    "kind":{"const":"Scenario"},
+    "metadata":{"type":"object","required":["name"],
+      "properties":{"name":{"type":"string"},"owners":{"type":"array","items":{"type":"string"}}}},
+    "schedule":{"type":["object","null","string","array"]},
+    "blastRadius":{"type":"object"},
+    "injection":{"type":"object","required":["type"],"properties":{"type":{"type":"string"}}},
+    "validation":{"type":"object","required":["sloChecks"],
+      "properties":{"healthEndpoints":{"type":"array"},"sloChecks":{"type":"array","items":{"type":"object"}}}},
+    "evidence":{"type":"object"}
+}}

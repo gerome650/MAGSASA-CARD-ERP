@@ -1,164 +1,350 @@
-# Chaos Engineering Suite - Quick Reference
+# Chaos Engineering Command Reference
 
-## 🚀 Quick Start
+Quick reference for all chaos engineering commands and options.
 
-### Option 1: One-Command Execution (Recommended)
+## 🚀 Quick Commands
 
+### Test Runner (Recommended)
 ```bash
-# Make script executable (first time only)
-chmod +x deploy/run_chaos_tests.sh
-
-# Run complete chaos test suite
+# Standard test suite
 ./deploy/run_chaos_tests.sh
+
+# Dry run (simulation only)
+./deploy/run_chaos_tests.sh --dry-run
+
+# Different intensity levels
+./deploy/run_chaos_tests.sh --intensity smoke      # Quick test
+./deploy/run_chaos_tests.sh --intensity standard   # Balanced test
+./deploy/run_chaos_tests.sh --intensity stress     # Heavy test
+
+# Custom target
+./deploy/run_chaos_tests.sh --target http://staging.example.com
 ```
 
-### Option 2: Manual Execution
+## 🔧 Individual Components
 
+### Chaos Injector
 ```bash
-# 1. Start your application
-cd src && python main.py &
+# Basic usage
+python deploy/chaos_injector.py
 
-# 2. Run chaos injection
+# With options
 python deploy/chaos_injector.py \
   --config deploy/chaos_scenarios.yml \
   --target http://localhost:8000 \
-  --output deploy/chaos_results.json
+  --output deploy/chaos_results.json \
+  --verbose
 
-# 3. Validate resilience
+# Dry run (safe simulation)
+python deploy/chaos_injector.py --dry-run
+
+# Specific scenario
+python deploy/chaos_injector.py --scenario "Heavy Network Delay"
+```
+
+**Options:**
+- `--config FILE` - Chaos scenarios configuration file
+- `--target URL` - Target service URL (default: http://localhost:8000)
+- `--scenario NAME` - Run specific scenario by name
+- `--output FILE` - Output file for results (default: deploy/chaos_results.json)
+- `--dry-run` - Simulate chaos without actual injection
+- `--verbose` - Enable verbose logging
+
+### Resilience Validator
+```bash
+# Basic validation
+python deploy/resilience_validator.py
+
+# With chaos results
 python deploy/resilience_validator.py \
   --chaos-results deploy/chaos_results.json \
-  --report deploy/chaos_report.md \
   --fail-on-violation
 
-# 4. View report
-cat deploy/chaos_report.md
+# Custom options
+python deploy/resilience_validator.py \
+  --target http://localhost:8000 \
+  --config deploy/chaos_scenarios.yml \
+  --output deploy/resilience_validation.json \
+  --report deploy/chaos_report.md \
+  --monitor-duration 60 \
+  --baseline-samples 10 \
+  --verbose
 ```
 
-## 📋 Common Commands
+**Options:**
+- `--target URL` - Target service URL
+- `--config FILE` - Chaos scenarios configuration file
+- `--chaos-results FILE` - Chaos injection results file
+- `--output FILE` - Output file for validation results
+- `--report FILE` - Output file for markdown report
+- `--monitor-duration SECONDS` - Duration to monitor during chaos
+- `--baseline-samples N` - Number of samples for baseline measurement
+- `--fail-on-violation` - Exit with non-zero code if SLOs are violated
+- `--verbose` - Enable verbose logging
 
-### Dry Run (Safe Testing)
+### Metrics Exporter
 ```bash
-python deploy/chaos_injector.py --dry-run
+# Export to file
+python deploy/chaos_metrics_exporter.py \
+  --chaos-results deploy/chaos_results.json \
+  --validation-results deploy/resilience_validation.json \
+  --output deploy/chaos_metrics.prom
+
+# Push to Prometheus
+python deploy/chaos_metrics_exporter.py \
+  --push \
+  --pushgateway-url http://prometheus:9091 \
+  --job-name "magsasa-chaos"
 ```
 
-### Run Specific Scenario
+**Options:**
+- `--chaos-results FILE` - Chaos injection results file
+- `--validation-results FILE` - Resilience validation results file
+- `--output FILE` - Output file for Prometheus metrics
+- `--push` - Push metrics to Prometheus Pushgateway
+- `--pushgateway-url URL` - Prometheus Pushgateway URL
+- `--job-name NAME` - Job name for Pushgateway
+- `--verbose` - Enable verbose logging
+
+## 📊 Scenario Groups
+
+### Available Groups
 ```bash
-python deploy/chaos_injector.py \
-  --scenario "Medium CPU Stress"
+# Smoke test (quick validation)
+python deploy/chaos_injector.py --scenario-group smoke_test
+
+# Standard test (balanced scenarios)
+python deploy/chaos_injector.py --scenario-group standard_test
+
+# Stress test (heavy scenarios)
+python deploy/chaos_injector.py --scenario-group stress_test
+
+# Infrastructure test (container/database failures)
+python deploy/chaos_injector.py --scenario-group infrastructure_test
+
+# Production readiness (full validation)
+python deploy/chaos_injector.py --scenario-group production_readiness
 ```
 
-### Custom Target URL
+### Individual Scenarios
 ```bash
-./deploy/run_chaos_tests.sh \
-  --target http://staging.example.com
+# CPU stress scenarios
+python deploy/chaos_injector.py --scenario "Light CPU Stress"
+python deploy/chaos_injector.py --scenario "Medium CPU Stress"
+python deploy/chaos_injector.py --scenario "Heavy CPU Stress"
+
+# Memory stress scenarios
+python deploy/chaos_injector.py --scenario "Light Memory Stress"
+python deploy/chaos_injector.py --scenario "Medium Memory Stress"
+python deploy/chaos_injector.py --scenario "Heavy Memory Stress"
+
+# Network scenarios
+python deploy/chaos_injector.py --scenario "Light Network Delay"
+python deploy/chaos_injector.py --scenario "Heavy Network Delay"
+python deploy/chaos_injector.py --scenario "Medium Packet Loss"
+
+# Infrastructure scenarios
+python deploy/chaos_injector.py --scenario "Application Container Restart"
+python deploy/chaos_injector.py --scenario "Database Brief Outage"
+python deploy/chaos_injector.py --scenario "Database Extended Outage"
+
+# Disk stress scenarios
+python deploy/chaos_injector.py --scenario "Light Disk Stress"
+python deploy/chaos_injector.py --scenario "Medium Disk Stress"
+python deploy/chaos_injector.py --scenario "Heavy Disk Stress"
 ```
 
-### Different Intensities
+## 🎯 SLO Validation Commands
+
+### Check SLO Compliance
 ```bash
-# Light scenarios only
-./deploy/run_chaos_tests.sh --intensity smoke
+# Validate against current results
+python deploy/resilience_validator.py --fail-on-violation
 
-# Standard scenarios
-./deploy/run_chaos_tests.sh --intensity standard
-
-# Heavy stress testing
-./deploy/run_chaos_tests.sh --intensity stress
+# Generate detailed report
+python deploy/resilience_validator.py \
+  --report deploy/detailed_report.md \
+  --verbose
 ```
 
-## 📊 Output Files
-
-| File | Description |
-|------|-------------|
-| `chaos_results.json` | Raw chaos injection results |
-| `resilience_validation.json` | SLO compliance validation |
-| `chaos_report.md` | Human-readable report with recommendations |
-
-## 🎯 Default SLO Targets
-
-- **MTTR**: ≤ 30 seconds
-- **Error Rate**: ≤ 5%
-- **Availability**: ≥ 95%
-- **Latency Degradation**: ≤ 500ms
-- **Recovery Time**: ≤ 10 seconds
-
-## 🔥 Failure Types
-
-1. **CPU Exhaustion** - Stress CPU cores
-2. **Memory Leak** - Memory pressure testing
-3. **Network Delay** - Latency injection
-4. **Packet Loss** - Network reliability
-5. **Container Crash** - Recovery testing
-6. **Database Down** - DB failure simulation
-7. **Disk Stress** - I/O pressure
-
-## 🚨 Troubleshooting
-
-### Service health check fails
+### Export Metrics for Monitoring
 ```bash
+# Export to Prometheus format
+python deploy/chaos_metrics_exporter.py --output metrics.prom
+
+# Push to monitoring system
+python deploy/chaos_metrics_exporter.py \
+  --push \
+  --pushgateway-url http://prometheus:9091 \
+  --job-name "magsasa-chaos"
+```
+
+## 🔍 Validation & Diagnostics
+
+### Suite Validation
+```bash
+# Validate entire chaos engineering suite
+python validate_chaos_suite.py
+
+# Verbose validation
+python validate_chaos_suite.py --verbose
+
+# Skip functional tests
+python validate_chaos_suite.py --skip-tests
+```
+
+### Health Checks
+```bash
+# Check service health
 curl http://localhost:8000/api/health
+
+# Check with timeout
+curl --max-time 5 http://localhost:8000/api/health
+
+# Check multiple endpoints
+curl http://localhost:8000/api/health
+curl http://localhost:8000/api/status
+curl http://localhost:8000/api/metrics
 ```
 
-### stress-ng not available
+### Log Analysis
 ```bash
-# Linux
-sudo apt-get install stress-ng
+# View application logs
+tail -f app.log
 
-# macOS
-brew install stress-ng
+# View chaos injection logs
+python deploy/chaos_injector.py --verbose 2>&1 | tee chaos.log
 
-# Or just use Python fallback (automatic)
+# View validation logs
+python deploy/resilience_validator.py --verbose 2>&1 | tee validation.log
 ```
 
-### View detailed logs
+## 📁 Output Files
+
+### Generated Files
 ```bash
+# Chaos injection results
+deploy/chaos_results.json
+
+# Resilience validation results
+deploy/resilience_validation.json
+
+# Human-readable report
+deploy/chaos_report.md
+
+# Prometheus metrics
+deploy/chaos_metrics.prom
+
+# Validation report
+deploy/validation_report.md
+```
+
+### File Contents
+- **chaos_results.json**: Machine-readable chaos test results
+- **resilience_validation.json**: SLO validation results
+- **chaos_report.md**: Human-readable summary report
+- **chaos_metrics.prom**: Prometheus-compatible metrics
+- **validation_report.md**: Installation validation report
+
+## 🚨 Troubleshooting Commands
+
+### Common Issues
+```bash
+# Permission errors
+chmod +x deploy/*.py deploy/*.sh
+
+# Missing dependencies
+pip install aiohttp pyyaml requests psutil
+
+# Service not responding
+curl http://localhost:8000/api/health
+lsof -i :8000
+
+# Validation failures
+python validate_chaos_suite.py
+```
+
+### Debug Mode
+```bash
+# Enable debug logging
 python deploy/chaos_injector.py --verbose
+python deploy/resilience_validator.py --verbose
+python deploy/chaos_metrics_exporter.py --verbose
+
+# Check system resources
+htop
+free -h
+df -h
 ```
 
-## 📚 Documentation
+### Cleanup
+```bash
+# Clean up temporary files
+rm -f /tmp/chaos_*.json
+rm -f /tmp/test_*.json
+rm -f /tmp/chaos_metrics.prom
 
-For comprehensive documentation, see:
-- **[Chaos Engineering Guide](../docs/CHAOS_ENGINEERING_GUIDE.md)** - Complete guide
-- **[Stage 6.5 Report](../STAGE_6.5_COMPLETION_REPORT.md)** - Implementation details
+# Kill any lingering processes
+pkill -f stress-ng
+pkill -f chaos_injector
+```
 
-## 🔧 Configuration
+## 🔄 CI/CD Integration
 
-Edit `deploy/chaos_scenarios.yml` to:
-- Add custom scenarios
-- Adjust intensity levels
-- Modify SLO targets
-- Configure safety settings
+### GitHub Actions
+```bash
+# Trigger workflow manually
+gh workflow run chaos.yml
 
-## 🤖 CI/CD Integration
+# Check workflow status
+gh run list --workflow=chaos.yml
 
-Chaos tests run automatically on:
-- Pull requests to main/develop
-- Manual workflow dispatch
-- Nightly scheduled runs (2 AM)
+# Download artifacts
+gh run download <run-id>
+```
 
-Manual trigger:
-1. Go to GitHub Actions
-2. Select "Chaos Engineering Tests"
-3. Click "Run workflow"
-4. Choose intensity and target
+### Local CI Simulation
+```bash
+# Simulate CI/CD pipeline
+./deploy/run_chaos_tests.sh --intensity smoke
+python deploy/resilience_validator.py --fail-on-violation
+python deploy/chaos_metrics_exporter.py --push
+```
 
-## ⚡ Pro Tips
+## 📈 Monitoring Commands
 
-1. **Start small**: Run smoke tests first
-2. **Use dry-run**: Test configurations safely
-3. **Monitor actively**: Watch system during chaos
-4. **Review reports**: Learn from resilience metrics
-5. **Iterate**: Gradually increase intensity
+### Prometheus Metrics
+```bash
+# View exported metrics
+cat deploy/chaos_metrics.prom
 
-## 📞 Support
+# Query Prometheus
+curl http://prometheus:9090/api/v1/query?query=chaos_scenarios_total
 
-- Review troubleshooting in main guide
-- Check GitHub Issues
-- Contact DevOps team
+# Check Pushgateway
+curl http://prometheus:9091/metrics
+```
+
+### Grafana Integration
+```bash
+# Export metrics for Grafana
+python deploy/chaos_metrics_exporter.py --output grafana_metrics.prom
+
+# Import dashboard (if available)
+curl -X POST http://grafana:3000/api/dashboards/db \
+  -H "Content-Type: application/json" \
+  -d @chaos_dashboard.json
+```
 
 ---
 
-**Quick Links**:
-- [Full Documentation](../docs/CHAOS_ENGINEERING_GUIDE.md)
-- [Scenarios Config](chaos_scenarios.yml)
-- [GitHub Workflow](../.github/workflows/chaos.yml)
+## 💡 Tips
 
+1. **Always start with dry-run** to test configuration
+2. **Use smoke tests first** before running heavy scenarios
+3. **Monitor system resources** during chaos injection
+4. **Check logs** if tests fail unexpectedly
+5. **Validate installation** with `python validate_chaos_suite.py`
+6. **Export metrics regularly** for trend analysis
+7. **Run tests during maintenance windows** for production
+8. **Keep scenarios realistic** to your environment

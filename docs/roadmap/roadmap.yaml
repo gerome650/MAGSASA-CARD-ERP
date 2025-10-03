@@ -1,0 +1,12 @@
+- id: 6.6
+  title: Continuous Chaos & Enforcement
+  owner: platform-resilience
+  start: 2025-10-03
+  target: 2025-10-24
+  status: in-progress
+  kpis:
+    - nightly_chaos_pass_rate >= 95%
+    - MTTR_P2_down_by >= 40%
+  links:
+    configs: "configs/"
+    runbooks: "ops/runbooks/"

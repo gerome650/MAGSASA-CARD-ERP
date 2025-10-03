@@ -1,0 +1,8 @@
+---
+service: api-gateway
+objective: error_rate
+target: "0.5%"
+window: "7d"
+baseline:
+  source: "prom: sum(rate(http_requests_total{service='api-gateway',status=~'5..'}[5m])) / sum(rate(http_requests_total{service='api-gateway'}[5m]))"
+  keepHistory: 90d

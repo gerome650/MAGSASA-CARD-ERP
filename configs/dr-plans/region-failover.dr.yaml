@@ -1,0 +1,34 @@
+---
+apiVersion: dr.ag/1
+kind: DRPlan
+metadata:
+  name: "region-failover-usw2->use1"
+  rtoTarget: "30m"
+  rpoTarget: "5m"
+  owners:
+    - platform-resilience
+    - db-team
+steps:
+  - name: freeze-deployments
+    action: cicd.freeze
+  - name: promote-read-replica
+    action: db.failover
+    params:
+      cluster: orders
+      toRegion: use1
+  - name: switch-traffic
+    action: traffic.shift
+    params:
+      weightFrom: usw2
+      weightTo: use1
+      rampMins: 10
+  - name: verify
+    action: verify.healthAndSLO
+    params:
+      endpointsRef: critical
+evidence:
+  report:
+    format: md
+    publish:
+      - git: "ops/runbooks/region-failover-usw2-use1.md"
+      - s3: "s3://resilience-artifacts/dr/${{ run.ts }}/"

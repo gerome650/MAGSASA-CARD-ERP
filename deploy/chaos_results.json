@@ -1,6 +1,6 @@
 {
-  "timestamp": "2025-10-01T20:05:52.526241",
-  "target_url": "http://localhost:8000",
+  "timestamp": "2025-10-02T06:33:55.208810",
+  "target_url": "http://127.0.0.1:8000",
   "total_scenarios": 18,
   "successful": 18,
   "failed": 0,
@@ -10,216 +10,252 @@
       "scenario_type": "cpu_exhaust",
       "intensity": "light",
       "duration": 30,
-      "start_time": "2025-10-01T20:04:09.468558",
-      "end_time": "2025-10-01T20:04:10.469848",
-      "elapsed_time": 1.0012900829315186,
+      "start_time": "2025-10-02T06:32:07.068855",
+      "end_time": "2025-10-02T06:32:08.076332",
+      "elapsed_time": 1.0074946880340576,
       "success": true,
       "error_message": null,
-      "metrics": {}
+      "metrics": {
+        "service_available": true
+      }
     },
     {
       "scenario_name": "Medium CPU Stress",
       "scenario_type": "cpu_exhaust",
       "intensity": "medium",
       "duration": 45,
-      "start_time": "2025-10-01T20:04:15.471966",
-      "end_time": "2025-10-01T20:04:16.473191",
-      "elapsed_time": 1.0012249946594238,
+      "start_time": "2025-10-02T06:32:13.078309",
+      "end_time": "2025-10-02T06:32:14.084960",
+      "elapsed_time": 1.006648063659668,
       "success": true,
       "error_message": null,
-      "metrics": {}
+      "metrics": {
+        "service_available": true
+      }
     },
     {
       "scenario_name": "Heavy CPU Stress",
       "scenario_type": "cpu_exhaust",
       "intensity": "heavy",
       "duration": 60,
-      "start_time": "2025-10-01T20:04:21.475768",
-      "end_time": "2025-10-01T20:04:22.477043",
-      "elapsed_time": 1.001274824142456,
+      "start_time": "2025-10-02T06:32:19.086816",
+      "end_time": "2025-10-02T06:32:20.093213",
+      "elapsed_time": 1.0063982009887695,
       "success": true,
       "error_message": null,
-      "metrics": {}
+      "metrics": {
+        "service_available": true
+      }
     },
     {
       "scenario_name": "Light Memory Stress",
       "scenario_type": "memory_leak",
       "intensity": "light",
       "duration": 30,
-      "start_time": "2025-10-01T20:04:27.478814",
-      "end_time": "2025-10-01T20:04:28.480100",
-      "elapsed_time": 1.001286268234253,
+      "start_time": "2025-10-02T06:32:25.094869",
+      "end_time": "2025-10-02T06:32:26.100456",
+      "elapsed_time": 1.0055906772613525,
       "success": true,
       "error_message": null,
-      "metrics": {}
+      "metrics": {
+        "service_available": true
+      }
     },
     {
       "scenario_name": "Medium Memory Stress",
       "scenario_type": "memory_leak",
       "intensity": "medium",
       "duration": 45,
-      "start_time": "2025-10-01T20:04:33.481947",
-      "end_time": "2025-10-01T20:04:34.483116",
-      "elapsed_time": 1.001169204711914,
+      "start_time": "2025-10-02T06:32:31.101897",
+      "end_time": "2025-10-02T06:32:32.107319",
+      "elapsed_time": 1.0054190158843994,
       "success": true,
       "error_message": null,
-      "metrics": {}
+      "metrics": {
+        "service_available": true
+      }
     },
     {
       "scenario_name": "Heavy Memory Stress",
       "scenario_type": "memory_leak",
       "intensity": "heavy",
       "duration": 60,
-      "start_time": "2025-10-01T20:04:39.484974",
-      "end_time": "2025-10-01T20:04:40.486398",
-      "elapsed_time": 1.0014238357543945,
+      "start_time": "2025-10-02T06:32:37.108197",
+      "end_time": "2025-10-02T06:32:38.114407",
+      "elapsed_time": 1.0062129497528076,
       "success": true,
       "error_message": null,
-      "metrics": {}
+      "metrics": {
+        "service_available": true
+      }
     },
     {
       "scenario_name": "Light Network Delay",
       "scenario_type": "network_delay",
       "intensity": "light",
       "duration": 30,
-      "start_time": "2025-10-01T20:04:45.490001",
-      "end_time": "2025-10-01T20:04:46.490998",
-      "elapsed_time": 1.0009970664978027,
+      "start_time": "2025-10-02T06:32:43.115973",
+      "end_time": "2025-10-02T06:32:44.124491",
+      "elapsed_time": 1.0085210800170898,
       "success": true,
       "error_message": null,
-      "metrics": {}
+      "metrics": {
+        "service_available": true
+      }
     },
     {
       "scenario_name": "Medium Network Delay",
       "scenario_type": "network_delay",
       "intensity": "medium",
       "duration": 45,
-      "start_time": "2025-10-01T20:04:51.493031",
-      "end_time": "2025-10-01T20:04:52.493798",
-      "elapsed_time": 1.0007667541503906,
+      "start_time": "2025-10-02T06:32:49.126035",
+      "end_time": "2025-10-02T06:32:50.131812",
+      "elapsed_time": 1.0057799816131592,
       "success": true,
       "error_message": null,
-      "metrics": {}
+      "metrics": {
+        "service_available": true
+      }
     },
     {
       "scenario_name": "Heavy Network Delay",
       "scenario_type": "network_delay",
       "intensity": "heavy",
       "duration": 60,
-      "start_time": "2025-10-01T20:04:57.494680",
-      "end_time": "2025-10-01T20:04:58.495916",
-      "elapsed_time": 1.0012359619140625,
+      "start_time": "2025-10-02T06:32:55.133156",
+      "end_time": "2025-10-02T06:32:56.139616",
+      "elapsed_time": 1.0064678192138672,
       "success": true,
       "error_message": null,
-      "metrics": {}
+      "metrics": {
+        "service_available": true
+      }
     },
     {
       "scenario_name": "Light Packet Loss",
       "scenario_type": "network_loss",
       "intensity": "light",
       "duration": 30,
-      "start_time": "2025-10-01T20:05:03.498237",
-      "end_time": "2025-10-01T20:05:04.499511",
-      "elapsed_time": 1.0012741088867188,
+      "start_time": "2025-10-02T06:33:01.141528",
+      "end_time": "2025-10-02T06:33:02.148100",
+      "elapsed_time": 1.0065689086914062,
       "success": true,
       "error_message": null,
-      "metrics": {}
+      "metrics": {
+        "service_available": true
+      }
     },
     {
       "scenario_name": "Medium Packet Loss",
       "scenario_type": "network_loss",
       "intensity": "medium",
       "duration": 45,
-      "start_time": "2025-10-01T20:05:09.501627",
-      "end_time": "2025-10-01T20:05:10.502628",
-      "elapsed_time": 1.0010011196136475,
+      "start_time": "2025-10-02T06:33:07.150065",
+      "end_time": "2025-10-02T06:33:08.156456",
+      "elapsed_time": 1.006389856338501,
       "success": true,
       "error_message": null,
-      "metrics": {}
+      "metrics": {
+        "service_available": true
+      }
     },
     {
       "scenario_name": "Heavy Packet Loss",
       "scenario_type": "network_loss",
       "intensity": "heavy",
       "duration": 30,
-      "start_time": "2025-10-01T20:05:15.504453",
-      "end_time": "2025-10-01T20:05:16.505691",
-      "elapsed_time": 1.0012376308441162,
+      "start_time": "2025-10-02T06:33:13.158154",
+      "end_time": "2025-10-02T06:33:14.164243",
+      "elapsed_time": 1.0060901641845703,
       "success": true,
       "error_message": null,
-      "metrics": {}
+      "metrics": {
+        "service_available": true
+      }
     },
     {
       "scenario_name": "Application Container Restart",
       "scenario_type": "container_crash",
       "intensity": "medium",
       "duration": 60,
-      "start_time": "2025-10-01T20:05:21.507644",
-      "end_time": "2025-10-01T20:05:22.508903",
-      "elapsed_time": 1.0012590885162354,
+      "start_time": "2025-10-02T06:33:19.165659",
+      "end_time": "2025-10-02T06:33:20.171223",
+      "elapsed_time": 1.0055699348449707,
       "success": true,
       "error_message": null,
-      "metrics": {}
+      "metrics": {
+        "service_available": true
+      }
     },
     {
       "scenario_name": "Database Brief Outage",
       "scenario_type": "database_down",
       "intensity": "light",
       "duration": 10,
-      "start_time": "2025-10-01T20:05:27.511103",
-      "end_time": "2025-10-01T20:05:28.512381",
-      "elapsed_time": 1.0012779235839844,
+      "start_time": "2025-10-02T06:33:25.172598",
+      "end_time": "2025-10-02T06:33:26.178821",
+      "elapsed_time": 1.0062158107757568,
       "success": true,
       "error_message": null,
-      "metrics": {}
+      "metrics": {
+        "service_available": true
+      }
     },
     {
       "scenario_name": "Database Extended Outage",
       "scenario_type": "database_down",
       "intensity": "heavy",
       "duration": 30,
-      "start_time": "2025-10-01T20:05:33.514450",
-      "end_time": "2025-10-01T20:05:34.515671",
-      "elapsed_time": 1.0012211799621582,
+      "start_time": "2025-10-02T06:33:31.180455",
+      "end_time": "2025-10-02T06:33:32.185233",
+      "elapsed_time": 1.00478196144104,
       "success": true,
       "error_message": null,
-      "metrics": {}
+      "metrics": {
+        "service_available": true
+      }
     },
     {
       "scenario_name": "Light Disk Stress",
       "scenario_type": "disk_stress",
       "intensity": "light",
       "duration": 30,
-      "start_time": "2025-10-01T20:05:39.518229",
-      "end_time": "2025-10-01T20:05:40.519205",
-      "elapsed_time": 1.0009760856628418,
+      "start_time": "2025-10-02T06:33:37.186924",
+      "end_time": "2025-10-02T06:33:38.192435",
+      "elapsed_time": 1.0055139064788818,
       "success": true,
       "error_message": null,
-      "metrics": {}
+      "metrics": {
+        "service_available": true
+      }
     },
     {
       "scenario_name": "Medium Disk Stress",
       "scenario_type": "disk_stress",
       "intensity": "medium",
       "duration": 45,
-      "start_time": "2025-10-01T20:05:45.521185",
-      "end_time": "2025-10-01T20:05:46.522401",
-      "elapsed_time": 1.001216173171997,
+      "start_time": "2025-10-02T06:33:43.194041",
+      "end_time": "2025-10-02T06:33:44.199774",
+      "elapsed_time": 1.005728006362915,
       "success": true,
       "error_message": null,
-      "metrics": {}
+      "metrics": {
+        "service_available": true
+      }
     },
     {
       "scenario_name": "Heavy Disk Stress",
       "scenario_type": "disk_stress",
       "intensity": "heavy",
       "duration": 60,
-      "start_time": "2025-10-01T20:05:51.524298",
-      "end_time": "2025-10-01T20:05:52.524786",
-      "elapsed_time": 1.000488042831421,
+      "start_time": "2025-10-02T06:33:49.201308",
+      "end_time": "2025-10-02T06:33:50.207427",
+      "elapsed_time": 1.0061240196228027,
       "success": true,
       "error_message": null,
-      "metrics": {}
+      "metrics": {
+        "service_available": true
+      }
     }
   ]
 }
