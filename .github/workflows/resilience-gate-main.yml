@@ -1,7 +1,12 @@
 name: Resilience Gate (main)
 
 on:
-  workflow_dispatch: {}         # shows the "Run workflow" button on main
+  workflow_dispatch:
+    inputs:
+      force_slo:
+        description: "Simulate SLO regressions (integer). 0 = none"
+        required: false
+        default: "0"
   push:
     branches: [ main ]
   pull_request:
@@ -40,10 +45,18 @@ jobs:
         run: |
           opa test platform/gatekeeper/policies -v
 
+      - name: Build SLO input
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
+          FORCE_SLO_REGRESSIONS="${{ github.event.inputs.force_slo || '' }}"
+          export FORCE_SLO_REGRESSIONS="${FORCE_SLO_REGRESSIONS}"
+          python scripts/slo_ingest.py
+          echo "SLO input:" && cat /tmp/slo.json
+
       - name: Enforce resilience policy
         run: |
-          echo '{"chaos_failed": false, "slo_regressions": 0}' > /tmp/input.json
-          opa eval -f json -i /tmp/input.json -d platform/gatekeeper/policies 'data.resilience.deny' \
+          opa eval -f json -i /tmp/slo.json -d platform/gatekeeper/policies 'data.resilience.deny' \
             | jq -r '.result[0].expressions[0].value' > /tmp/deny.json
           echo "OPA deny set:" && cat /tmp/deny.json
           if [ "$(jq 'length' /tmp/deny.json)" -gt 0 ]; then
