@@ -42,10 +42,14 @@ jobs:
           kind create cluster --name chaos-ci --wait 180s
           kubectl cluster-info
 
+      - name: Ensure namespace exists
+        run: |
+          kubectl get ns "$NS" || kubectl create ns "$NS"
+
       - name: Apply RBAC + CI CronJob (public image)
         run: |
-          kubectl get ns $NS >/dev/null 2>&1 || kubectl create ns $NS
-          kubectl -n $NS apply -f infra/k8s/chaos-runner-rbac.yaml
+          set -euo pipefail
+          kubectl -n "$NS" apply -f infra/k8s/chaos-runner-rbac.yaml
           # CI-only CronJob uses a public image so the smoketest never blocks on private pulls
           cat > /tmp/cron-chaos-ci.yaml <<'YAML'
           apiVersion: batch/v1
@@ -60,7 +64,66 @@ jobs:
                 template:
                   spec:
                     serviceAccountName: chaos-runner
+                    restartPolicy: OnFailure
                     containers:
                       - name: runner
                         image: alpine:3.19
-                        command: ["sh","-c"]
+                        command: ["sh","-c","echo ok"]
+          YAML
+          kubectl -n "$NS" apply -f /tmp/cron-chaos-ci.yaml
+          kubectl -n "$NS" get sa,role,rolebinding,cronjob
+
+      - name: Deploy demo app (for remediation test)
+        run: |
+          cat > /tmp/demo.yaml <<'YAML'
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: demo
+            namespace: staging-apps
+          spec:
+            replicas: 2
+            selector: { matchLabels: { app: demo } }
+            template:
+              metadata: { labels: { app: demo } }
+              spec:
+                containers:
+                  - name: web
+                    image: nginx:1.25-alpine
+                    ports:
+                      - containerPort: 80
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: demo
+            namespace: staging-apps
+          spec:
+            selector: { app: demo }
+            ports:
+              - port: 80
+                targetPort: 80
+          YAML
+          kubectl -n $NS apply -f /tmp/demo.yaml
+          kubectl -n $NS rollout status deploy/demo --timeout=120s
+
+      - name: Induce tiny fault (delete one pod)
+        run: |
+          POD=$(kubectl -n $NS get pods -l app=demo -o jsonpath='{.items[0].metadata.name}')
+          kubectl -n $NS delete pod "$POD" || true
+          echo "Deleted pod: $POD"
+
+      - name: Auto-Remediate (restart demo)
+        env:
+          NAMESPACE: ${{ env.NS }}
+          DEPLOYMENT: demo
+          ACTION: restart
+        run: |
+          python scripts/remediate.py || true
+          cat /tmp/remediation.log || true
+
+      - name: Upload remediation log
+        uses: actions/upload-artifact@v4
+        with:
+          name: remediation-${{ github.run_id }}
+          path: /tmp/remediation.log
