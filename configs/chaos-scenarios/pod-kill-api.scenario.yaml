@@ -12,8 +12,8 @@ schedule:
     - "ci:post-deploy"
 blastRadius:
   namespaceAllowlist:
-    - "<YOUR_STAGING_NS>"
-    - "<YOUR_PROD_NS>"
+    - staging-apps
+    - prod-apps
   maxConcurrentTargets: 1
   dryRun: false
 injection:
@@ -25,7 +25,7 @@ injection:
     killPercentage: 30
 validation:
   healthEndpoints:
-    - url: "<YOUR_HEALTH_URL>"
+    - url: "https://api.example.com/health"
       method: GET
       timeout: "5s"
   sloChecks:
@@ -34,7 +34,7 @@ validation:
     - sloRef: error-rate-api
       absoluteMax: "0.5%"
 evidence:
-  store: "s3://<YOUR_BUCKET>/${{ env }}/${{ run.id }}/"
+  store: "s3://agsense-resilience-artifacts/${{ env }}/${{ run.id }}/"
   redact:
     - token
     - password
