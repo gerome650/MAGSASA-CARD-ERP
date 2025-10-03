@@ -12,8 +12,8 @@ schedule:
     - "ci:post-deploy"
 blastRadius:
   namespaceAllowlist:
-    - stg-api
-    - prod-api
+    - "<YOUR_STAGING_NS>"
+    - "<YOUR_PROD_NS>"
   maxConcurrentTargets: 1
   dryRun: false
 injection:
@@ -25,7 +25,7 @@ injection:
     killPercentage: 30
 validation:
   healthEndpoints:
-    - url: "https://api.example.com/health"
+    - url: "<YOUR_HEALTH_URL>"
       method: GET
       timeout: "5s"
   sloChecks:
@@ -34,7 +34,7 @@ validation:
     - sloRef: error-rate-api
       absoluteMax: "0.5%"
 evidence:
-  store: "s3://resilience-artifacts/${{ env }}/${{ run.id }}/"
+  store: "s3://<YOUR_BUCKET>/${{ env }}/${{ run.id }}/"
   redact:
     - token
     - password
