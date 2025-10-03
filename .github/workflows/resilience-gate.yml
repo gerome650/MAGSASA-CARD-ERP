@@ -1,15 +1,54 @@
-# --- BEGIN: CI enforcement step (OPA deny blocks PR) ---
-      - name: Enforce policy
+name: Resilience Gate
+
+on:
+  pull_request:
+    branches: [ main, stage-6.6-bootstrap ]
+  push:
+    branches: [ stage-6.6-bootstrap ]
+  workflow_dispatch: {}
+
+jobs:
+  gate:
+    name: OPA Resilience Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tools (jq, Python deps)
         run: |
-          # Replace these with real signals when available (from tests/metrics upload)
-          CHAOS_FAILED=${{ env.CHAOS_FAILED || 'false' }}
-          SLO_REGRESSIONS=${{ env.SLO_REGRESSIONS || '0' }}
-          printf '{"chaos_failed": %s, "slo_regressions": %s}\n' "$CHAOS_FAILED" "$SLO_REGRESSIONS" > /tmp/input.json
-          # Evaluate deny set
-          opa eval -f json -i /tmp/input.json -d platform/gatekeeper/policies 'data.resilience.deny' | jq -r '.result[0].expressions[0].value' > /tmp/deny.json
+          sudo apt-get update -y
+          sudo apt-get install -y jq
+          python -m pip install --upgrade pip
+          pip install yamllint jsonschema
+
+      - name: Install OPA
+        run: |
+          curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64_static
+          chmod +x opa
+          sudo mv opa /usr/local/bin/opa
+          opa version
+
+      - name: Lint & validate configs
+        run: |
+          yamllint configs
+          python scripts/validate_configs.py
+
+      - name: Run OPA policy unit tests
+        run: |
+          opa test platform/gatekeeper/policies -v
+
+      # Enforcement gate: block if policy denies based on input signals.
+      # For now we use clean defaults; later wire real signals from CI steps.
+      - name: Enforce resilience policy
+        run: |
+          echo '{"chaos_failed": false, "slo_regressions": 0}' > /tmp/input.json
+          opa eval -f json -i /tmp/input.json -d platform/gatekeeper/policies 'data.resilience.deny' \
+            | jq -r '.result[0].expressions[0].value' > /tmp/deny.json
           echo "OPA deny set:" && cat /tmp/deny.json
-          # Fail if deny set not empty
           if [ "$(jq 'length' /tmp/deny.json)" -gt 0 ]; then
-            echo "❌ Resilience policy denies this change"; exit 1;
+            echo "❌ Resilience policy denies this change"
+            exit 1
           fi
-# --- END: CI enforcement step ---
