@@ -64,6 +64,7 @@ jobs:
                 template:
                   spec:
                     serviceAccountName: chaos-runner
+                    restartPolicy: OnFailure
                     containers:
                       - name: runner
                         image: alpine:3.19
