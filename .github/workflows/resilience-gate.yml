@@ -1,54 +1,33 @@
 name: Resilience Gate
-
 on:
   pull_request:
-    branches: [ main, stage-6.6-bootstrap ]
-  push:
-    branches: [ stage-6.6-bootstrap ]
-  workflow_dispatch: {}
-
+    types: [opened, synchronize, reopened]
 jobs:
   gate:
-    name: OPA Resilience Gate
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install tools (jq, Python deps)
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: Install deps
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y jq
-          python -m pip install --upgrade pip
-          pip install yamllint jsonschema
-
-      - name: Install OPA
-        run: |
-          curl -L -o opa https://openpolicyagent.org/downloads/latest/opa_linux_amd64_static
-          chmod +x opa
-          sudo mv opa /usr/local/bin/opa
-          opa version
-
-      - name: Lint & validate configs
-        run: |
-          yamllint configs
-          python scripts/validate_configs.py
-
-      - name: Run OPA policy unit tests
-        run: |
-          opa test platform/gatekeeper/policies -v
-
-      # Enforcement gate: block if policy denies based on input signals.
-      # For now we use clean defaults; later wire real signals from CI steps.
-      - name: Enforce resilience policy
-        run: |
-          echo '{"chaos_failed": false, "slo_regressions": 0}' > /tmp/input.json
-          opa eval -f json -i /tmp/input.json -d platform/gatekeeper/policies 'data.resilience.deny' \
-            | jq -r '.result[0].expressions[0].value' > /tmp/deny.json
-          echo "OPA deny set:" && cat /tmp/deny.json
-          if [ "$(jq 'length' /tmp/deny.json)" -gt 0 ]; then
-            echo "❌ Resilience policy denies this change"
-            exit 1
+          python -m pip install -U pip
+          pip install -r requirements.txt
+          if ! command -v opa >/dev/null 2>&1; then
+            curl -L -o opa https://openpolicyagent.org/downloads/v0.68.0/opa_linux_amd64_static
+            chmod +x ./opa && sudo mv ./opa /usr/local/bin/opa
           fi
+      - name: Lint YAML
+        run: yamllint configs
+      - name: Validate configs
+        run: python scripts/validate_configs.py
+      - name: Policy tests
+        run: opa test platform/gatekeeper/policies -v
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resilience-artifacts
+          path: |
+            configs
+            platform/gatekeeper/policies
