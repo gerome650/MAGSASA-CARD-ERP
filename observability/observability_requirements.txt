@@ -1,0 +1,29 @@
+# Observability Dependencies for MAGSASA-CARD-ERP
+# Stage 6.8 - Runtime Intelligence Dependencies
+
+# Prometheus metrics
+prometheus-client>=0.19.0
+
+# OpenTelemetry core
+opentelemetry-api>=1.21.0
+opentelemetry-sdk>=1.21.0
+
+# OpenTelemetry instrumentations
+opentelemetry-instrumentation-flask>=0.42b0
+opentelemetry-instrumentation-requests>=0.42b0
+opentelemetry-instrumentation-sqlalchemy>=0.42b0
+
+# OpenTelemetry exporters
+opentelemetry-exporter-otlp-proto-grpc>=1.21.0
+opentelemetry-exporter-jaeger>=1.21.0  # Optional: Direct Jaeger export
+
+# Runtime Intelligence Dependencies
+numpy>=1.21.0          # For ML anomaly detection algorithms
+scipy>=1.7.0           # For statistical functions
+requests>=2.25.0       # For HTTP requests to Prometheus/Grafana
+schedule>=1.1.0        # For scheduled anomaly detection
+flask>=2.0.0           # For webhook server
+
+# Additional utilities
+python-json-logger>=2.0.7  # Alternative JSON logger (optional)
+

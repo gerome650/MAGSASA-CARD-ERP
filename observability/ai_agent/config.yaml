@@ -1,0 +1,114 @@
+# AI Incident Insight Agent Configuration
+
+# Data Collection Sources
+data_sources:
+  prometheus:
+    base_url: "http://localhost:9090"
+    timeout: 30
+  
+  jaeger:
+    base_url: "http://localhost:16686"
+    timeout: 30
+  
+  loki:
+    base_url: "http://localhost:3100"
+    timeout: 30
+  
+  github:
+    api_url: "https://api.github.com"
+    token: "${GITHUB_TOKEN}"  # Set via environment variable
+
+# Notification Channels
+notifications:
+  slack:
+    enabled: true
+    bot_token: "${SLACK_BOT_TOKEN}"  # Set via environment variable
+    signing_secret: "${SLACK_SIGNING_SECRET}"  # Set via environment variable
+    channels:
+      incidents: "#incident-response"
+      notifications: "#alerts"
+    commands:
+      incident: "/incident"
+      summary: "/incident-summary"
+      postmortem: "/postmortem"
+  
+  pagerduty:
+    enabled: true
+    api_token: "${PAGERDUTY_TOKEN}"  # Set via environment variable
+    integration_keys:
+      incidents: "${PAGERDUTY_INCIDENTS_KEY}"  # Set via environment variable
+      alerts: "${PAGERDUTY_ALERTS_KEY}"  # Set via environment variable
+    default_routing:
+      critical: "incidents"
+      high: "incidents"
+      medium: "alerts"
+      low: "alerts"
+
+# Analysis Parameters
+analysis:
+  window_minutes: 30
+  confidence_threshold: 0.3
+  max_root_causes: 5
+  max_timeline_events: 20
+
+# Postmortem Generation
+postmortem:
+  reports_directory: "/observability/reports"
+  auto_generate: true
+  include_engineer_notes: true
+  include_resolution_notes: true
+  template_sections:
+    - "summary"
+    - "timeline"
+    - "root_causes"
+    - "impact"
+    - "detection"
+    - "resolution"
+    - "lessons_learned"
+    - "action_items"
+    - "engineer_notes"
+    - "metrics"
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "/var/log/ai_incident_agent.log"
+
+# Performance Settings
+performance:
+  max_concurrent_requests: 10
+  request_timeout: 30
+  retry_attempts: 3
+  retry_delay: 1
+
+# Feature Flags
+features:
+  enable_slack_bot: true
+  enable_pagerduty_notifications: true
+  enable_postmortem_generation: true
+  enable_automated_remediation: false  # Future feature
+  enable_learning_mode: true  # Learn from past incidents
+
+# Monitoring and Metrics
+monitoring:
+  metrics_port: 8080
+  health_check_endpoint: "/health"
+  metrics_endpoint: "/metrics"
+  enable_prometheus_metrics: true
+
+# Security Settings
+security:
+  verify_ssl: true
+  allowed_origins:
+    - "https://magsasa.com"
+    - "https://*.magsasa.com"
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 60
+
+# Development Settings
+development:
+  debug_mode: false
+  mock_external_services: false
+  test_mode: false

@@ -1,0 +1,82 @@
+groups:
+  - name: service_health_alerts
+    interval: 30s
+    rules:
+      # High 5xx Error Rate Alert
+      - alert: High5xxErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status_code=~"5.."}[5m]))
+            / 
+            sum(rate(http_requests_total[5m]))
+          ) * 100 > 5
+        for: 2m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "High 5xx error rate detected"
+          description: "{{ $value | humanize }}% of requests are returning 5xx errors (threshold: 5%)"
+          
+      # High Latency Alert (p95 > 2 seconds)
+      - alert: HighRequestLatency
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, endpoint)
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "High request latency on {{ $labels.endpoint }}"
+          description: "p95 latency is {{ $value | humanize }}s on endpoint {{ $labels.endpoint }}"
+          
+      # Exception Spike Alert
+      - alert: ExceptionSpike
+        expr: |
+          rate(http_requests_exceptions_total[5m]) > 1
+        for: 2m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "Exception spike detected"
+          description: "{{ $labels.exception_type }} exceptions occurring at {{ $value | humanize }}/sec"
+          
+      # Service Down Alert
+      - alert: ServiceDown
+        expr: |
+          up{job="magsasa-card-erp"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "Service is down"
+          description: "MAGSASA-CARD-ERP service has been down for more than 1 minute"
+          
+      # High Request Rate (potential DDoS)
+      - alert: AbnormalRequestRate
+        expr: |
+          sum(rate(http_requests_total[5m])) > 1000
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "Abnormally high request rate"
+          description: "Request rate is {{ $value | humanize }} req/sec (potential DDoS or traffic spike)"
+          
+      # Low Request Rate (potential issue)
+      - alert: LowRequestRate
+        expr: |
+          sum(rate(http_requests_total[5m])) < 0.1
+        for: 10m
+        labels:
+          severity: info
+          team: backend
+        annotations:
+          summary: "Abnormally low request rate"
+          description: "Request rate is {{ $value | humanize }} req/sec (service may be unreachable)"
+

@@ -1,0 +1,461 @@
+{{/* 
+Runtime Intelligence: Custom Alert Message Templates
+Stage 6.8 - Rich alert templates for MAGSASA-CARD-ERP
+
+This template provides rich, contextual alert messages with:
+- Service-specific formatting
+- Action buttons and links
+- Contextual information
+- Runbook integration
+- Dashboard links
+*/}}
+
+{{/* Define common functions */}}
+{{ define "format_duration" }}
+{{ if gt (len .Alerts) 0 }}
+{{ $alert := index .Alerts 0 }}
+{{ if $alert.StartsAt }}
+{{ $duration := now.Sub $alert.StartsAt }}
+{{ if gt $duration.Seconds 3600 }}
+{{ div $duration.Seconds 3600 }}h {{ div (mod $duration.Seconds 3600) 60 }}m
+{{ else if gt $duration.Seconds 60 }}
+{{ div $duration.Seconds 60 }}m {{ mod $duration.Seconds 60 }}s
+{{ else }}
+{{ $duration.Seconds }}s
+{{ end }}
+{{ end }}
+{{ end }}
+{{ end }}
+
+{{ define "get_severity_emoji" }}
+{{ $severity := .GroupLabels.severity | default "info" }}
+{{ if eq $severity "critical" }}🚨
+{{ else if eq $severity "warning" }}⚠️
+{{ else if eq $severity "high" }}🔴
+{{ else if eq $severity "medium" }}🟡
+{{ else if eq $severity "low" }}🟢
+{{ else }}ℹ️
+{{ end }}
+{{ end }}
+
+{{ define "get_severity_color" }}
+{{ $severity := .GroupLabels.severity | default "info" }}
+{{ if eq $severity "critical" }}danger
+{{ else if eq $severity "warning" }}warning
+{{ else if eq $severity "high" }}danger
+{{ else if eq $severity "medium" }}warning
+{{ else if eq $severity "low" }}good
+{{ else }}good
+{{ end }}
+{{ end }}
+
+{{ define "get_service_emoji" }}
+{{ $service := .GroupLabels.service | default "unknown" }}
+{{ if eq $service "magsasa-card-erp" }}🌾
+{{ else if eq $service "database" }}🗄️
+{{ else if eq $service "redis" }}🔴
+{{ else if eq $service "nginx" }}🌐
+{{ else if eq $service "prometheus" }}📊
+{{ else if eq $service "grafana" }}📈
+{{ else if eq $service "alertmanager" }}🚨
+{{ else }}⚙️
+{{ end }}
+{{ end }}
+
+{{ define "format_metric_value" }}
+{{ $value := . }}
+{{ if gt $value 1000000 }}
+{{ divf $value 1000000 2 }}M
+{{ else if gt $value 1000 }}
+{{ divf $value 1000 2 }}k
+{{ else }}
+{{ printf "%.2f" $value }}
+{{ end }}
+{{ end }}
+
+{{/* Main alert template */}}
+{{ define "alert.message" }}
+{{ template "get_severity_emoji" . }} {{ template "get_service_emoji" . }} **{{ .GroupLabels.alertname }}**
+
+{{ if .GroupLabels.service }}
+**Service:** {{ .GroupLabels.service }}
+{{ end }}
+{{ if .GroupLabels.environment }}
+**Environment:** {{ .GroupLabels.environment }}
+{{ end }}
+{{ if .GroupLabels.team }}
+**Team:** {{ .GroupLabels.team }}
+{{ end }}
+{{ if .GroupLabels.category }}
+**Category:** {{ .GroupLabels.category }}
+{{ end }}
+
+{{ range .Alerts }}
+{{ if .Annotations.summary }}
+**Summary:** {{ .Annotations.summary }}
+{{ end }}
+
+{{ if .Annotations.description }}
+**Description:** {{ .Annotations.description }}
+{{ end }}
+
+{{ if .Annotations.current_value }}
+**Current Value:** {{ .Annotations.current_value }}
+{{ end }}
+{{ if .Annotations.baseline_value }}
+**Baseline:** {{ .Annotations.baseline_value }}
+{{ end }}
+{{ if .Annotations.threshold }}
+**Threshold:** {{ .Annotations.threshold }}
+{{ end }}
+
+{{ if .Annotations.impact }}
+**Business Impact:** {{ .Annotations.impact }}
+{{ end }}
+
+{{ if .Annotations.runbook_url }}
+📖 **Runbook:** {{ .Annotations.runbook_url }}
+{{ end }}
+{{ if .Annotations.grafana_url }}
+📊 **Dashboard:** {{ .Annotations.grafana_url }}
+{{ end }}
+{{ if .Annotations.dashboard_url }}
+📈 **Grafana:** {{ .Annotations.dashboard_url }}
+{{ end }}
+
+{{ if .StartsAt }}
+**Started:** {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+{{ end }}
+{{ if eq .Status "resolved" }}
+**Resolved:** {{ .EndsAt.Format "2006-01-02 15:04:05 UTC" }}
+**Duration:** {{ template "format_duration" . }}
+{{ end }}
+
+{{ end }}
+{{ end }}
+
+{{/* Critical alert template with immediate action buttons */}}
+{{ define "critical.alert.message" }}
+🚨🚨 **CRITICAL ALERT** 🚨🚨
+
+{{ template "get_service_emoji" . }} **{{ .GroupLabels.alertname }}** - {{ .GroupLabels.service }}
+
+{{ range .Alerts }}
+{{ .Annotations.summary | default .Annotations.description }}
+
+{{ if .Annotations.current_value }}
+**Current:** {{ .Annotations.current_value }}
+{{ end }}
+{{ if .Annotations.baseline_value }}
+**Baseline:** {{ .Annotations.baseline_value }}
+{{ end }}
+
+🔥 **IMMEDIATE ACTION REQUIRED** 🔥
+
+{{ if .Annotations.runbook_url }}
+📖 **RUNBOOK:** {{ .Annotations.runbook_url }}
+{{ end }}
+{{ if .Annotations.grafana_url }}
+📊 **DASHBOARD:** {{ .Annotations.grafana_url }}
+{{ end }}
+
+**Started:** {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+{{ if eq .Status "resolved" }}
+**Resolved:** {{ .EndsAt.Format "2006-01-02 15:04:05 UTC" }}
+**Duration:** {{ template "format_duration" . }}
+{{ end }}
+{{ end }}
+{{ end }}
+
+{{/* Performance alert template */}}
+{{ define "performance.alert.message" }}
+⚠️ **Performance Issue Detected**
+
+{{ template "get_service_emoji" . }} **{{ .GroupLabels.alertname }}**
+
+{{ range .Alerts }}
+{{ if .Annotations.summary }}
+{{ .Annotations.summary }}
+{{ end }}
+
+{{ if .Annotations.description }}
+{{ .Annotations.description }}
+{{ end }}
+
+{{ if .Labels.endpoint }}
+**Affected Endpoint:** {{ .Labels.endpoint }}
+{{ end }}
+
+{{ if .Annotations.current_value }}
+**Current Performance:** {{ .Annotations.current_value }}
+{{ end }}
+{{ if .Annotations.threshold }}
+**Performance Threshold:** {{ .Annotations.threshold }}
+{{ end }}
+
+{{ if .Annotations.grafana_url }}
+📊 **Performance Dashboard:** {{ .Annotations.grafana_url }}
+{{ end }}
+
+{{ if .Annotations.runbook_url }}
+📖 **Performance Runbook:** {{ .Annotations.runbook_url }}
+{{ end }}
+
+**Duration:** {{ template "format_duration" . }}
+{{ end }}
+{{ end }}
+
+{{/* Infrastructure alert template */}}
+{{ define "infrastructure.alert.message" }}
+🖥️ **Infrastructure Alert**
+
+**Resource:** {{ .GroupLabels.category | upper }}
+**Instance:** {{ .GroupLabels.instance | default "unknown" }}
+
+{{ range .Alerts }}
+{{ .Annotations.summary | default .Annotations.description }}
+
+{{ if .Annotations.current_value }}
+**Current Usage:** {{ .Annotations.current_value }}
+{{ end }}
+{{ if .Annotations.threshold }}
+**Threshold:** {{ .Annotations.threshold }}
+{{ end }}
+
+{{ if .Annotations.grafana_url }}
+📊 **Resource Dashboard:** {{ .Annotations.grafana_url }}
+{{ end }}
+
+{{ if .Annotations.runbook_url }}
+📖 **Infrastructure Runbook:** {{ .Annotations.runbook_url }}
+{{ end }}
+
+**Duration:** {{ template "format_duration" . }}
+{{ end }}
+{{ end }}
+
+{{/* Business metrics alert template */}}
+{{ define "business.alert.message" }}
+📊 **Business Impact Alert**
+
+{{ template "get_service_emoji" . }} **{{ .GroupLabels.alertname }}**
+
+{{ range .Alerts }}
+{{ if .Annotations.summary }}
+{{ .Annotations.summary }}
+{{ end }}
+
+{{ if .Annotations.impact }}
+**Business Impact:** {{ .Annotations.impact }}
+{{ end }}
+
+{{ if .Annotations.current_rate }}
+**Current Rate:** {{ .Annotations.current_rate }}
+{{ end }}
+{{ if .Annotations.normal_rate }}
+**Normal Rate:** {{ .Annotations.normal_rate }}
+{{ end }}
+
+{{ if .Annotations.grafana_url }}
+📊 **Business Dashboard:** {{ .Annotations.grafana_url }}
+{{ end }}
+
+{{ if .Annotations.runbook_url }}
+📖 **Business Runbook:** {{ .Annotations.runbook_url }}
+{{ end }}
+
+**Duration:** {{ template "format_duration" . }}
+{{ end }}
+{{ end }}
+
+{{/* Anomaly detection alert template */}}
+{{ define "anomaly.alert.message" }}
+📊 **Anomaly Detected**
+
+🤖 **{{ .GroupLabels.alertname }}**
+
+{{ range .Alerts }}
+{{ if .Annotations.summary }}
+{{ .Annotations.summary }}
+{{ end }}
+
+{{ if .Labels.anomaly_type }}
+**Anomaly Type:** {{ .Labels.anomaly_type }}
+{{ end }}
+
+{{ if .Annotations.deviation }}
+**Deviation:** {{ .Annotations.deviation }}x from baseline
+{{ end }}
+
+{{ if .Annotations.current_rate }}
+**Current Rate:** {{ .Annotations.current_rate }}
+{{ end }}
+{{ if .Annotations.avg_rate }}
+**Average Rate:** {{ .Annotations.avg_rate }}
+{{ end }}
+
+{{ if .Annotations.grafana_url }}
+📊 **Anomaly Dashboard:** {{ .Annotations.grafana_url }}
+{{ end }}
+
+**Duration:** {{ template "format_duration" . }}
+{{ end }}
+{{ end }}
+
+{{/* ML anomaly alert template */}}
+{{ define "ml-anomaly.alert.message" }}
+🤖 **ML Anomaly Detected**
+
+**Detector:** {{ .GroupLabels.detector | default "unknown" }}
+**Metric:** {{ .GroupLabels.anomaly_type | default "unknown" }}
+
+{{ range .Alerts }}
+{{ if .Annotations.summary }}
+{{ .Annotations.summary }}
+{{ end }}
+
+{{ if .Annotations.anomaly_score }}
+**Anomaly Score:** {{ .Annotations.anomaly_score }}
+{{ end }}
+
+{{ if .Annotations.current_value }}
+**Current Value:** {{ .Annotations.current_value }}
+{{ end }}
+{{ if .Annotations.baseline_value }}
+**Baseline Value:** {{ .Annotations.baseline_value }}
+{{ end }}
+
+{{ if .Annotations.deviation_factor }}
+**Deviation:** {{ .Annotations.deviation_factor }}x
+{{ end }}
+
+{{ if .Annotations.grafana_url }}
+📊 **ML Dashboard:** {{ .Annotations.grafana_url }}
+{{ end }}
+
+**Duration:** {{ template "format_duration" . }}
+{{ end }}
+{{ end }}
+
+{{/* Resolved alert template */}}
+{{ define "resolved.alert.message" }}
+✅ **Alert Resolved**
+
+{{ template "get_service_emoji" . }} **{{ .GroupLabels.alertname }}**
+
+{{ range .Alerts }}
+{{ if .Annotations.summary }}
+{{ .Annotations.summary }} - **RESOLVED**
+{{ end }}
+
+{{ if .Annotations.description }}
+{{ .Annotations.description }}
+{{ end }}
+
+**Duration:** {{ template "format_duration" . }}
+
+{{ if .Annotations.runbook_url }}
+📖 **Runbook:** {{ .Annotations.runbook_url }}
+{{ end }}
+
+{{ end }}
+{{ end }}
+
+{{/* Email template for critical alerts */}}
+{{ define "email.critical.subject" }}
+🚨 CRITICAL: {{ .GroupLabels.alertname }} - {{ .GroupLabels.service }}
+{{ end }}
+
+{{ define "email.critical.body" }}
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background-color: #dc3545; color: white; padding: 20px; border-radius: 5px; }
+        .content { margin: 20px 0; }
+        .metric { background-color: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 3px; }
+        .button { background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 3px; display: inline-block; margin: 5px; }
+        .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6; color: #6c757d; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚨 CRITICAL ALERT</h1>
+        <h2>{{ .GroupLabels.alertname }}</h2>
+        <p>Service: {{ .GroupLabels.service }} | Environment: {{ .GroupLabels.environment }}</p>
+    </div>
+    
+    <div class="content">
+        {{ range .Alerts }}
+        <h3>Alert Details</h3>
+        <p><strong>Summary:</strong> {{ .Annotations.summary | default .Annotations.description }}</p>
+        
+        {{ if .Annotations.current_value }}
+        <div class="metric">
+            <strong>Current Value:</strong> {{ .Annotations.current_value }}
+        </div>
+        {{ end }}
+        
+        {{ if .Annotations.baseline_value }}
+        <div class="metric">
+            <strong>Baseline:</strong> {{ .Annotations.baseline_value }}
+        </div>
+        {{ end }}
+        
+        {{ if .Annotations.threshold }}
+        <div class="metric">
+            <strong>Threshold:</strong> {{ .Annotations.threshold }}
+        </div>
+        {{ end }}
+        
+        <p><strong>Started:</strong> {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}</p>
+        
+        {{ if .Annotations.runbook_url }}
+        <a href="{{ .Annotations.runbook_url }}" class="button">📖 View Runbook</a>
+        {{ end }}
+        
+        {{ if .Annotations.grafana_url }}
+        <a href="{{ .Annotations.grafana_url }}" class="button">📊 View Dashboard</a>
+        {{ end }}
+        
+        {{ if .Annotations.dashboard_url }}
+        <a href="{{ .Annotations.dashboard_url }}" class="button">📈 Grafana</a>
+        {{ end }}
+        {{ end }}
+    </div>
+    
+    <div class="footer">
+        <p>This is an automated alert from MAGSASA-CARD-ERP Runtime Intelligence System.</p>
+        <p>Generated at {{ now.Format "2006-01-02 15:04:05 UTC" }}</p>
+    </div>
+</body>
+</html>
+{{ end }}
+
+{{/* Webhook payload template */}}
+{{ define "webhook.payload" }}
+{
+  "version": "4",
+  "groupKey": "{{ .GroupKey }}",
+  "status": "{{ .Status }}",
+  "receiver": "{{ .Receiver }}",
+  "groupLabels": {{ .GroupLabels | toJson }},
+  "commonLabels": {{ .CommonLabels | toJson }},
+  "commonAnnotations": {{ .CommonAnnotations | toJson }},
+  "externalURL": "{{ .ExternalURL }}",
+  "alerts": [
+    {{ range $i, $alert := .Alerts }}
+    {
+      "status": "{{ $alert.Status }}",
+      "labels": {{ $alert.Labels | toJson }},
+      "annotations": {{ $alert.Annotations | toJson }},
+      "startsAt": "{{ $alert.StartsAt.Format "2006-01-02T15:04:05Z07:00" }}",
+      "endsAt": "{{ $alert.EndsAt.Format "2006-01-02T15:04:05Z07:00" }}",
+      "generatorURL": "{{ $alert.GeneratorURL }}",
+      "fingerprint": "{{ $alert.Fingerprint }}"
+    }{{ if lt $i (sub (len $.Alerts) 1) }},{{ end }}
+    {{ end }}
+  ]
+}
+{{ end }}

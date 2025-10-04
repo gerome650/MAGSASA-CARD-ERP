@@ -1,0 +1,149 @@
+version: '3.8'
+
+services:
+  # Prometheus - Metrics collection and storage
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: magsasa-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./dashboards/alert_rules.yml:/etc/prometheus/alert_rules.yml
+      - ./alerts/promql_rules.yml:/etc/prometheus/promql_rules.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - observability
+    restart: unless-stopped
+
+  # Grafana - Visualization and dashboards
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: magsasa-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+    networks:
+      - observability
+    restart: unless-stopped
+
+  # Jaeger - Distributed tracing (all-in-one)
+  jaeger:
+    image: jaegertracing/all-in-one:1.50
+    container_name: magsasa-jaeger
+    ports:
+      - "5775:5775/udp"  # Accept zipkin.thrift over compact thrift protocol
+      - "6831:6831/udp"  # Accept jaeger.thrift over compact thrift protocol
+      - "6832:6832/udp"  # Accept jaeger.thrift over binary thrift protocol
+      - "5778:5778"      # Serve configs
+      - "16686:16686"    # Serve frontend
+      - "14268:14268"    # Accept jaeger.thrift directly from clients
+      - "14250:14250"    # Accept model.proto
+      - "4317:4317"      # OTLP gRPC receiver
+      - "4318:4318"      # OTLP HTTP receiver
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - LOG_LEVEL=info
+    networks:
+      - observability
+    restart: unless-stopped
+
+  # Alertmanager - Alert routing and management
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: magsasa-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    networks:
+      - observability
+    restart: unless-stopped
+
+  # Node Exporter - System metrics (optional, for host monitoring)
+  node-exporter:
+    image: prom/node-exporter:v1.6.1
+    container_name: magsasa-node-exporter
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - observability
+    restart: unless-stopped
+
+  # Runtime Intelligence Webhook Server - Stage 6.8
+  runtime-intelligence:
+    build:
+      context: ..
+      dockerfile: observability/Dockerfile.runtime-intelligence
+    container_name: magsasa-runtime-intelligence
+    ports:
+      - "5001:5001"
+    environment:
+      - PROMETHEUS_URL=http://prometheus:9090
+      - ALERTMANAGER_URL=http://alertmanager:9093
+      - GRAFANA_URL=http://grafana:3000
+      - WEBHOOK_HOST=0.0.0.0
+      - WEBHOOK_PORT=5001
+      - LOG_LEVEL=INFO
+      - SLACK_ENABLED=${SLACK_ENABLED:-false}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+      - SLACK_CHANNEL=${SLACK_CHANNEL:-#alerts}
+      - PAGERDUTY_ENABLED=${PAGERDUTY_ENABLED:-false}
+      - PAGERDUTY_INTEGRATION_KEY=${PAGERDUTY_INTEGRATION_KEY:-}
+      - GRAFANA_API_KEY=${GRAFANA_API_KEY:-}
+    volumes:
+      - ./alerts:/app/observability/alerts
+      - ./dashboards:/app/observability/dashboards
+      - ./alertmanager:/app/observability/alertmanager
+    depends_on:
+      - prometheus
+      - alertmanager
+      - grafana
+    networks:
+      - observability
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  observability:
+    driver: bridge
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  alertmanager_data:
+

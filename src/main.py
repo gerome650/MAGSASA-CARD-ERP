@@ -6,6 +6,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from flask import Flask, send_from_directory, redirect, session
 from flask_cors import CORS
+
+# Observability imports
+from observability.metrics.metrics_middleware import MetricsMiddleware
+from observability.tracing.otel_tracer import init_tracing, get_tracer
+from observability.logging.structured_logger import get_logger, configure_root_logger
 from src.database import db
 from src.models.farmer import Farmer
 from src.models.category import Category
@@ -46,6 +51,26 @@ app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour session timeout
 # Enable CORS for all routes
 CORS(app)
 
+# ✅ Initialize Observability Stack
+# Metrics: Automatically tracks HTTP requests, latency, and errors
+MetricsMiddleware(app)
+
+# Tracing: Auto-instruments Flask, SQLAlchemy, and HTTP requests
+otlp_endpoint = os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', None)
+init_tracing(
+    app, 
+    service_name=os.getenv('OTEL_SERVICE_NAME', 'magsasa-card-erp'),
+    otlp_endpoint=otlp_endpoint,
+    console_export=os.getenv('OTEL_CONSOLE_EXPORT', 'False').lower() in ('true', '1', 'yes')
+)
+
+# Structured logging: JSON-formatted logs with trace context
+configure_root_logger()
+logger = get_logger(__name__)
+tracer = get_tracer(__name__)
+
+logger.info("Application starting", environment=os.getenv('ENVIRONMENT', 'development'))
+
 # Register blueprints
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(farmer_bp, url_prefix='/api')
@@ -72,10 +97,13 @@ app.register_blueprint(health_bp)  # Health check endpoints for monitoring and c
 @app.route('/')
 def index():
     """Root route - redirect to appropriate dashboard based on login status"""
-    if 'user_id' in session:
-        return redirect('/dashboard')
-    else:
-        return redirect('/login.html')
+    with tracer.start_as_current_span("index_route"):
+        if 'user_id' in session:
+            logger.info("User accessing dashboard", user_id=session.get('user_id'))
+            return redirect('/dashboard')
+        else:
+            logger.info("Anonymous user redirected to login")
+            return redirect('/login.html')
 
 # Role-specific dashboard routes
 @app.route('/admin')
@@ -123,32 +151,39 @@ def test_endpoint():
 @app.route('/api/health')
 def health_check():
     """Health check endpoint for monitoring and chaos testing"""
-    try:
-        # Basic health check - verify database connection
-        db_status = 'unknown'
+    with tracer.start_as_current_span("health_check"):
         try:
-            with app.app_context():
-                # Use text() for SQLAlchemy 2.0 compatibility
-                from sqlalchemy import text
-                db.session.execute(text('SELECT 1'))
-                db_status = 'connected'
-        except Exception as db_error:
-            db_status = f'error: {str(db_error)}'
-        
-        return {
-            'status': 'healthy',
-            'timestamp': time.time(),
-            'service': 'MAGSASA-CARD-ERP',
-            'version': '1.0.0',
-            'database': db_status
-        }, 200
-    except Exception as e:
-        return {
-            'status': 'unhealthy',
-            'timestamp': time.time(),
-            'service': 'MAGSASA-CARD-ERP',
-            'error': str(e)
-        }, 503
+            # Basic health check - verify database connection
+            db_status = 'unknown'
+            try:
+                with app.app_context():
+                    # Use text() for SQLAlchemy 2.0 compatibility
+                    from sqlalchemy import text
+                    with tracer.start_as_current_span("database_check"):
+                        db.session.execute(text('SELECT 1'))
+                        db_status = 'connected'
+                        logger.debug("Database health check passed", db_status=db_status)
+            except Exception as db_error:
+                db_status = f'error: {str(db_error)}'
+                logger.error("Database health check failed", error=str(db_error))
+            
+            response = {
+                'status': 'healthy',
+                'timestamp': time.time(),
+                'service': 'MAGSASA-CARD-ERP',
+                'version': '1.0.0',
+                'database': db_status
+            }
+            logger.info("Health check completed", status='healthy', db_status=db_status)
+            return response, 200
+        except Exception as e:
+            logger.error("Health check failed", error=str(e), exception_type=type(e).__name__)
+            return {
+                'status': 'unhealthy',
+                'timestamp': time.time(),
+                'service': 'MAGSASA-CARD-ERP',
+                'error': str(e)
+            }, 503
 
 # Serve static files
 @app.route('/<path:filename>')
@@ -178,7 +213,16 @@ if __name__ == '__main__':
     
     print(f"🚀 Starting Flask application on {flask_host}:{flask_port}")
     print(f"   Health endpoint: http://{flask_host}:{flask_port}/api/health")
+    print(f"   Metrics endpoint: http://{flask_host}:{flask_port}/metrics")
     print(f"   Set APP_PORT environment variable to change port")
+    
+    logger.info(
+        "Application configuration",
+        host=flask_host,
+        port=flask_port,
+        debug=flask_debug,
+        environment=os.getenv('ENVIRONMENT', 'development')
+    )
     
     # Note: For Docker/load testing, set FLASK_HOST=0.0.0.0 in environment
     # This avoids hardcoding bind-all-interfaces (Bandit B104)

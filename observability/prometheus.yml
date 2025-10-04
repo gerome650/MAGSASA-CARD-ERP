@@ -1,0 +1,60 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'magsasa-dev'
+    environment: 'development'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+# Load alert rules
+rule_files:
+  - /etc/prometheus/alert_rules.yml
+  - /etc/prometheus/promql_rules.yml
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+
+  # MAGSASA-CARD-ERP application
+  - job_name: 'magsasa-card-erp'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['host.docker.internal:8000']  # For Mac/Windows Docker Desktop
+        labels:
+          service: 'magsasa-card-erp'
+          environment: 'development'
+    # For Linux, use the bridge IP or service name
+    # - targets: ['172.17.0.1:8000']
+
+  # Node Exporter (system metrics)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          service: 'node-exporter'
+
+  # Grafana metrics
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+        labels:
+          service: 'grafana'
+
+  # Jaeger metrics
+  - job_name: 'jaeger'
+    static_configs:
+      - targets: ['jaeger:14269']
+        labels:
+          service: 'jaeger'
+
