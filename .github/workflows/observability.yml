@@ -84,3 +84,135 @@ jobs:
         echo "✅ SLO configurations validated"
         echo "✅ Runtime intelligence tested"
         echo "✅ AI incident analyzer verified"
+name: Observability Gate
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - '**.py'
+      - 'observability/**'
+      - '.github/workflows/observability.yml'
+  push:
+    branches: [ main, develop ]
+    paths:
+      - '**.py'
+
+jobs:
+  observability-check:
+    name: Check Observability Hooks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # Need at least 2 commits for diff
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install prometheus-client opentelemetry-api opentelemetry-sdk
+      
+      - name: Run Observability Linter
+        id: observability_check
+        run: |
+          python scripts/check_observability_hooks.py
+        continue-on-error: true
+      
+      - name: Comment on PR (if failed)
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## ⚠️ Observability Check Failed
+              
+              Your PR is missing observability instrumentation. Please ensure your changes include:
+              
+              - 📊 **Metrics tracking**: Use \`metrics_client\`, \`Counter\`, \`Histogram\`, etc.
+              - 🧭 **Distributed tracing**: Use \`start_as_current_span\`, \`get_tracer()\`
+              - 🪵 **Structured logging**: Use \`logger.info\`, \`logger.error\`, etc.
+              
+              See [observability/README.md](../blob/main/observability/README.md) for guidelines.
+              
+              ---
+              
+              **Example:**
+              \`\`\`python
+              from observability.tracing.otel_tracer import get_tracer
+              from observability.logging.structured_logger import get_logger
+              
+              tracer = get_tracer(__name__)
+              logger = get_logger(__name__)
+              
+              @app.route('/api/process')
+              def process_data():
+                  with tracer.start_as_current_span("process_data"):
+                      logger.info("Processing started", user_id="123")
+                      # Your business logic
+                      return {"status": "ok"}
+              \`\`\`
+              
+              💡 Run \`python scripts/check_observability_hooks.py\` locally to verify your changes.
+              `
+            })
+      
+      - name: Fail if observability check failed
+        if: steps.observability_check.outcome == 'failure'
+        run: |
+          echo "::error::Observability check failed. Please add metrics, tracing, or logging to your changes."
+          exit 1
+      
+      - name: Success message
+        if: success()
+        run: |
+          echo "✅ Observability check passed!"
+          echo "Your changes include proper observability instrumentation."
+
+  lint-observability-code:
+    name: Lint Observability Module
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 pylint mypy
+          pip install prometheus-client opentelemetry-api opentelemetry-sdk
+          pip install opentelemetry-instrumentation-flask
+      
+      - name: Lint with flake8
+        run: |
+          # Stop the build if there are Python syntax errors or undefined names
+          flake8 observability/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Exit-zero treats all errors as warnings
+          flake8 observability/ --count --exit-zero --max-complexity=10 --max-line-length=100 --statistics
+        continue-on-error: true
+      
+      - name: Check with pylint
+        run: |
+          pylint observability/ --exit-zero --max-line-length=100
+        continue-on-error: true
+      
+      - name: Type check with mypy
+        run: |
+          mypy observability/ --ignore-missing-imports --no-strict-optional
+        continue-on-error: true
+
