@@ -1,0 +1,243 @@
+global:
+  resolve_timeout: 5m
+  # Slack configuration (optional)
+  slack_api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
+
+# Email configuration (optional)
+# global:
+#   smtp_smarthost: 'smtp.gmail.com:587'
+#   smtp_from: 'alertmanager@example.com'
+#   smtp_auth_username: 'your-email@gmail.com'
+#   smtp_auth_password: 'your-app-password'
+
+route:
+  group_by: ['alertname', 'cluster', 'service', 'team']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'smart-router'
+  
+  routes:
+    # Critical alerts - immediate response
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 0s
+      repeat_interval: 5m
+      continue: true
+    
+    # Service down - highest priority
+    - match:
+        alertname: ServiceDown
+      receiver: 'critical-alerts'
+      group_wait: 0s
+      repeat_interval: 2m
+    
+    # High error rate - critical for business
+    - match:
+        alertname: CriticalHighErrorRate
+      receiver: 'critical-alerts'
+      group_wait: 0s
+      repeat_interval: 3m
+    
+    # Performance alerts - warning level
+    - match:
+        severity: warning
+      receiver: 'performance-alerts'
+      repeat_interval: 1h
+    
+    # System resource alerts
+    - match:
+        category: cpu
+      receiver: 'infrastructure-alerts'
+      repeat_interval: 30m
+    
+    - match:
+        category: memory
+      receiver: 'infrastructure-alerts'
+      repeat_interval: 30m
+    
+    - match:
+        category: disk
+      receiver: 'infrastructure-alerts'
+      repeat_interval: 30m
+    
+    # Business metrics alerts
+    - match:
+        category: transactions
+      receiver: 'business-alerts'
+      repeat_interval: 2h
+    
+    # Anomaly detection alerts
+    - match:
+        category: anomaly
+      receiver: 'anomaly-alerts'
+      repeat_interval: 1h
+    
+    # ML anomaly alerts
+    - match:
+        category: ml-anomaly
+      receiver: 'ml-anomaly-alerts'
+      repeat_interval: 1h
+    
+    # Info alerts - reduced frequency
+    - match:
+        severity: info
+      receiver: 'info-alerts'
+      repeat_interval: 24h
+
+receivers:
+  # Smart Router - routes to appropriate channels based on severity and context
+  - name: 'smart-router'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook/smart-router'
+        send_resolved: true
+        http_config:
+          bearer_token: 'your-webhook-token'
+
+  # Critical alerts - PagerDuty + Slack + Email
+  - name: 'critical-alerts'
+    # PagerDuty for immediate escalation
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook/pagerduty'
+        send_resolved: true
+    
+    # Slack for team notification
+    slack_configs:
+      - channel: '#oncall'
+        title: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Service:* {{ .Labels.service }}
+          *Environment:* {{ .Labels.environment | default "development" }}
+          *Description:* {{ .Annotations.description }}
+          {{ if .Annotations.current_value }}*Current Value:* {{ .Annotations.current_value }}{{ end }}
+          {{ if .Annotations.baseline_value }}*Baseline:* {{ .Annotations.baseline_value }}{{ end }}
+          {{ if .Annotations.runbook_url }}*Runbook:* {{ .Annotations.runbook_url }}{{ end }}
+          {{ if .Annotations.grafana_url }}*Dashboard:* {{ .Annotations.grafana_url }}{{ end }}
+          {{ end }}
+        send_resolved: true
+        color: 'danger'
+    
+    # Email for backup notification
+    email_configs:
+      - to: 'oncall@magsasa.com'
+        subject: '🚨 CRITICAL: {{ .GroupLabels.alertname }} - {{ .GroupLabels.service }}'
+        html: |
+          <h2>Critical Alert: {{ .GroupLabels.alertname }}</h2>
+          {{ range .Alerts }}
+          <p><strong>Service:</strong> {{ .Labels.service }}</p>
+          <p><strong>Description:</strong> {{ .Annotations.description }}</p>
+          {{ if .Annotations.current_value }}<p><strong>Current Value:</strong> {{ .Annotations.current_value }}</p>{{ end }}
+          {{ if .Annotations.runbook_url }}<p><strong>Runbook:</strong> <a href="{{ .Annotations.runbook_url }}">View Runbook</a></p>{{ end }}
+          {{ if .Annotations.grafana_url }}<p><strong>Dashboard:</strong> <a href="{{ .Annotations.grafana_url }}">View Dashboard</a></p>{{ end }}
+          {{ end }}
+
+  # Performance alerts - Slack only
+  - name: 'performance-alerts'
+    slack_configs:
+      - channel: '#performance'
+        title: '⚠️ Performance Issue: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Service:* {{ .Labels.service }}
+          *Endpoint:* {{ .Labels.endpoint | default "N/A" }}
+          *Description:* {{ .Annotations.description }}
+          {{ if .Annotations.current_value }}*Current:* {{ .Annotations.current_value }}{{ end }}
+          {{ if .Annotations.threshold }}*Threshold:* {{ .Annotations.threshold }}{{ end }}
+          {{ if .Annotations.grafana_url }}*Dashboard:* {{ .Annotations.grafana_url }}{{ end }}
+          {{ end }}
+        send_resolved: true
+        color: 'warning'
+
+  # Infrastructure alerts - Slack + Email
+  - name: 'infrastructure-alerts'
+    slack_configs:
+      - channel: '#infrastructure'
+        title: '🖥️ Infrastructure: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Resource:* {{ .Labels.category }}
+          *Instance:* {{ .Labels.instance }}
+          *Description:* {{ .Annotations.description }}
+          {{ if .Annotations.current_value }}*Current:* {{ .Annotations.current_value }}{{ end }}
+          {{ end }}
+        send_resolved: true
+        color: 'warning'
+    
+    email_configs:
+      - to: 'infrastructure@magsasa.com'
+        subject: 'Infrastructure Alert: {{ .GroupLabels.alertname }}'
+
+  # Business alerts - Slack to business channel
+  - name: 'business-alerts'
+    slack_configs:
+      - channel: '#business-metrics'
+        title: '📊 Business Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Impact:* {{ .Annotations.impact | default "Business metrics affected" }}
+          *Description:* {{ .Annotations.description }}
+          {{ if .Annotations.current_rate }}*Current Rate:* {{ .Annotations.current_rate }}{{ end }}
+          {{ end }}
+        send_resolved: true
+        color: 'good'
+
+  # Anomaly detection alerts
+  - name: 'anomaly-alerts'
+    slack_configs:
+      - channel: '#anomaly-detection'
+        title: '📊 Anomaly: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Type:* {{ .Labels.anomaly_type }}
+          *Deviation:* {{ .Annotations.deviation }}x from baseline
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
+        send_resolved: true
+        color: '#36a64f'
+
+  # ML Anomaly alerts
+  - name: 'ml-anomaly-alerts'
+    slack_configs:
+      - channel: '#ml-alerts'
+        title: '🤖 ML Anomaly: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Detector:* {{ .Labels.detector }}
+          *Score:* {{ .Annotations.anomaly_score }}
+          *Description:* {{ .Annotations.description }}
+          {{ end }}
+        send_resolved: true
+        color: '#9f7aea'
+
+  # Info alerts - minimal notification
+  - name: 'info-alerts'
+    slack_configs:
+      - channel: '#alerts-info'
+        title: 'ℹ️ Info: {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        send_resolved: true
+        color: '#95a5a6'
+
+  # Default fallback
+  - name: 'default'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook/default'
+        send_resolved: true
+
+inhibit_rules:
+  # Inhibit warning alerts if critical alert is firing
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'cluster', 'service']
+  
+  # Don't send resolved notification if still firing
+  - source_match:
+      alertname: 'ServiceDown'
+    target_match:
+      alertname: 'HighRequestLatency'
+    equal: ['service']
+

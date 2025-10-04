@@ -1,0 +1,352 @@
+# Runtime Intelligence: PromQL-Based Anomaly Detection Rules
+# Stage 6.8 - Advanced alerting for MAGSASA-CARD-ERP
+
+groups:
+  # ========================================
+  # CRITICAL ALERTS - Immediate Response
+  # ========================================
+  - name: critical_service_alerts
+    interval: 15s
+    rules:
+      # Service Down Alert
+      - alert: ServiceDown
+        expr: |
+          up{job="magsasa-card-erp"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: magsasa-card-erp
+          team: backend
+          category: availability
+          runbook_url: "https://docs.example.com/runbooks/service-down"
+        annotations:
+          summary: "🚨 MAGSASA-CARD-ERP Service is DOWN"
+          description: "Service {{ $labels.instance }} has been unreachable for more than 1 minute"
+          grafana_url: "http://grafana:3000/d/service-overview?orgId=1&refresh=30s"
+          dashboard_url: "{{ $labels.grafana_url }}"
+
+      # Critical High Error Rate (5xx > 10%)
+      - alert: CriticalHighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status_code=~"5.."}[5m])) by (service)
+            / 
+            sum(rate(http_requests_total[5m])) by (service)
+          ) * 100 > 10
+        for: 2m
+        labels:
+          severity: critical
+          service: magsasa-card-erp
+          team: backend
+          category: errors
+          runbook_url: "https://docs.example.com/runbooks/high-error-rate"
+        annotations:
+          summary: "🚨 Critical Error Rate Spike"
+          description: "{{ $value | humanize }}% of requests are returning 5xx errors (threshold: 10%)"
+          current_value: "{{ $value | humanize }}%"
+          baseline: "Expected < 5%"
+          grafana_url: "http://grafana:3000/d/error-rates?orgId=1&refresh=30s"
+
+      # Database Connection Failure
+      - alert: DatabaseConnectionFailure
+        expr: |
+          rate(http_requests_exceptions_total{exception_type=~".*[Dd]atabase.*|.*[Cc]onnection.*"}[5m]) > 0.1
+        for: 1m
+        labels:
+          severity: critical
+          service: magsasa-card-erp
+          team: backend
+          category: database
+          runbook_url: "https://docs.example.com/runbooks/database-issues"
+        annotations:
+          summary: "🚨 Database Connection Issues"
+          description: "Database connection failures detected: {{ $value | humanize }} failures/sec"
+          exception_type: "{{ $labels.exception_type }}"
+
+  # ========================================
+  # WARNING ALERTS - Performance Issues
+  # ========================================
+  - name: performance_alerts
+    interval: 30s
+    rules:
+      # High Latency Alert (p95 > 2 seconds)
+      - alert: HighRequestLatency
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, endpoint)
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: magsasa-card-erp
+          team: backend
+          category: performance
+          runbook_url: "https://docs.example.com/runbooks/high-latency"
+        annotations:
+          summary: "⚠️ High Request Latency on {{ $labels.endpoint }}"
+          description: "p95 latency is {{ $value | humanize }}s on endpoint {{ $labels.endpoint }} (threshold: 2s)"
+          current_value: "{{ $value | humanize }}s"
+          threshold: "2s"
+          endpoint: "{{ $labels.endpoint }}"
+          grafana_url: "http://grafana:3000/d/latency-analysis?orgId=1&refresh=30s"
+
+      # Moderate High Error Rate (5xx > 5%)
+      - alert: ModerateHighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status_code=~"5.."}[5m])) by (service)
+            / 
+            sum(rate(http_requests_total[5m])) by (service)
+          ) * 100 > 5
+        for: 3m
+        labels:
+          severity: warning
+          service: magsasa-card-erp
+          team: backend
+          category: errors
+          runbook_url: "https://docs.example.com/runbooks/error-rate-spike"
+        annotations:
+          summary: "⚠️ Moderate Error Rate Increase"
+          description: "{{ $value | humanize }}% of requests are returning 5xx errors (threshold: 5%)"
+          current_value: "{{ $value | humanize }}%"
+          baseline: "Expected < 1%"
+
+      # Request Volume Spike (150% of normal)
+      - alert: RequestVolumeSpike
+        expr: |
+          sum(rate(http_requests_total[5m])) > (avg_over_time(sum(rate(http_requests_total[5m]))[1h]) * 1.5
+        for: 5m
+        labels:
+          severity: warning
+          service: magsasa-card-erp
+          team: backend
+          category: traffic
+          runbook_url: "https://docs.example.com/runbooks/traffic-spike"
+        annotations:
+          summary: "⚠️ Unusual Traffic Spike"
+          description: "Current request rate: {{ $value | humanize }} req/s (150% above 1h average)"
+          current_rate: "{{ $value | humanize }} req/s"
+          normal_rate: "{{ (avg_over_time(sum(rate(http_requests_total[5m]))[1h])) | humanize }} req/s"
+
+      # Exception Spike
+      - alert: ExceptionSpike
+        expr: |
+          rate(http_requests_exceptions_total[5m]) > 0.5
+        for: 3m
+        labels:
+          severity: warning
+          service: magsasa-card-erp
+          team: backend
+          category: exceptions
+          runbook_url: "https://docs.example.com/runbooks/exception-spike"
+        annotations:
+          summary: "⚠️ Exception Rate Spike"
+          description: "{{ $labels.exception_type }} exceptions occurring at {{ $value | humanize }}/sec"
+          exception_type: "{{ $labels.exception_type }}"
+          rate: "{{ $value | humanize }}/sec"
+
+  # ========================================
+  # SYSTEM RESOURCE ALERTS
+  # ========================================
+  - name: system_resource_alerts
+    interval: 30s
+    rules:
+      # High CPU Usage
+      - alert: HighCPUUsage
+        expr: |
+          (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m]))) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+          team: infrastructure
+          category: cpu
+          runbook_url: "https://docs.example.com/runbooks/high-cpu"
+        annotations:
+          summary: "⚠️ High CPU Usage"
+          description: "CPU usage is {{ $value | humanize }}% on {{ $labels.instance }}"
+          current_value: "{{ $value | humanize }}%"
+          instance: "{{ $labels.instance }}"
+
+      # High Memory Usage
+      - alert: HighMemoryUsage
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+          team: infrastructure
+          category: memory
+          runbook_url: "https://docs.example.com/runbooks/high-memory"
+        annotations:
+          summary: "⚠️ High Memory Usage"
+          description: "Memory usage is {{ $value | humanize }}% on {{ $labels.instance }}"
+          current_value: "{{ $value | humanize }}%"
+          instance: "{{ $labels.instance }}"
+
+      # Disk Space Warning
+      - alert: HighDiskUsage
+        expr: |
+          (1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+          team: infrastructure
+          category: disk
+          runbook_url: "https://docs.example.com/runbooks/disk-space"
+        annotations:
+          summary: "⚠️ High Disk Usage"
+          description: "Disk usage is {{ $value | humanize }}% on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+          current_value: "{{ $value | humanize }}%"
+          instance: "{{ $labels.instance }}"
+          mountpoint: "{{ $labels.mountpoint }}"
+
+  # ========================================
+  # BUSINESS METRICS ALERTS
+  # ========================================
+  - name: business_metrics_alerts
+    interval: 1m
+    rules:
+      # Low Transaction Volume (Business Impact)
+      - alert: LowTransactionVolume
+        expr: |
+          sum(rate(http_requests_total{endpoint=~".*order.*|.*payment.*|.*transaction.*"}[5m])) < 0.1
+        for: 10m
+        labels:
+          severity: info
+          service: magsasa-card-erp
+          team: business
+          category: transactions
+          runbook_url: "https://docs.example.com/runbooks/low-transactions"
+        annotations:
+          summary: "📉 Low Transaction Volume"
+          description: "Transaction rate is {{ $value | humanize }} req/s (potential business impact)"
+          current_rate: "{{ $value | humanize }} req/s"
+          impact: "Business transactions may be affected"
+
+      # API Endpoint Health Degradation
+      - alert: APIEndpointDegraded
+        expr: |
+          (
+            sum(rate(http_requests_total{status_code=~"4..|5..", endpoint=~".*api.*"}[5m])) by (endpoint)
+            / 
+            sum(rate(http_requests_total{endpoint=~".*api.*"}[5m])) by (endpoint)
+          ) * 100 > 20
+        for: 5m
+        labels:
+          severity: warning
+          service: magsasa-card-erp
+          team: backend
+          category: api-health
+          runbook_url: "https://docs.example.com/runbooks/api-degradation"
+        annotations:
+          summary: "⚠️ API Endpoint {{ $labels.endpoint }} Degraded"
+          description: "{{ $value | humanize }}% of API requests failing on {{ $labels.endpoint }}"
+          endpoint: "{{ $labels.endpoint }}"
+          failure_rate: "{{ $value | humanize }}%"
+
+  # ========================================
+  # ANOMALY DETECTION ALERTS
+  # ========================================
+  - name: anomaly_detection_alerts
+    interval: 1m
+    rules:
+      # Traffic Anomaly (Statistical)
+      - alert: TrafficAnomaly
+        expr: |
+          abs(sum(rate(http_requests_total[5m])) - avg_over_time(sum(rate(http_requests_total[5m]))[1h])) 
+          / avg_over_time(sum(rate(http_requests_total[5m]))[1h]) > 2
+        for: 3m
+        labels:
+          severity: info
+          service: magsasa-card-erp
+          team: backend
+          category: anomaly
+          runbook_url: "https://docs.example.com/runbooks/traffic-anomaly"
+        annotations:
+          summary: "📊 Traffic Pattern Anomaly"
+          description: "Request rate deviates {{ $value | humanize }}x from 1h average"
+          deviation: "{{ $value | humanize }}x"
+          current_rate: "{{ (sum(rate(http_requests_total[5m]))) | humanize }} req/s"
+          avg_rate: "{{ (avg_over_time(sum(rate(http_requests_total[5m]))[1h])) | humanize }} req/s"
+
+      # Latency Anomaly (Tail Latency)
+      - alert: LatencyAnomaly
+        expr: |
+          histogram_quantile(0.99, 
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          ) > histogram_quantile(0.95, 
+            sum(rate(http_request_duration_seconds_bucket[1h])) by (le)
+          ) * 3
+        for: 5m
+        labels:
+          severity: warning
+          service: magsasa-card-erp
+          team: backend
+          category: latency-anomaly
+          runbook_url: "https://docs.example.com/runbooks/latency-anomaly"
+        annotations:
+          summary: "📊 Latency Tail Anomaly"
+          description: "p99 latency is {{ $value | humanize }}s (3x above 1h p95 baseline)"
+          p99_current: "{{ $value | humanize }}s"
+          p95_baseline: "{{ (histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[1h])) by (le))) | humanize }}s"
+
+      # Error Pattern Anomaly
+      - alert: ErrorPatternAnomaly
+        expr: |
+          sum(rate(http_requests_total{status_code=~"4..|5.."}[5m])) > 
+          avg_over_time(sum(rate(http_requests_total{status_code=~"4..|5.."}[5m]))[1h]) * 3
+        for: 3m
+        labels:
+          severity: warning
+          service: magsasa-card-erp
+          team: backend
+          category: error-anomaly
+          runbook_url: "https://docs.example.com/runbooks/error-pattern-anomaly"
+        annotations:
+          summary: "📊 Error Pattern Anomaly"
+          description: "Error rate is {{ $value | humanize }} req/s (3x above 1h average)"
+          current_error_rate: "{{ $value | humanize }} req/s"
+          avg_error_rate: "{{ (avg_over_time(sum(rate(http_requests_total{status_code=~"4..|5.."}[5m]))[1h])) | humanize }} req/s"
+
+  # ========================================
+  # FREEZE WINDOW DETECTION
+  # ========================================
+  - name: freeze_window_alerts
+    interval: 30s
+    rules:
+      # No Requests for Extended Period
+      - alert: ServiceFreeze
+        expr: |
+          sum(rate(http_requests_total[10m])) == 0
+        for: 10m
+        labels:
+          severity: critical
+          service: magsasa-card-erp
+          team: backend
+          category: freeze
+          runbook_url: "https://docs.example.com/runbooks/service-freeze"
+        annotations:
+          summary: "🧊 Service Appears Frozen"
+          description: "No requests received for 10+ minutes - potential outage or routing issue"
+          duration: "10+ minutes"
+          impact: "Service may be unreachable or experiencing routing issues"
+
+      # Minimal Request Volume
+      - alert: MinimalTraffic
+        expr: |
+          sum(rate(http_requests_total[5m])) < 0.01
+        for: 15m
+        labels:
+          severity: warning
+          service: magsasa-card-erp
+          team: backend
+          category: low-traffic
+          runbook_url: "https://docs.example.com/runbooks/minimal-traffic"
+        annotations:
+          summary: "📉 Extremely Low Traffic"
+          description: "Request rate is {{ $value | humanize }} req/s for 15+ minutes"
+          current_rate: "{{ $value | humanize }} req/s"
+          duration: "15+ minutes"
