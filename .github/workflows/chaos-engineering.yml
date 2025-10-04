@@ -31,11 +31,16 @@ jobs:
           ${{ runner.os }}-pip-chaos-
           ${{ runner.os }}-pip-
     
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pyyaml jsonschema requests pytest
+    - name: Install dependencies (with retry)
+      uses: ./.github/actions/retry-with-backoff
+      with:
+        command: |
+          python -m pip install --upgrade pip && \
+          pip install -r requirements.txt && \
+          pip install pyyaml jsonschema requests pytest
+        max-attempts: '3'
+        initial-delay: '10'
+        failure-message: 'Chaos engineering dependencies installation failed after all retries'
     
     - name: Validate chaos suite configuration
       run: |

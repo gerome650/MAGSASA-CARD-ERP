@@ -32,12 +32,17 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pip-
     
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -r observability/observability_requirements.txt
-        pip install pytest flake8 bandit safety
+    - name: Install dependencies (with retry)
+      uses: ./.github/actions/retry-with-backoff
+      with:
+        command: |
+          python -m pip install --upgrade pip && \
+          pip install -r requirements.txt && \
+          pip install -r observability/observability_requirements.txt && \
+          pip install pytest flake8 bandit safety
+        max-attempts: '3'
+        initial-delay: '10'
+        failure-message: 'Dependency installation failed after all retries'
     
     - name: Lint with flake8
       run: |
@@ -56,23 +61,28 @@ jobs:
         safety check --json --output safety-report.json || true
         safety check
     
-    - name: Run tests
+    - name: Run tests (with retry)
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         FLASK_SECRET_KEY: ${{ secrets.FLASK_SECRET_KEY }}
-      run: |
-        # Create test database
-        python -c "
-        import sqlite3
-        conn = sqlite3.connect('test.db')
-        conn.close()
-        "
-        
-        # Run all test files
-        python -m pytest test_*.py -v --tb=short || echo "Tests completed (some may be skipped if test files don't exist yet)"
-        
-        # Clean up
-        rm -f test.db
+      uses: ./.github/actions/retry-with-backoff
+      with:
+        command: |
+          # Create test database
+          python -c "
+          import sqlite3
+          conn = sqlite3.connect('test.db')
+          conn.close()
+          "
+          
+          # Run all test files
+          python -m pytest test_*.py -v --tb=short
+          
+          # Clean up
+          rm -f test.db
+        max-attempts: '3'
+        initial-delay: '15'
+        failure-message: 'Tests failed after all retries'
     
     - name: Upload test results
       # Updated to v4 due to deprecation of v3 (Oct 2024 GitHub Actions update)
@@ -88,6 +98,220 @@ jobs:
       run: |
         pip install black
         black --check src/ || echo "Code formatting issues found. Run 'black src/' to fix."
+
+  # ========================================
+  # FAILURE ANALYSIS & AUTO-FIX SYSTEM
+  # ========================================
+  
+  failure-analyzer:
+    needs: [test]
+    runs-on: ubuntu-latest
+    if: failure()
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install analysis dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyyaml requests
+    
+    - name: Download job logs
+      run: |
+        echo "📥 Downloading job logs for analysis..."
+        # Get the current workflow run ID
+        echo "WORKFLOW_RUN_ID=${{ github.run_id }}" >> $GITHUB_ENV
+        
+        # Download logs for failed jobs
+        gh run view ${{ github.run_id }} --log --job test > test-job-logs.txt || echo "Could not download test logs"
+    
+    - name: Analyze CI failures
+      id: analyze
+      run: |
+        echo "🔍 Analyzing CI failures..."
+        python scripts/analyze_ci_failure.py --ci --job-logs test-job-logs.txt --json-output failure-analysis.json --markdown-output failure-report.md
+        echo "analysis_completed=true" >> $GITHUB_OUTPUT
+    
+    - name: Upload failure analysis
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: failure-analysis
+        path: |
+          failure-analysis.json
+          failure-report.md
+          test-job-logs.txt
+    
+    - name: Comment PR with failure analysis
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          let commentBody = '## 🔍 CI Failure Analysis Report\n\n';
+          
+          try {
+            if (fs.existsSync('failure-report.md')) {
+              const report = fs.readFileSync('failure-report.md', 'utf8');
+              commentBody += report;
+            } else {
+              commentBody += '⚠️ Failure analysis report not available.\n\n';
+              commentBody += '**Next Steps:**\n';
+              commentBody += '1. Check the workflow logs for details\n';
+              commentBody += '2. Review the failure analysis artifact\n';
+              commentBody += '3. Apply recommended fixes\n';
+            }
+          } catch (error) {
+            commentBody += `❌ Error generating failure analysis: ${error.message}\n`;
+          }
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: commentBody
+          });
+
+  auto-fix-attempt:
+    needs: [failure-analyzer]
+    runs-on: ubuntu-latest
+    if: needs.failure-analyzer.result == 'success'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install auto-fix dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyyaml requests
+    
+    - name: Download failure analysis
+      uses: actions/download-artifact@v4
+      with:
+        name: failure-analysis
+        path: ./analysis/
+    
+    - name: Run auto-fix
+      id: autofix
+      run: |
+        echo "🤖 Attempting auto-fix for CI failures..."
+        python scripts/auto_fix_ci_failures.py --analysis-file ./analysis/failure-analysis.json --create-pr
+        echo "autofix_attempted=true" >> $GITHUB_OUTPUT
+    
+    - name: Notify auto-fix completion
+      if: always()
+      run: |
+        echo "🔔 Auto-fix process completed"
+        echo "Check the repository for new auto-fix branches and PRs"
+
+  annotate-pr-status:
+    needs: [test, failure-analyzer, auto-fix-attempt]
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Generate comprehensive PR status
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const testResult = '${{ needs.test.result }}';
+          const analyzerResult = '${{ needs.failure-analyzer.result }}';
+          const autofixResult = '${{ needs.auto-fix-attempt.result }}';
+          
+          let statusBody = '## 📊 Self-Healing CI/CD Status Report\n\n';
+          statusBody += `**Workflow Run:** [View Details](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\n\n`;
+          
+          // Test status
+          if (testResult === 'success') {
+            statusBody += '✅ **Main Tests:** PASSED\n';
+          } else if (testResult === 'failure') {
+            statusBody += '❌ **Main Tests:** FAILED\n';
+          } else {
+            statusBody += `⚠️ **Main Tests:** ${testResult.toUpperCase()}\n`;
+          }
+          
+          // Failure analysis status
+          if (analyzerResult === 'success') {
+            statusBody += '🔍 **Failure Analysis:** COMPLETED\n';
+          } else if (analyzerResult === 'skipped') {
+            statusBody += '⏭️ **Failure Analysis:** SKIPPED (no failures)\n';
+          } else {
+            statusBody += `⚠️ **Failure Analysis:** ${analyzerResult.toUpperCase()}\n`;
+          }
+          
+          // Auto-fix status
+          if (autofixResult === 'success') {
+            statusBody += '🤖 **Auto-Fix:** ATTEMPTED\n';
+          } else if (autofixResult === 'skipped') {
+            statusBody += '⏭️ **Auto-Fix:** SKIPPED (not auto-fixable)\n';
+          } else {
+            statusBody += `⚠️ **Auto-Fix:** ${autofixResult.toUpperCase()}\n`;
+          }
+          
+          statusBody += '\n### 🚀 Next Steps\n';
+          
+          if (testResult === 'success') {
+            statusBody += '1. ✅ All tests passed - ready for review\n';
+            statusBody += '2. 🔍 Consider running additional checks\n';
+            statusBody += '3. 📝 Update documentation if needed\n';
+          } else {
+            statusBody += '1. 🔍 Review failure analysis (if available)\n';
+            statusBody += '2. 🤖 Check for auto-fix PRs\n';
+            statusBody += '3. 🛠️ Apply manual fixes as needed\n';
+            statusBody += '4. 🔄 Re-run CI after fixes\n';
+          }
+          
+          statusBody += '\n---\n';
+          statusBody += '*This report was generated by the Self-Healing CI/CD system.*\n';
+          statusBody += '*For more details, check the workflow artifacts and logs.*';
+          
+          // Find existing status comment and update or create new one
+          const comments = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+          
+          const existingComment = comments.data.find(comment => 
+            comment.body.includes('Self-Healing CI/CD Status Report')
+          );
+          
+          if (existingComment) {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: existingComment.id,
+              body: statusBody
+            });
+          } else {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: statusBody
+            });
+          }
 
   deploy-staging:
     needs: [test]

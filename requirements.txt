@@ -21,3 +21,4 @@ schedule>=1.1.0        # Scheduled jobs
 pytest>=7.0.0
 pytest-cov>=4.0.0
 pytest-asyncio>=0.21.0
+pandas>=1.0.0>=1.0.0  # Auto-added by CI fixer
