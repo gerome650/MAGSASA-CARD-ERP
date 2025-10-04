@@ -247,10 +247,8 @@ get_last_tag() {
     last_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
     
     if [[ -z "$last_tag" ]]; then
-        print_info "No previous tags found, using default: $DEFAULT_VERSION"
         echo "$DEFAULT_VERSION"
     else
-        print_info "Last tag found: $last_tag"
         echo "$last_tag"
     fi
 }
@@ -298,7 +296,6 @@ determine_bump_type() {
     
     # Ensure $COMMITS is not empty - if it is, default to patch bump
     if [[ -z "$commits" ]]; then
-        print_info "No commits found since last tag - defaulting to patch bump"
         echo "patch"
         return 0
     fi
@@ -361,7 +358,7 @@ confirm_version() {
     local proposed_version="$1"
     local bump_type="$2"
     
-    if [[ "$AUTO_MODE" == true || "$CI_MODE" == true ]]; then
+    if [[ "$AUTO_MODE" == true || "$CI_MODE" == true || "$DRY_RUN" == true ]]; then
         echo "$proposed_version"
         return 0
     fi
@@ -580,13 +577,17 @@ main() {
     get_user_confirmation
     echo
     
-    # Stage and commit changes
-    stage_and_commit
-    echo
-    
-    # Handle branch management
-    handle_branch
-    echo
+    # Stage and commit changes (skip in dry-run mode)
+    if [[ "$DRY_RUN" != true ]]; then
+        stage_and_commit
+        echo
+        
+        # Handle branch management
+        handle_branch
+        echo
+    else
+        print_info "Dry-run mode - skipping staging, committing, and branch management"
+    fi
     
     # Semantic versioning logic
     print_header "Semantic Version Detection"
@@ -594,6 +595,12 @@ main() {
     # Get last tag
     local last_tag
     last_tag=$(get_last_tag)
+    
+    if [[ -z "$last_tag" ]]; then
+        print_info "No previous tags found, using default: $DEFAULT_VERSION"
+    else
+        print_info "Last tag detected: $last_tag"
+    fi
     
     # Get commits since last tag
     local commits
@@ -608,11 +615,16 @@ main() {
     # Determine bump type
     local bump_type
     bump_type=$(determine_bump_type "$commits")
+    
+    if [[ -z "$commits" ]]; then
+        print_info "No commits found since last tag - defaulting to patch bump"
+    fi
     print_info "Detected bump type: $bump_type"
     
     # Calculate next version
     local proposed_version
     proposed_version=$(calculate_next_version "$last_tag" "$bump_type")
+    print_info "Proposed next version: $proposed_version"
     
     # Get user confirmation for version
     local final_version
@@ -667,5 +679,7 @@ main() {
     print_success "GitOps automation complete! 🎉"
 }
 
-# Run main function with all arguments
-main "$@"
+# Run main function with all arguments (only if not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi
