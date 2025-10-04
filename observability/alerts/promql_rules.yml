@@ -309,6 +309,7 @@ groups:
           summary: "📊 Error Pattern Anomaly"
           description: "Error rate is {{ $value | humanize }} req/s (3x above 1h average)"
           current_error_rate: "{{ $value | humanize }} req/s"
+          avg_error_rate: "{{ (avg_over_time(sum(rate(http_requests_total{status_code=~\"4..|5..\"}[5m]))[1h])) | humanize }} req/s"
           avg_error_rate: "{{ (avg_over_time(sum(rate(http_requests_total{status_code=~"4..|5.."}[5m]))[1h])) | humanize }} req/s"
 
   # ========================================

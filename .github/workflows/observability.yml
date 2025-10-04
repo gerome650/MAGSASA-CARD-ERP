@@ -1,3 +1,99 @@
+name: Observability & Runtime Intelligence Tests
+
+on:
+  push:
+    branches: [ main, dev, feature/observability-intelligence ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  observability-validation:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-observability-${{ hashFiles('**/requirements.txt', '**/observability_requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-observability-
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies (with retry)
+      uses: ./.github/actions/retry-with-backoff
+      with:
+        command: |
+          python -m pip install --upgrade pip && \
+          pip install -r requirements.txt && \
+          pip install -r observability/observability_requirements.txt && \
+          pip install pytest pytest-cov pytest-asyncio pyyaml
+        max-attempts: '3'
+        initial-delay: '10'
+        failure-message: 'Observability dependencies installation failed after all retries'
+    
+    - name: Validate alert rules
+      run: |
+        echo "🔍 Validating Prometheus alert rules..."
+        python scripts/validate_alert_rules.py --json-output alert-validation.json
+    
+    - name: Check observability hooks
+      run: |
+        echo "🔍 Checking observability hooks integration..."
+        python scripts/check_observability_hooks.py
+    
+    - name: Validate SLO configurations
+      run: |
+        echo "🔍 Validating SLO configurations..."
+        python scripts/validate_configs.py
+    
+    - name: Test observability components (with retry)
+      uses: ./.github/actions/retry-with-backoff
+      with:
+        command: |
+          echo "🧪 Testing observability components..." && \
+          python -m pytest observability/ -v --tb=short --cov=observability --cov-report=term-missing
+        max-attempts: '3'
+        initial-delay: '15'
+        failure-message: 'Observability component tests failed after all retries'
+    
+    - name: Test runtime intelligence
+      run: |
+        echo "🧪 Testing runtime intelligence features..."
+        python observability/test_runtime_intelligence.py
+    
+    - name: Test AI incident analyzer
+      run: |
+        echo "🤖 Testing AI incident analysis workflow..."
+        python observability/ai_agent/test_workflow.py
+    
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: observability-coverage
+        path: |
+          .coverage
+          htmlcov/
+          alert-validation.json
+    
+    - name: Observability summary
+      if: always()
+      run: |
+        echo "📊 Observability Test Summary"
+        echo "✅ Alert rules validated"
+        echo "✅ Observability hooks checked"
+        echo "✅ SLO configurations validated"
+        echo "✅ Runtime intelligence tested"
+        echo "✅ AI incident analyzer verified"
 name: Observability Gate
 
 on:

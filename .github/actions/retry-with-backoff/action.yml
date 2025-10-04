@@ -1,0 +1,87 @@
+name: 'Retry with Exponential Backoff'
+description: 'Retry a command with exponential backoff for transient failures'
+inputs:
+  command:
+    description: 'Command to execute with retry logic'
+    required: true
+  max-attempts:
+    description: 'Maximum number of attempts (default: 3)'
+    required: false
+    default: '3'
+  initial-delay:
+    description: 'Initial delay in seconds (default: 10)'
+    required: false
+    default: '10'
+  max-delay:
+    description: 'Maximum delay in seconds (default: 60)'
+    required: false
+    default: '60'
+  failure-message:
+    description: 'Custom message for final failure'
+    required: false
+    default: 'Command failed after all retry attempts'
+
+outputs:
+  success:
+    description: 'Whether the command succeeded'
+    value: ${{ steps.retry.outputs.success }}
+  attempts:
+    description: 'Number of attempts made'
+    value: ${{ steps.retry.outputs.attempts }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Retry with Exponential Backoff
+      id: retry
+      shell: bash
+      run: |
+        set -e
+        
+        MAX_ATTEMPTS="${{ inputs.max-attempts }}"
+        INITIAL_DELAY="${{ inputs.initial-delay }}"
+        MAX_DELAY="${{ inputs.max-delay }}"
+        COMMAND="${{ inputs.command }}"
+        FAILURE_MSG="${{ inputs.failure-message }}"
+        
+        echo "🔄 Starting retry logic for: $COMMAND"
+        echo "📊 Max attempts: $MAX_ATTEMPTS, Initial delay: ${INITIAL_DELAY}s, Max delay: ${MAX_DELAY}s"
+        
+        ATTEMPT=1
+        DELAY=$INITIAL_DELAY
+        
+        while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+          echo ""
+          echo "🚀 Attempt $ATTEMPT/$MAX_ATTEMPTS"
+          echo "💻 Executing: $COMMAND"
+          
+          if eval "$COMMAND"; then
+            echo "✅ Command succeeded on attempt $ATTEMPT"
+            echo "success=true" >> $GITHUB_OUTPUT
+            echo "attempts=$ATTEMPT" >> $GITHUB_OUTPUT
+            exit 0
+          else
+            EXIT_CODE=$?
+            echo "❌ Command failed on attempt $ATTEMPT with exit code $EXIT_CODE"
+            
+            if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+              echo ""
+              echo "💥 All retry attempts exhausted!"
+              echo "🔍 Final failure: $FAILURE_MSG"
+              echo "success=false" >> $GITHUB_OUTPUT
+              echo "attempts=$ATTEMPT" >> $GITHUB_OUTPUT
+              exit $EXIT_CODE
+            fi
+            
+            echo "⏳ Waiting ${DELAY}s before retry..."
+            sleep $DELAY
+            
+            # Exponential backoff: double the delay, but cap at max delay
+            DELAY=$((DELAY * 2))
+            if [ $DELAY -gt $MAX_DELAY ]; then
+              DELAY=$MAX_DELAY
+            fi
+            
+            ATTEMPT=$((ATTEMPT + 1))
+          fi
+        done

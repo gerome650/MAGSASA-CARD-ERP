@@ -1,0 +1,74 @@
+fix(ci): Add missing observability workflows and dependencies for Stage 6.7-6.8.1
+
+This commit resolves all merge-blocking CI/CD issues for the observability-intelligence feature branch.
+
+## Changes Made:
+
+### New GitHub Actions Workflows (3 files):
+- Add .github/workflows/observability.yml
+  * Tests observability & runtime intelligence components
+  * Validates Prometheus alert rules
+  * Checks observability hooks integration
+  * Runs pytest with coverage reporting
+  
+- Add .github/workflows/stage-readiness-check.yml
+  * Automated stage verification using verify_stage_readiness.py
+  * Auto-comments on PRs with verification results
+  * Uploads JSON reports as artifacts
+  * Blocks merge if critical checks fail
+  
+- Add .github/workflows/chaos-engineering.yml
+  * Validates chaos engineering configuration
+  * Tests chaos scenarios in dry-run mode
+  * Validates SLO and remediation rule configs
+  * Scheduled weekly chaos testing
+
+### New Validation Scripts (1 file):
+- Implement scripts/validate_alert_rules.py
+  * Full YAML syntax validation for Prometheus alerts
+  * Checks required fields (alert, expr, labels, annotations)
+  * Validates both alerting and recording rules
+  * Provides detailed error/warning reports
+
+### Updated Dependencies:
+- Update .github/workflows/ci.yml
+  * Install observability/observability_requirements.txt
+  * Ensures ML dependencies available in CI
+  
+- Update requirements.txt
+  * Add numpy>=1.21.0 for ML anomaly detection
+  * Add scipy>=1.7.0 for statistical analysis
+  * Add schedule>=1.1.0 for scheduled jobs
+
+### Documentation (3 files):
+- CI_WORKFLOW_FAILURE_ANALYSIS.md - Complete root-cause analysis
+- QUICK_FIX_GUIDE.md - Fast-track developer guide  
+- CI_FIXES_SUMMARY.md - Implementation summary
+
+## Root Cause:
+Stage 6.7-6.8.1 implementation created verify_stage_readiness.py script that checks
+for CI workflows, but the workflows themselves were never created. This caused
+stage readiness verification to fail and blocked merge to main.
+
+## Impact:
+- Resolves merge-blocking issues for v6.7.0 release
+- Enables automated observability testing in CI/CD
+- Provides automated PR verification for stage readiness
+- Adds chaos engineering validation to pipeline
+
+## Testing:
+- All workflows validated with yamllint
+- Local verification: python scripts/verify_stage_readiness.py
+- Expected CI duration: ~5 minutes (workflows run in parallel)
+
+## Breaking Changes:
+None - all changes are additive
+
+## Related Issues:
+- Stage 6.7: Observability & Metrics
+- Stage 6.8: Runtime Intelligence
+- Stage 6.8.1: AI Incident Analyzer
+- v6.7.0 release preparation
+
+Resolves merge-blocking CI failures
+

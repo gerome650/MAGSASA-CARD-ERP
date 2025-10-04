@@ -1,0 +1,44 @@
+{
+  "timestamp": "2025-10-04T09:34:26.268001",
+  "total_failures": 2,
+  "auto_fixable_count": 2,
+  "categories": [
+    "dependency"
+  ],
+  "analyses": [
+    {
+      "category": "dependency",
+      "severity": "high",
+      "root_cause": "Missing or incompatible dependency: numpy",
+      "recommended_fix": "Install missing dependency: pip install numpy",
+      "affected_files": [
+        "requirements.txt",
+        "observability/observability_requirements.txt"
+      ],
+      "confidence": 0.9999999999999999,
+      "auto_fixable": true,
+      "fix_command": "echo \"numpy>=1.0.0\" >> requirements.txt",
+      "documentation_links": [
+        "https://pip.pypa.io/en/stable/user_guide/",
+        "https://docs.python.org/3/tutorial/modules.html"
+      ]
+    },
+    {
+      "category": "dependency",
+      "severity": "high",
+      "root_cause": "Missing or incompatible dependency: numpy",
+      "recommended_fix": "Install missing dependency: pip install numpy",
+      "affected_files": [
+        "requirements.txt",
+        "observability/observability_requirements.txt"
+      ],
+      "confidence": 0.7999999999999999,
+      "auto_fixable": true,
+      "fix_command": "echo \"numpy>=1.0.0\" >> requirements.txt",
+      "documentation_links": [
+        "https://pip.pypa.io/en/stable/user_guide/",
+        "https://docs.python.org/3/tutorial/modules.html"
+      ]
+    }
+  ]
+}
