@@ -5,6 +5,14 @@ All notable changes to the MAGSASA-CARD ERP system will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [v6.7.0] - 2025-10-03
+
+### Added
+- feat: Stage 6.7-6.8.1 - Complete Observability & Intelligence Pipeline
+- feat: Stage 6.7-6.8.1 - Complete Observability & Intelligence Pipeline
+- feat: Stage 6.7-6.8.1 - Complete Observability & Intelligence Pipeline
+
 ## [1.0.0] - 2025-09-21
 
 ### Added
