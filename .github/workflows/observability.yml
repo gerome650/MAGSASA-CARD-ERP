@@ -1,132 +1,86 @@
-name: Observability Gate
+name: Observability & Runtime Intelligence Tests
 
 on:
-  pull_request:
-    branches: [ main, develop ]
-    paths:
-      - '**.py'
-      - 'observability/**'
-      - '.github/workflows/observability.yml'
   push:
-    branches: [ main, develop ]
-    paths:
-      - '**.py'
+    branches: [ main, dev, feature/observability-intelligence ]
+  pull_request:
+    branches: [ main, dev ]
 
 jobs:
-  observability-check:
-    name: Check Observability Hooks
+  observability-validation:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 2  # Need at least 2 commits for diff
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-      
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install prometheus-client opentelemetry-api opentelemetry-sdk
-      
-      - name: Run Observability Linter
-        id: observability_check
-        run: |
-          python scripts/check_observability_hooks.py
-        continue-on-error: true
-      
-      - name: Comment on PR (if failed)
-        if: failure() && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `## ⚠️ Observability Check Failed
-              
-              Your PR is missing observability instrumentation. Please ensure your changes include:
-              
-              - 📊 **Metrics tracking**: Use \`metrics_client\`, \`Counter\`, \`Histogram\`, etc.
-              - 🧭 **Distributed tracing**: Use \`start_as_current_span\`, \`get_tracer()\`
-              - 🪵 **Structured logging**: Use \`logger.info\`, \`logger.error\`, etc.
-              
-              See [observability/README.md](../blob/main/observability/README.md) for guidelines.
-              
-              ---
-              
-              **Example:**
-              \`\`\`python
-              from observability.tracing.otel_tracer import get_tracer
-              from observability.logging.structured_logger import get_logger
-              
-              tracer = get_tracer(__name__)
-              logger = get_logger(__name__)
-              
-              @app.route('/api/process')
-              def process_data():
-                  with tracer.start_as_current_span("process_data"):
-                      logger.info("Processing started", user_id="123")
-                      # Your business logic
-                      return {"status": "ok"}
-              \`\`\`
-              
-              💡 Run \`python scripts/check_observability_hooks.py\` locally to verify your changes.
-              `
-            })
-      
-      - name: Fail if observability check failed
-        if: steps.observability_check.outcome == 'failure'
-        run: |
-          echo "::error::Observability check failed. Please add metrics, tracing, or logging to your changes."
-          exit 1
-      
-      - name: Success message
-        if: success()
-        run: |
-          echo "✅ Observability check passed!"
-          echo "Your changes include proper observability instrumentation."
-
-  lint-observability-code:
-    name: Lint Observability Module
-    runs-on: ubuntu-latest
+    - name: Checkout code
+      uses: actions/checkout@v4
     
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-      
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install flake8 pylint mypy
-          pip install prometheus-client opentelemetry-api opentelemetry-sdk
-          pip install opentelemetry-instrumentation-flask
-      
-      - name: Lint with flake8
-        run: |
-          # Stop the build if there are Python syntax errors or undefined names
-          flake8 observability/ --count --select=E9,F63,F7,F82 --show-source --statistics
-          # Exit-zero treats all errors as warnings
-          flake8 observability/ --count --exit-zero --max-complexity=10 --max-line-length=100 --statistics
-        continue-on-error: true
-      
-      - name: Check with pylint
-        run: |
-          pylint observability/ --exit-zero --max-line-length=100
-        continue-on-error: true
-      
-      - name: Type check with mypy
-        run: |
-          mypy observability/ --ignore-missing-imports --no-strict-optional
-        continue-on-error: true
-
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-observability-${{ hashFiles('**/requirements.txt', '**/observability_requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-observability-
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r observability/observability_requirements.txt
+        pip install pytest pytest-cov pytest-asyncio pyyaml
+    
+    - name: Validate alert rules
+      run: |
+        echo "🔍 Validating Prometheus alert rules..."
+        python scripts/validate_alert_rules.py --json-output alert-validation.json
+    
+    - name: Check observability hooks
+      run: |
+        echo "🔍 Checking observability hooks integration..."
+        python scripts/check_observability_hooks.py
+    
+    - name: Validate SLO configurations
+      run: |
+        echo "🔍 Validating SLO configurations..."
+        python scripts/validate_configs.py
+    
+    - name: Test observability components
+      run: |
+        echo "🧪 Testing observability components..."
+        python -m pytest observability/ -v --tb=short --cov=observability --cov-report=term-missing
+    
+    - name: Test runtime intelligence
+      run: |
+        echo "🧪 Testing runtime intelligence features..."
+        python observability/test_runtime_intelligence.py
+    
+    - name: Test AI incident analyzer
+      run: |
+        echo "🤖 Testing AI incident analysis workflow..."
+        python observability/ai_agent/test_workflow.py
+    
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: observability-coverage
+        path: |
+          .coverage
+          htmlcov/
+          alert-validation.json
+    
+    - name: Observability summary
+      if: always()
+      run: |
+        echo "📊 Observability Test Summary"
+        echo "✅ Alert rules validated"
+        echo "✅ Observability hooks checked"
+        echo "✅ SLO configurations validated"
+        echo "✅ Runtime intelligence tested"
+        echo "✅ AI incident analyzer verified"

@@ -11,3 +11,13 @@ opentelemetry-instrumentation-flask>=0.42b0
 opentelemetry-instrumentation-requests>=0.42b0
 opentelemetry-instrumentation-sqlalchemy>=0.42b0
 opentelemetry-exporter-otlp-proto-grpc>=1.21.0
+
+# Runtime Intelligence Dependencies (Stage 6.8)
+numpy>=1.21.0          # ML anomaly detection
+scipy>=1.7.0           # Statistical analysis
+schedule>=1.1.0        # Scheduled jobs
+
+# Additional ML/Observability dependencies for CI/CD
+pytest>=7.0.0
+pytest-cov>=4.0.0
+pytest-asyncio>=0.21.0
