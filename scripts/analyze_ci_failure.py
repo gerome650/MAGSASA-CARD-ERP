@@ -6,6 +6,9 @@ This script analyzes CI/CD failure logs and provides intelligent diagnosis,
 root cause analysis, and recommended fixes. It can be run standalone or
 integrated into GitHub Actions workflows.
 
+Stage 7.1 Enhancement: Adds historical tracking, success rate analysis,
+MTTR tracking, and trending labels for intelligent self-healing.
+
 Usage:
     python scripts/analyze_ci_failure.py --ci
     python scripts/analyze_ci_failure.py --analyze-latest
@@ -18,11 +21,13 @@ import json
 import re
 import argparse
 import subprocess
+import sqlite3
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional, Any
-from dataclasses import dataclass
-from datetime import datetime
+from dataclasses import dataclass, asdict
+from datetime import datetime, timedelta
 import yaml
+import hashlib
 
 
 @dataclass
@@ -37,12 +42,230 @@ class FailureAnalysis:
     auto_fixable: bool
     fix_command: Optional[str] = None
     documentation_links: List[str] = None
+    error_signature: Optional[str] = None  # Unique hash for tracking
+    frequency: int = 0  # How many times this error has occurred
+    success_rate: float = 0.0  # Historical fix success rate
+    avg_mttr_minutes: float = 0.0  # Average Mean Time To Recovery
+    trend: str = "stable"  # rising, improving, stable
+
+
+class HistoricalDatabase:
+    """Manages historical failure and fix data using SQLite."""
+    
+    def __init__(self, db_path: str = "ci_failure_history.db"):
+        """Initialize database connection and create tables if needed."""
+        self.db_path = Path(db_path)
+        self.conn = sqlite3.connect(str(self.db_path))
+        self._create_tables()
+    
+    def _create_tables(self):
+        """Create necessary database tables."""
+        cursor = self.conn.cursor()
+        
+        # Failures table - tracks all failure occurrences
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS failures (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,
+                job_name TEXT,
+                branch TEXT,
+                category TEXT NOT NULL,
+                error_signature TEXT NOT NULL,
+                severity TEXT,
+                root_cause TEXT,
+                confidence REAL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # Fix attempts table - tracks all fix attempts
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS fix_attempts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                failure_id INTEGER,
+                timestamp TEXT NOT NULL,
+                fix_strategy TEXT NOT NULL,
+                fix_command TEXT,
+                success INTEGER NOT NULL,
+                resolution_time_minutes REAL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (failure_id) REFERENCES failures(id)
+            )
+        ''')
+        
+        # Indices for faster queries
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_error_signature 
+            ON failures(error_signature)
+        ''')
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_category 
+            ON failures(category)
+        ''')
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_timestamp 
+            ON failures(timestamp)
+        ''')
+        
+        self.conn.commit()
+    
+    def record_failure(self, analysis: FailureAnalysis, job_name: str = None, 
+                      branch: str = None) -> int:
+        """Record a failure occurrence and return its ID."""
+        cursor = self.conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO failures (timestamp, job_name, branch, category, 
+                                error_signature, severity, root_cause, confidence)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            datetime.now().isoformat(),
+            job_name,
+            branch,
+            analysis.category,
+            analysis.error_signature,
+            analysis.severity,
+            analysis.root_cause,
+            analysis.confidence
+        ))
+        
+        self.conn.commit()
+        return cursor.lastrowid
+    
+    def record_fix_attempt(self, failure_id: int, fix_strategy: str, 
+                          fix_command: str, success: bool, 
+                          resolution_time_minutes: float = None):
+        """Record a fix attempt."""
+        cursor = self.conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO fix_attempts (failure_id, timestamp, fix_strategy, 
+                                     fix_command, success, resolution_time_minutes)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (
+            failure_id,
+            datetime.now().isoformat(),
+            fix_strategy,
+            fix_command,
+            1 if success else 0,
+            resolution_time_minutes
+        ))
+        
+        self.conn.commit()
+    
+    def get_failure_stats(self, error_signature: str, days: int = 30) -> Dict[str, Any]:
+        """Get historical stats for a specific error signature."""
+        cursor = self.conn.cursor()
+        
+        since_date = (datetime.now() - timedelta(days=days)).isoformat()
+        
+        # Get frequency
+        cursor.execute('''
+            SELECT COUNT(*) as frequency
+            FROM failures
+            WHERE error_signature = ? AND timestamp >= ?
+        ''', (error_signature, since_date))
+        
+        result = cursor.fetchone()
+        frequency = result[0] if result else 0
+        
+        # Get success rate from fix attempts
+        cursor.execute('''
+            SELECT 
+                COUNT(*) as total_attempts,
+                SUM(success) as successful_attempts,
+                AVG(CASE WHEN success = 1 THEN resolution_time_minutes END) as avg_mttr
+            FROM fix_attempts fa
+            JOIN failures f ON fa.failure_id = f.id
+            WHERE f.error_signature = ? AND f.timestamp >= ?
+        ''', (error_signature, since_date))
+        
+        result = cursor.fetchone()
+        total_attempts = result[0] if result and result[0] else 0
+        successful_attempts = result[1] if result and result[1] else 0
+        avg_mttr = result[2] if result and result[2] else 0.0
+        
+        success_rate = (successful_attempts / total_attempts) if total_attempts > 0 else 0.0
+        
+        return {
+            'frequency': frequency,
+            'success_rate': success_rate,
+            'avg_mttr_minutes': avg_mttr or 0.0,
+            'total_attempts': total_attempts
+        }
+    
+    def get_trend(self, error_signature: str, category: str) -> str:
+        """Determine if an error is rising, improving, or stable."""
+        cursor = self.conn.cursor()
+        
+        # Compare last 7 days vs previous 7 days
+        last_week = (datetime.now() - timedelta(days=7)).isoformat()
+        prev_week = (datetime.now() - timedelta(days=14)).isoformat()
+        
+        cursor.execute('''
+            SELECT COUNT(*) FROM failures
+            WHERE error_signature = ? AND timestamp >= ?
+        ''', (error_signature, last_week))
+        recent_count = cursor.fetchone()[0]
+        
+        cursor.execute('''
+            SELECT COUNT(*) FROM failures
+            WHERE error_signature = ? 
+            AND timestamp >= ? AND timestamp < ?
+        ''', (error_signature, prev_week, last_week))
+        previous_count = cursor.fetchone()[0]
+        
+        if recent_count > previous_count * 1.5:
+            return "rising"
+        elif recent_count < previous_count * 0.5:
+            return "improving"
+        else:
+            return "stable"
+    
+    def get_top_failures(self, days: int = 7, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get top failures by frequency in the given period."""
+        cursor = self.conn.cursor()
+        
+        since_date = (datetime.now() - timedelta(days=days)).isoformat()
+        
+        cursor.execute('''
+            SELECT 
+                category,
+                error_signature,
+                COUNT(*) as frequency,
+                MAX(timestamp) as last_occurrence,
+                AVG(confidence) as avg_confidence
+            FROM failures
+            WHERE timestamp >= ?
+            GROUP BY category, error_signature
+            ORDER BY frequency DESC
+            LIMIT ?
+        ''', (since_date, limit))
+        
+        results = []
+        for row in cursor.fetchall():
+            results.append({
+                'category': row[0],
+                'error_signature': row[1],
+                'frequency': row[2],
+                'last_occurrence': row[3],
+                'avg_confidence': row[4]
+            })
+        
+        return results
+    
+    def close(self):
+        """Close database connection."""
+        self.conn.close()
 
 
 class CIFailureAnalyzer:
     """Intelligent CI/CD failure analyzer with ML-inspired pattern recognition."""
     
-    def __init__(self):
+    def __init__(self, use_history: bool = True, db_path: str = "ci_failure_history.db"):
+        """Initialize analyzer with optional historical tracking."""
+        self.use_history = use_history
+        self.db = HistoricalDatabase(db_path) if use_history else None
         self.failure_patterns = {
             'dependency': {
                 'patterns': [
@@ -149,9 +372,11 @@ class CIFailureAnalyzer:
             }
         }
 
-    def analyze_logs(self, log_content: str) -> List[FailureAnalysis]:
-        """Analyze log content and return structured failure analysis."""
+    def analyze_logs(self, log_content: str, job_name: str = None, 
+                    branch: str = None) -> List[FailureAnalysis]:
+        """Analyze log content and return structured failure analysis with history."""
         analyses = []
+        seen_signatures = set()  # Avoid duplicate analyses
         
         for category, config in self.failure_patterns.items():
             for pattern in config['patterns']:
@@ -160,10 +385,40 @@ class CIFailureAnalyzer:
                     analysis = self._create_analysis(
                         category, config, match, log_content
                     )
-                    if analysis:
+                    if analysis and analysis.error_signature not in seen_signatures:
+                        seen_signatures.add(analysis.error_signature)
+                        
+                        # Enrich with historical data
+                        if self.use_history and self.db:
+                            self._enrich_with_history(analysis)
+                            # Record this failure occurrence
+                            self.db.record_failure(analysis, job_name, branch)
+                        
                         analyses.append(analysis)
         
         return analyses
+    
+    def _generate_error_signature(self, category: str, root_cause: str) -> str:
+        """Generate a unique signature for error tracking."""
+        # Normalize the root cause to create consistent signatures
+        normalized = f"{category}:{root_cause}".lower()
+        # Remove variable parts like timestamps, IDs, etc.
+        normalized = re.sub(r'\d{4}-\d{2}-\d{2}', 'DATE', normalized)
+        normalized = re.sub(r'\d+\.\d+\.\d+', 'VERSION', normalized)
+        normalized = re.sub(r'id:\s*\d+', 'id:ID', normalized)
+        
+        return hashlib.md5(normalized.encode()).hexdigest()[:16]
+    
+    def _enrich_with_history(self, analysis: FailureAnalysis):
+        """Enrich analysis with historical data."""
+        if not analysis.error_signature:
+            return
+        
+        stats = self.db.get_failure_stats(analysis.error_signature)
+        analysis.frequency = stats['frequency']
+        analysis.success_rate = stats['success_rate']
+        analysis.avg_mttr_minutes = stats['avg_mttr_minutes']
+        analysis.trend = self.db.get_trend(analysis.error_signature, analysis.category)
 
     def _create_analysis(self, category: str, config: Dict, match: re.Match, log_content: str) -> Optional[FailureAnalysis]:
         """Create a failure analysis from a pattern match."""
@@ -183,6 +438,9 @@ class CIFailureAnalyzer:
         # Calculate confidence based on pattern specificity and context
         confidence = self._calculate_confidence(match, context, category)
         
+        # Generate error signature for tracking
+        error_signature = self._generate_error_signature(category, root_cause)
+        
         return FailureAnalysis(
             category=category,
             severity=config['severity'],
@@ -192,7 +450,8 @@ class CIFailureAnalyzer:
             confidence=confidence,
             auto_fixable=config.get('auto_fixable', False),
             fix_command=fix_command,
-            documentation_links=self._get_documentation_links(category)
+            documentation_links=self._get_documentation_links(category),
+            error_signature=error_signature
         )
 
     def _determine_fix(self, category: str, matched_text: str, captured_groups: Tuple, context: str) -> Tuple[str, str, List[str], Optional[str]]:
@@ -341,10 +600,20 @@ class CIFailureAnalyzer:
             report.append(f"### {emoji} {category.title()} Issues\n")
             
             for i, analysis in enumerate(category_analyses, 1):
-                report.append(f"#### {i}. {analysis.root_cause}\n")
+                trend_emoji = self._get_trend_emoji(analysis.trend)
+                report.append(f"#### {i}. {analysis.root_cause} {trend_emoji}\n")
                 report.append(f"**Severity:** {analysis.severity.upper()}")
                 report.append(f"**Confidence:** {analysis.confidence:.1%}")
-                report.append(f"**Auto-Fixable:** {'✅ Yes' if analysis.auto_fixable else '❌ No'}\n")
+                report.append(f"**Auto-Fixable:** {'✅ Yes' if analysis.auto_fixable else '❌ No'}")
+                
+                # Add historical data if available
+                if analysis.frequency > 0:
+                    report.append(f"**Frequency (30d):** {analysis.frequency} occurrences")
+                if analysis.success_rate > 0:
+                    report.append(f"**Historical Fix Success Rate:** {analysis.success_rate:.1%}")
+                if analysis.avg_mttr_minutes > 0:
+                    report.append(f"**Avg MTTR:** {analysis.avg_mttr_minutes:.1f} minutes")
+                report.append("")
                 
                 report.append("**Recommended Fix:**")
                 report.append(f"```bash\n{analysis.recommended_fix}\n```\n")
@@ -389,6 +658,20 @@ class CIFailureAnalyzer:
             'disk_space': '💾'
         }
         return emojis.get(category, '❓')
+    
+    def _get_trend_emoji(self, trend: str) -> str:
+        """Get emoji for trend indicator."""
+        emojis = {
+            'rising': '🔥',
+            'improving': '📉',
+            'stable': '📊'
+        }
+        return emojis.get(trend, '')
+    
+    def close(self):
+        """Close database connection."""
+        if self.db:
+            self.db.close()
 
 
 def get_job_logs_from_github(workflow_run_id: str, job_name: str = None) -> str:
@@ -417,10 +700,23 @@ def main():
     parser.add_argument("--job-logs", help="Path to job log file")
     parser.add_argument("--workflow-run-id", help="GitHub workflow run ID")
     parser.add_argument("--job-name", help="Specific job name to analyze")
+    parser.add_argument("--branch", help="Branch name for tracking")
     parser.add_argument("--json-output", help="Output results in JSON format")
     parser.add_argument("--markdown-output", help="Output markdown report to file")
+    parser.add_argument("--no-history", action="store_true", help="Disable historical tracking")
+    parser.add_argument("--db-path", default="ci_failure_history.db", help="Path to history database")
     
     args = parser.parse_args()
+    
+    # Get branch name if not provided
+    branch = args.branch
+    if not branch:
+        try:
+            result = subprocess.run(['git', 'branch', '--show-current'], 
+                                  capture_output=True, text=True, check=True)
+            branch = result.stdout.strip()
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            branch = "unknown"
     
     # Get log content
     log_content = ""
@@ -458,63 +754,59 @@ def main():
         print("❌ No log content to analyze")
         sys.exit(1)
     
-    # Analyze logs
-    analyzer = CIFailureAnalyzer()
-    analyses = analyzer.analyze_logs(log_content)
+    # Analyze logs with historical tracking
+    use_history = not args.no_history
+    analyzer = CIFailureAnalyzer(use_history=use_history, db_path=args.db_path)
     
-    # Generate outputs
-    if args.json_output:
-        result = {
-            'timestamp': datetime.now().isoformat(),
-            'total_failures': len(analyses),
-            'auto_fixable_count': sum(1 for a in analyses if a.auto_fixable),
-            'categories': list(set(a.category for a in analyses)),
-            'analyses': [
-                {
-                    'category': a.category,
-                    'severity': a.severity,
-                    'root_cause': a.root_cause,
-                    'recommended_fix': a.recommended_fix,
-                    'affected_files': a.affected_files,
-                    'confidence': a.confidence,
-                    'auto_fixable': a.auto_fixable,
-                    'fix_command': a.fix_command,
-                    'documentation_links': a.documentation_links
-                }
-                for a in analyses
-            ]
-        }
+    try:
+        analyses = analyzer.analyze_logs(log_content, job_name=args.job_name, branch=branch)
         
-        with open(args.json_output, 'w') as f:
-            json.dump(result, f, indent=2)
+        # Generate outputs
+        if args.json_output:
+            result = {
+                'timestamp': datetime.now().isoformat(),
+                'job_name': args.job_name,
+                'branch': branch,
+                'total_failures': len(analyses),
+                'auto_fixable_count': sum(1 for a in analyses if a.auto_fixable),
+                'categories': list(set(a.category for a in analyses)),
+                'analyses': [asdict(a) for a in analyses]
+            }
+            
+            with open(args.json_output, 'w') as f:
+                json.dump(result, f, indent=2)
+            
+            print(f"✅ Analysis results written to {args.json_output}")
         
-        print(f"✅ Analysis results written to {args.json_output}")
-    
-    # Generate markdown report
-    markdown_report = analyzer.generate_markdown_report(analyses)
-    
-    if args.markdown_output:
-        with open(args.markdown_output, 'w') as f:
-            f.write(markdown_report)
-        print(f"✅ Markdown report written to {args.markdown_output}")
-    
-    # Print summary
-    if not args.ci:
-        print("\n" + "="*60)
-        print("📊 FAILURE ANALYSIS SUMMARY")
-        print("="*60)
-        print(markdown_report)
-    
-    # Exit with appropriate code
-    if analyses:
-        critical_failures = [a for a in analyses if a.severity == 'high']
-        if critical_failures:
-            sys.exit(1)  # Critical failures
-        else:
-            sys.exit(0)  # Non-critical failures
-    else:
-        sys.exit(0)  # No failures
+        # Generate markdown report
+        markdown_report = analyzer.generate_markdown_report(analyses)
+        
+        if args.markdown_output:
+            with open(args.markdown_output, 'w') as f:
+                f.write(markdown_report)
+            print(f"✅ Markdown report written to {args.markdown_output}")
+        
+        # Print summary
+        if not args.ci:
+            print("\n" + "="*60)
+            print("📊 FAILURE ANALYSIS SUMMARY")
+            print("="*60)
+            print(markdown_report)
+        
+        # Exit with appropriate code
+        exit_code = 0
+        if analyses:
+            critical_failures = [a for a in analyses if a.severity == 'high']
+            if critical_failures:
+                exit_code = 1  # Critical failures
+        
+        return exit_code
+        
+    finally:
+        # Clean up database connection
+        analyzer.close()
 
 
 if __name__ == "__main__":
-    main()
+    exit_code = main()
+    sys.exit(exit_code)

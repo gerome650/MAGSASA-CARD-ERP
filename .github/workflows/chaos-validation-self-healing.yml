@@ -1,0 +1,539 @@
+name: Self-Healing Chaos Validation (Stage 7.2)
+
+on:
+  push:
+    branches: [ main, dev, feature/observability-intelligence ]
+  pull_request:
+    branches: [ main, dev ]
+  schedule:
+    # Run weekly on Sunday at 3 AM UTC
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+    inputs:
+      fix_mode:
+        description: 'Enable auto-fix mode'
+        required: false
+        type: boolean
+        default: true
+
+env:
+  PYTHON_VERSION: '3.11'
+  TARGET_URL: 'http://localhost:8000'
+
+jobs:
+  # ========================================================================
+  # Pre-Check: Dependency Sentinel
+  # ========================================================================
+  dependency-check:
+    name: 🔍 Dependency Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install base dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install PyYAML
+      
+      - name: Run dependency sentinel
+        id: dep-check
+        run: |
+          echo "🤖 Running dependency sentinel..."
+          python scripts/chaos_dependency_sentinel.py \
+            --scan-dirs deploy scripts observability \
+            --report reports/dependency_sentinel_report.md
+        continue-on-error: true
+      
+      - name: Auto-fix dependencies if enabled
+        if: (steps.dep-check.outcome == 'failure') && (github.event.inputs.fix_mode == 'true' || github.event_name == 'schedule')
+        run: |
+          echo "🔧 Auto-fixing dependencies..."
+          python scripts/chaos_dependency_sentinel.py --fix --install
+      
+      - name: Upload dependency report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-sentinel-report
+          path: reports/dependency_sentinel_report.md
+          retention-days: 30
+      
+      - name: Commit dependency fixes
+        if: (steps.dep-check.outcome == 'failure') && (github.event.inputs.fix_mode == 'true')
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add requirements.txt observability/observability_requirements.txt
+          git diff --staged --quiet || git commit -m "chore: auto-fix dependencies via chaos sentinel"
+        continue-on-error: true
+
+  # ========================================================================
+  # Configuration Validation
+  # ========================================================================
+  config-validation:
+    name: ⚙️  Configuration Validation
+    runs-on: ubuntu-latest
+    needs: dependency-check
+    timeout-minutes: 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Validate chaos configurations
+        run: |
+          echo "📋 Validating chaos configurations..."
+          
+          # Validate YAML syntax
+          for file in deploy/chaos_scenarios.yml configs/slo/*.yaml configs/remediation-rules/*.yaml; do
+            if [ -f "$file" ]; then
+              echo "Checking $file..."
+              python -c "import yaml; yaml.safe_load(open('$file'))" && echo "✅ $file"
+            fi
+          done
+      
+      - name: Validate chaos scripts syntax
+        run: |
+          echo "🐍 Validating Python syntax..."
+          python -m py_compile deploy/chaos_injector.py
+          python -m py_compile deploy/resilience_validator.py
+          python -m py_compile deploy/chaos_metrics_exporter.py
+          echo "✅ All scripts valid"
+
+  # ========================================================================
+  # Chaos Injection with Auto-Healing
+  # ========================================================================
+  chaos-injection:
+    name: 🔥 Chaos Injection (Self-Healing)
+    runs-on: ubuntu-latest
+    needs: [dependency-check, config-validation]
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies with retry
+        run: |
+          for i in {1..3}; do
+            echo "📦 Installing dependencies (attempt $i/3)..."
+            python -m pip install --upgrade pip && \
+            pip install -r requirements.txt && \
+            pip install -r observability/observability_requirements.txt && \
+            echo "✅ Dependencies installed" && break
+            
+            echo "⚠️  Installation failed, retrying..."
+            sleep 5
+          done
+      
+      - name: Initialize database
+        run: |
+          cd src
+          python -c "
+          from database import Base, engine
+          Base.metadata.create_all(bind=engine)
+          print('✅ Database initialized')
+          " || echo "⚠️  Database initialization failed, continuing..."
+      
+      - name: Start application with health check
+        run: |
+          cd src
+          nohup python main.py > ../app.log 2>&1 &
+          echo $! > ../app.pid
+          
+          echo "⏳ Waiting for service to start..."
+          
+          # Wait up to 60 seconds with exponential backoff
+          attempt=1
+          max_attempts=12
+          wait_time=2
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "Health check attempt $attempt/$max_attempts..."
+            
+            if curl -f -s http://localhost:8000/api/health > /dev/null 2>&1; then
+              echo "✅ Service is healthy"
+              curl -s http://localhost:8000/api/health | jq . || true
+              exit 0
+            fi
+            
+            echo "Service not ready, waiting ${wait_time}s..."
+            sleep $wait_time
+            
+            # Exponential backoff
+            wait_time=$((wait_time * 2))
+            if [ $wait_time -gt 10 ]; then
+              wait_time=10
+            fi
+            
+            attempt=$((attempt + 1))
+          done
+          
+          echo "❌ Service failed to start within timeout"
+          echo "=== Application Logs ==="
+          cat ../app.log
+          exit 1
+      
+      - name: Run chaos injection with auto-healing
+        id: chaos
+        run: |
+          echo "🤖 Running chaos injection with auto-healing..."
+          
+          python scripts/chaos_auto_healer.py \
+            --command python deploy/chaos_injector.py \
+              --config deploy/chaos_scenarios.yml \
+              --target ${{ env.TARGET_URL }} \
+              --output deploy/chaos_results.json \
+              --verbose \
+            --target-url ${{ env.TARGET_URL }} \
+            --max-retries 3 \
+            --retry-delay 10 \
+            --log-file reports/chaos_injection.log \
+            --report reports/chaos_healing_report.json
+        continue-on-error: true
+      
+      - name: Display chaos results
+        if: always()
+        run: |
+          if [ -f deploy/chaos_results.json ]; then
+            echo "📊 Chaos Injection Summary:"
+            python -c "
+            import json
+            with open('deploy/chaos_results.json', 'r') as f:
+                data = json.load(f)
+                print(f'Total Scenarios: {data.get(\"total_scenarios\", 0)}')
+                print(f'Successful: {data.get(\"successful\", 0)}')
+                print(f'Failed: {data.get(\"failed\", 0)}')
+            "
+          else
+            echo "⚠️  No chaos results file found"
+            echo "=== Application Logs ==="
+            cat app.log || true
+          fi
+      
+      - name: Upload chaos results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chaos-injection-results
+          path: |
+            deploy/chaos_results.json
+            reports/chaos_injection.log
+            reports/chaos_healing_report.json
+            app.log
+          retention-days: 30
+
+  # ========================================================================
+  # Resilience Validation
+  # ========================================================================
+  resilience-validation:
+    name: 🛡️  Resilience Validation
+    runs-on: ubuntu-latest
+    needs: chaos-injection
+    timeout-minutes: 20
+    if: always()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r observability/observability_requirements.txt
+      
+      - name: Initialize database
+        run: |
+          cd src
+          python -c "
+          from database import Base, engine
+          Base.metadata.create_all(bind=engine)
+          print('✅ Database initialized')
+          "
+      
+      - name: Start application
+        run: |
+          cd src
+          nohup python main.py > ../app.log 2>&1 &
+          echo $! > ../app.pid
+          sleep 15
+      
+      - name: Download chaos results
+        uses: actions/download-artifact@v4
+        with:
+          name: chaos-injection-results
+          path: .
+      
+      - name: Run resilience validation with auto-healing
+        id: validation
+        run: |
+          echo "🎯 Running resilience validation..."
+          
+          python scripts/chaos_auto_healer.py \
+            --command python deploy/resilience_validator.py \
+              --target ${{ env.TARGET_URL }} \
+              --config deploy/chaos_scenarios.yml \
+              --chaos-results deploy/chaos_results.json \
+              --output deploy/resilience_validation.json \
+              --report deploy/chaos_report.md \
+              --verbose \
+            --target-url ${{ env.TARGET_URL }} \
+            --max-retries 3 \
+            --report reports/resilience_healing_report.json
+        continue-on-error: true
+      
+      - name: Display validation summary
+        if: always()
+        run: |
+          if [ -f deploy/resilience_validation.json ]; then
+            echo "🎯 Resilience Validation Summary:"
+            python -c "
+            import json
+            with open('deploy/resilience_validation.json', 'r') as f:
+                data = json.load(f)
+                print(f'Status: {\"✅ PASSED\" if data.get(\"passed\") else \"❌ FAILED\"}')
+                print(f'Violations: {len(data.get(\"violations\", []))}')
+                if data.get('violations'):
+                    print('\nViolations:')
+                    for v in data['violations']:
+                        print(f'  - {v}')
+            "
+          else
+            echo "⚠️  No validation results found"
+          fi
+      
+      - name: Upload validation results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resilience-validation-results
+          path: |
+            deploy/resilience_validation.json
+            deploy/chaos_report.md
+            reports/resilience_healing_report.json
+          retention-days: 30
+
+  # ========================================================================
+  # Weekly Intelligence Report
+  # ========================================================================
+  weekly-report:
+    name: 📊 Weekly Intelligence Report
+    runs-on: ubuntu-latest
+    needs: [chaos-injection, resilience-validation]
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+      
+      - name: Generate weekly report
+        run: |
+          echo "📊 Generating weekly intelligence report..."
+          
+          # Import recent data
+          if [ -f artifacts/chaos-injection-results/chaos_results.json ]; then
+            python scripts/chaos_weekly_reporter.py \
+              --import-json artifacts/chaos-injection-results/chaos_results.json
+          fi
+          
+          if [ -f artifacts/chaos-injection-results/chaos_healing_report.json ]; then
+            python scripts/chaos_weekly_reporter.py \
+              --import-json artifacts/chaos-injection-results/chaos_healing_report.json
+          fi
+          
+          # Generate report
+          python scripts/chaos_weekly_reporter.py \
+            --lookback-days 7 \
+            --output reports/chaos_weekly_report.md
+      
+      - name: Upload weekly report
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-intelligence-report
+          path: |
+            reports/chaos_weekly_report.md
+            reports/chaos_history.db
+          retention-days: 90
+      
+      - name: Create or update report issue
+        if: github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Read report
+            let report = '## 📊 Chaos Validation Weekly Report\n\n';
+            
+            try {
+              report += fs.readFileSync('reports/chaos_weekly_report.md', 'utf8');
+            } catch (e) {
+              report += '⚠️  Report generation failed';
+            }
+            
+            report += '\n\n---\n*Auto-generated by Self-Healing Chaos Validation*';
+            
+            // Create or update issue
+            const issueTitle = '📊 Chaos Validation Weekly Report';
+            
+            // Find existing issue
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: ['chaos-validation', 'weekly-report']
+            });
+            
+            const existingIssue = issues.data.find(i => i.title === issueTitle);
+            
+            if (existingIssue) {
+              // Update existing issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existingIssue.number,
+                body: report
+              });
+            } else {
+              // Create new issue
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: issueTitle,
+                body: report,
+                labels: ['chaos-validation', 'weekly-report']
+              });
+            }
+
+  # ========================================================================
+  # Summary
+  # ========================================================================
+  summary:
+    name: ✅ Validation Summary
+    runs-on: ubuntu-latest
+    needs: [dependency-check, config-validation, chaos-injection, resilience-validation]
+    if: always()
+    timeout-minutes: 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+      
+      - name: Generate summary
+        run: |
+          echo "# 🧪 Self-Healing Chaos Validation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Workflow:** Self-Healing Chaos Validation (Stage 7.2)" >> $GITHUB_STEP_SUMMARY
+          echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## Job Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Dependency Check: ${{ needs.dependency-check.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Config Validation: ${{ needs.config-validation.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Chaos Injection: ${{ needs.chaos-injection.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Resilience Validation: ${{ needs.resilience-validation.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## 🤖 Auto-Healing Features" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Automatic dependency detection and installation" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Smart retry logic with exponential backoff" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Health check auto-healing" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Diagnostic logging and categorization" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Weekly intelligence reports" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## 📊 Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check the artifacts for detailed reports:" >> $GITHUB_STEP_SUMMARY
+          echo "- Dependency Sentinel Report" >> $GITHUB_STEP_SUMMARY
+          echo "- Chaos Injection Results" >> $GITHUB_STEP_SUMMARY
+          echo "- Resilience Validation Results" >> $GITHUB_STEP_SUMMARY
+          echo "- Auto-Healing Reports" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const depStatus = '${{ needs.dependency-check.result }}';
+            const configStatus = '${{ needs.config-validation.result }}';
+            const chaosStatus = '${{ needs.chaos-injection.result }}';
+            const validationStatus = '${{ needs.resilience-validation.result }}';
+            
+            let comment = '## 🤖 Self-Healing Chaos Validation Results\n\n';
+            comment += '| Stage | Status |\n';
+            comment += '|-------|--------|\n';
+            comment += `| Dependency Check | ${depStatus === 'success' ? '✅' : '❌'} ${depStatus} |\n`;
+            comment += `| Config Validation | ${configStatus === 'success' ? '✅' : '❌'} ${configStatus} |\n`;
+            comment += `| Chaos Injection | ${chaosStatus === 'success' ? '✅' : '❌'} ${chaosStatus} |\n`;
+            comment += `| Resilience Validation | ${validationStatus === 'success' ? '✅' : '❌'} ${validationStatus} |\n`;
+            comment += '\n';
+            comment += '### 🤖 Auto-Healing Enabled\n\n';
+            comment += 'This workflow includes automatic healing for:\n';
+            comment += '- 🔧 Missing dependencies\n';
+            comment += '- 🏥 Health check failures\n';
+            comment += '- 🔄 Transient errors\n';
+            comment += '\n';
+            comment += '📎 Check workflow artifacts for detailed reports.\n';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+

@@ -3,6 +3,9 @@ PyYAML==6.0.2
 jsonschema==4.22.0
 Jinja2==3.1.4
 
+# Chaos Engineering Dependencies (Stage 7.2 - Auto-healing)
+aiohttp>=3.9.0  # Async HTTP client for chaos injector and resilience validator
+
 # Observability dependencies (STAGE 6.7)
 prometheus-client>=0.19.0
 opentelemetry-api>=1.21.0
@@ -21,3 +24,4 @@ schedule>=1.1.0        # Scheduled jobs
 pytest>=7.0.0
 pytest-cov>=4.0.0
 pytest-asyncio>=0.21.0
+tabulate>=0.9.0  # For CI Intelligence Agent CLI tables
