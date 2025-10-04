@@ -30,6 +30,7 @@ DEFAULT_VERSION="v1.0.0"
 CI_MODE=false
 AUTO_MODE=false
 VERBOSE=false
+DRY_RUN=false
 
 # Print colored output
 print_info() {
@@ -67,12 +68,14 @@ OPTIONS:
     --ci              Run in CI mode (skip confirmations)
     --auto            Auto-generate version without user input
     --verbose         Enable verbose output
+    --dry-run         Compute next version without tagging/pushing/changelog
     --help            Show this help message
 
 EXAMPLES:
     $SCRIPT_NAME                    # Interactive mode
     $SCRIPT_NAME --ci --auto        # CI mode with auto-versioning
     $SCRIPT_NAME --verbose          # Verbose output
+    $SCRIPT_NAME --dry-run          # Show next version without creating release
 
 DESCRIPTION:
     This script automates the complete release process:
@@ -105,6 +108,10 @@ parse_args() {
                 ;;
             --verbose)
                 VERBOSE=true
+                shift
+                ;;
+            --dry-run)
+                DRY_RUN=true
                 shift
                 ;;
             --help)
@@ -159,8 +166,8 @@ preflight_checks() {
 
 # Get user confirmation
 get_user_confirmation() {
-    if [[ "$CI_MODE" == true ]]; then
-        print_info "CI mode enabled - skipping user confirmation"
+    if [[ "$CI_MODE" == true || "$DRY_RUN" == true ]]; then
+        print_info "CI mode or dry-run enabled - skipping user confirmation"
         return 0
     fi
     
@@ -251,11 +258,19 @@ get_last_tag() {
 # Parse semantic version components
 parse_version() {
     local version="$1"
-    # Remove 'v' prefix if present
-    version="${version#v}"
+    
+    # Sanitize the tag before parsing - strip leading 'v'
+    local clean_tag=${version#v}
     
     # Split into major.minor.patch
-    IFS='.' read -r major minor patch <<< "$version"
+    IFS='.' read -r major minor patch <<< "$clean_tag"
+    
+    # Safety checks - if parsing fails (empty variables), exit gracefully
+    if [[ -z "$major" || -z "$minor" || -z "$patch" ]]; then
+        print_error "Failed to parse semantic version from tag: $version"
+        print_error "Expected format: vMAJOR.MINOR.PATCH (e.g., v1.0.0)"
+        exit 1
+    fi
     
     echo "$major $minor $patch"
 }
@@ -269,8 +284,8 @@ get_commits_since_tag() {
         # If no previous tag, get all commits
         commits=$(git log --pretty=format:"%s" --reverse)
     else
-        # Get commits since last tag
-        commits=$(git log "$last_tag..HEAD" --pretty=format:"%s" --reverse)
+        # Get commits since last tag - FIXED: commit range comes before --pretty flag
+        commits=$(git log $last_tag..HEAD --pretty=format:"%s")
     fi
     
     echo "$commits"
@@ -280,6 +295,13 @@ get_commits_since_tag() {
 determine_bump_type() {
     local commits="$1"
     local bump_type="patch"  # Default to patch
+    
+    # Ensure $COMMITS is not empty - if it is, default to patch bump
+    if [[ -z "$commits" ]]; then
+        print_info "No commits found since last tag - defaulting to patch bump"
+        echo "patch"
+        return 0
+    fi
     
     while IFS= read -r commit; do
         if [[ -z "$commit" ]]; then
@@ -392,7 +414,7 @@ generate_changelog_entry() {
     if [[ "$last_tag" == "$DEFAULT_VERSION" ]]; then
         commits=$(git log --pretty=format:"- %s" --reverse)
     else
-        commits=$(git log "$last_tag..HEAD" --pretty=format:"- %s" --reverse)
+        commits=$(git log $last_tag..HEAD --pretty=format:"- %s")
     fi
     
     # Categorize commits
@@ -598,6 +620,17 @@ main() {
     
     print_success "Final version: $final_version"
     echo
+    
+    # Handle dry-run mode
+    if [[ "$DRY_RUN" == true ]]; then
+        print_header "DRY RUN MODE - No changes will be made"
+        print_info "Would create tag: $final_version"
+        print_info "Would update CHANGELOG.md"
+        print_info "Would create GitHub release"
+        echo
+        print_success "Dry run complete - version would be: $final_version"
+        return 0
+    fi
     
     # Create and push tag
     create_and_push_tag "$final_version"
