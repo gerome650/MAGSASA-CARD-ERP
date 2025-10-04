@@ -1,0 +1,48 @@
+# Health API SLO Configuration
+# Service Level Objectives for health endpoint monitoring
+
+api_version: v1
+kind: SLO
+metadata:
+  name: health-api-slo
+  namespace: magsasa-card-erp
+  labels:
+    app: magsasa-card-erp
+    component: health-api
+
+spec:
+  service: magsasa-card-erp
+  slo_targets:
+    availability:
+      target: 99.9%
+      warning_threshold: 99.5%
+      blocking_threshold: 99.0%
+    
+    latency:
+      target: 100ms
+      warning_threshold: 200ms
+      blocking_threshold: 500ms
+    
+    error_rate:
+      target: 0.1%
+      warning_threshold: 1.0%
+      blocking_threshold: 5.0%
+
+  measurement:
+    time_window: 30d
+    good_events: |
+      rate(http_requests_total{job="magsasa-card-erp",code=~"2.."}[5m])
+    total_events: |
+      rate(http_requests_total{job="magsasa-card-erp"}[5m])
+
+  alerting:
+    rules:
+      - name: HealthAPIHighErrorRate
+        expr: rate(http_requests_total{job="magsasa-card-erp",code=~"5.."}[5m]) / rate(http_requests_total{job="magsasa-card-erp"}[5m]) > 0.05
+        severity: critical
+        for: 5m
+        
+      - name: HealthAPILowAvailability
+        expr: (rate(http_requests_total{job="magsasa-card-erp",code=~"2.."}[5m]) / rate(http_requests_total{job="magsasa-card-erp"}[5m])) < 0.99
+        severity: warning
+        for: 10m

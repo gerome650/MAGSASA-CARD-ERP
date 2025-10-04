@@ -1,0 +1,98 @@
+{
+  "timestamp": "2025-10-04T12:09:33.532419",
+  "job_name": null,
+  "branch": "feature/observability-intelligence",
+  "total_failures": 4,
+  "auto_fixable_count": 3,
+  "categories": [
+    "test_assertion",
+    "dependency"
+  ],
+  "analyses": [
+    {
+      "category": "dependency",
+      "severity": "high",
+      "root_cause": "Missing or incompatible dependency: --upgrade",
+      "recommended_fix": "Install missing dependency: pip install --upgrade",
+      "affected_files": [
+        "requirements.txt",
+        "observability/observability_requirements.txt"
+      ],
+      "confidence": 0.7999999999999999,
+      "auto_fixable": true,
+      "fix_command": "echo \"--upgrade>=1.0.0\" >> requirements.txt",
+      "documentation_links": [
+        "https://pip.pypa.io/en/stable/user_guide/",
+        "https://docs.python.org/3/tutorial/modules.html"
+      ],
+      "error_signature": "657e76341f4984a2",
+      "frequency": 0,
+      "success_rate": 0.0,
+      "avg_mttr_minutes": 0.0,
+      "trend": "stable"
+    },
+    {
+      "category": "dependency",
+      "severity": "high",
+      "root_cause": "Missing or incompatible dependency: -r",
+      "recommended_fix": "Install missing dependency: pip install -r",
+      "affected_files": [
+        "requirements.txt",
+        "observability/observability_requirements.txt"
+      ],
+      "confidence": 0.8999999999999999,
+      "auto_fixable": true,
+      "fix_command": "echo \"-r>=1.0.0\" >> requirements.txt",
+      "documentation_links": [
+        "https://pip.pypa.io/en/stable/user_guide/",
+        "https://docs.python.org/3/tutorial/modules.html"
+      ],
+      "error_signature": "abfd460132fa7172",
+      "frequency": 0,
+      "success_rate": 0.0,
+      "avg_mttr_minutes": 0.0,
+      "trend": "stable"
+    },
+    {
+      "category": "dependency",
+      "severity": "high",
+      "root_cause": "Missing or incompatible dependency: pyyaml",
+      "recommended_fix": "Install missing dependency: pip install pyyaml",
+      "affected_files": [
+        "requirements.txt",
+        "observability/observability_requirements.txt"
+      ],
+      "confidence": 0.8999999999999999,
+      "auto_fixable": true,
+      "fix_command": "echo \"pyyaml>=1.0.0\" >> requirements.txt",
+      "documentation_links": [
+        "https://pip.pypa.io/en/stable/user_guide/",
+        "https://docs.python.org/3/tutorial/modules.html"
+      ],
+      "error_signature": "62a967c9a88e1167",
+      "frequency": 0,
+      "success_rate": 0.0,
+      "avg_mttr_minutes": 0.0,
+      "trend": "stable"
+    },
+    {
+      "category": "test_assertion",
+      "severity": "medium",
+      "root_cause": "Test assertion failed - logic or expectation error",
+      "recommended_fix": "Review test logic and expected values",
+      "affected_files": [],
+      "confidence": 0.7,
+      "auto_fixable": false,
+      "fix_command": null,
+      "documentation_links": [
+        "https://docs.pytest.org/en/stable/",
+        "https://docs.python.org/3/library/unittest.html"
+      ],
+      "error_signature": "905464afb6b3c3e6",
+      "frequency": 0,
+      "success_rate": 0.0,
+      "avg_mttr_minutes": 0.0,
+      "trend": "stable"
+    }
+  ]
+}

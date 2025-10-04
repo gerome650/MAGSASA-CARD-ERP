@@ -6,9 +6,9 @@
 
 ## Summary
 
-- **Total Files Scanned:** 14
-- **Files with Missing Dependencies:** 14
-- **Total Missing Dependencies:** 6
+- **Total Files Scanned:** 12
+- **Files with Missing Dependencies:** 12
+- **Total Missing Dependencies:** 2
 
 ## Missing Dependencies by File
 
@@ -18,12 +18,7 @@
 
 ### `deploy/load_test.py`
 
-- `psutil>=1.0.0`
 - `PyYAML>=6.0.2`
-
-### `deploy/port_detector.py`
-
-- `psutil>=1.0.0`
 
 ### `deploy/resilience_validator.py`
 
@@ -35,9 +30,6 @@
 
 ### `observability/ai_agent/webhook_server.py`
 
-- `fastapi>=1.0.0`
-- `pydantic>=1.0.0`
-- `uvicorn>=1.0.0`
 - `PyYAML>=6.0.2`
 
 ### `observability/tracing/otel_tracer.py`
@@ -53,10 +45,6 @@
 - `PyYAML>=6.0.2`
 
 ### `scripts/slo_ingest.py`
-
-- `PyYAML>=6.0.2`
-
-### `scripts/validate_alert_rules.py`
 
 - `PyYAML>=6.0.2`
 

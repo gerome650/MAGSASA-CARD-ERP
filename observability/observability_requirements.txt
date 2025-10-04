@@ -27,3 +27,10 @@ flask>=2.0.0           # For webhook server
 # Additional utilities
 python-json-logger>=2.0.7  # Alternative JSON logger (optional)
 
+
+# Chaos Engineering Dependencies (Auto-added by Sentinel)
+PyYAML>=6.0.2
+pydantic>=1.0.0
+uvicorn>=1.0.0
+psutil>=1.0.0
+fastapi>=1.0.0

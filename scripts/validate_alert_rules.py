@@ -609,52 +609,6 @@ class AlertRuleValidator:
         print("\n" + "=" * 60)
 
 
-def main():
-    """Main function"""
-    parser = argparse.ArgumentParser(description='Validate Prometheus alert rules')
-    parser.add_argument('rules_file', help='Path to alert rules YAML file')
-    parser.add_argument('--services', nargs='+', default=['magsasa-card-erp'],
-                       help='Services to check coverage for')
-    parser.add_argument('--output', help='Output results to JSON file')
-    parser.add_argument('--strict', action='store_true',
-                       help='Treat warnings as errors')
-    parser.add_argument('--verbose', '-v', action='store_true',
-                       help='Enable verbose output')
-    
-    args = parser.parse_args()
-    
-    if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
-    
-    # Validate rules file exists
-    if not os.path.exists(args.rules_file):
-        logger.error(f"Rules file not found: {args.rules_file}")
-        sys.exit(1)
-    
-    # Run validation
-    validator = AlertRuleValidator(args.rules_file)
-    results = validator.run_validation(args.services)
-    
-    # Print results
-    validator.print_results(results)
-    
-    # Save results if requested
-    if args.output:
-        with open(args.output, 'w') as f:
-            json.dump(results, f, indent=2)
-        logger.info(f"Results saved to {args.output}")
-    
-    # Exit with appropriate code
-    if args.strict and results['warnings'] > 0:
-        logger.error("Validation failed due to warnings in strict mode")
-        sys.exit(1)
-    elif not results['validation_passed']:
-        logger.error("Validation failed due to errors")
-        sys.exit(1)
-    else:
-        logger.info("Validation passed successfully")
-        sys.exit(0)
-
 
 if __name__ == '__main__':
     main()

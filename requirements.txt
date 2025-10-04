@@ -5,6 +5,10 @@ Jinja2==3.1.4
 
 # Chaos Engineering Dependencies (Stage 7.2 - Auto-healing)
 aiohttp>=3.9.0  # Async HTTP client for chaos injector and resilience validator
+fastapi>=0.118.0  # FastAPI for chaos endpoints
+psutil>=7.0.0  # System monitoring for chaos injection
+pydantic>=2.0.0  # Data validation for chaos scenarios
+uvicorn>=0.37.0  # ASGI server for chaos services
 
 # Observability dependencies (STAGE 6.7)
 prometheus-client>=0.19.0
