@@ -11,6 +11,7 @@ from src.routes.auth import require_permission, require_auth
 
 analytics_bp = Blueprint('analytics', __name__)
 
+
 @analytics_bp.route('/analytics/dashboard', methods=['GET'])
 @require_permission('analytics_reports_read')
 def get_dashboard_metrics():
@@ -21,29 +22,32 @@ def get_dashboard_metrics():
         total_products = Product.query.count()
         total_orders = Order.query.count()
         total_partners = Partner.query.count()
-        
+
         # Financial metrics
         total_revenue = db.session.query(func.sum(Order.total_amount)).scalar() or 0
         total_commissions = db.session.query(func.sum(CommissionPayout.amount)).scalar() or 0
-        pending_commissions = db.session.query(func.sum(CommissionPayout.amount)).filter_by(status='Pending').scalar() or 0
-        
+        pending_commissions = db.session.query(
+            func.sum(
+                CommissionPayout.amount)).filter_by(
+            status='Pending').scalar() or 0
+
         # Recent activity (last 30 days)
         thirty_days_ago = datetime.now() - timedelta(days=30)
         recent_farmers = Farmer.query.filter(Farmer.created_at >= thirty_days_ago).count()
         recent_orders = Order.query.filter(Order.created_at >= thirty_days_ago).count()
-        
+
         # Order status distribution
         order_statuses = db.session.query(
-            Order.status, 
+            Order.status,
             func.count(Order.id).label('count')
         ).group_by(Order.status).all()
-        
+
         # Farmer risk distribution (AgScore)
         risk_distribution = db.session.query(
             Farmer.ag_score_grade,
             func.count(Farmer.id).label('count')
         ).group_by(Farmer.ag_score_grade).all()
-        
+
         dashboard_data = {
             'overview': {
                 'total_farmers': total_farmers,
@@ -65,11 +69,12 @@ def get_dashboard_metrics():
                 {'grade': grade or 'Ungraded', 'count': count} for grade, count in risk_distribution
             ]
         }
-        
+
         return jsonify(dashboard_data)
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 @analytics_bp.route('/analytics/farmer-performance', methods=['GET'])
 @require_permission('analytics_reports_read')
@@ -91,7 +96,7 @@ def get_farmer_performance():
         ).group_by(
             Farmer.id
         ).all()
-        
+
         performance_data = []
         for stat in farmer_stats:
             performance_data.append({
@@ -105,10 +110,11 @@ def get_farmer_performance():
                 'avg_order_value': float(stat.avg_order_value or 0),
                 'last_order_date': stat.last_order_date.isoformat() if stat.last_order_date else None
             })
-        
+
         return jsonify(performance_data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 @analytics_bp.route('/analytics/product-performance', methods=['GET'])
 @require_permission('analytics_reports_read')
@@ -116,7 +122,7 @@ def get_product_performance():
     try:
         days = request.args.get('days', 30, type=int)
         start_date = datetime.utcnow() - timedelta(days=days)
-        
+
         # Get product performance metrics
         product_stats = db.session.query(
             Product.id,
@@ -141,7 +147,7 @@ def get_product_performance():
         ).order_by(
             desc('total_revenue')
         ).all()
-        
+
         performance_data = []
         for stat in product_stats:
             performance_data.append({
@@ -157,10 +163,11 @@ def get_product_performance():
                 'total_margin': float(stat.total_margin),
                 'unique_customers': stat.unique_customers
             })
-        
+
         return jsonify(performance_data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 @analytics_bp.route('/analytics/geographic-distribution', methods=['GET'])
 @require_permission('analytics_reports_read')
@@ -177,7 +184,7 @@ def get_geographic_distribution():
         ).group_by(
             Farmer.location
         ).all()
-        
+
         distribution_data = []
         for stat in location_stats:
             distribution_data.append({
@@ -187,10 +194,11 @@ def get_geographic_distribution():
                 'total_orders': stat.total_orders or 0,
                 'avg_revenue_per_farmer': float((stat.total_revenue or 0) / stat.farmer_count) if stat.farmer_count > 0 else 0
             })
-        
+
         return jsonify(distribution_data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 @analytics_bp.route('/analytics/seasonal-trends', methods=['GET'])
 @require_permission('analytics_reports_read')
@@ -198,7 +206,7 @@ def get_seasonal_trends():
     try:
         # Get monthly order trends for the last 12 months
         twelve_months_ago = datetime.utcnow() - timedelta(days=365)
-        
+
         monthly_stats = db.session.query(
             func.strftime('%Y-%m', Order.created_at).label('month'),
             func.count(Order.id).label('order_count'),
@@ -210,7 +218,7 @@ def get_seasonal_trends():
         ).group_by(
             func.strftime('%Y-%m', Order.created_at)
         ).order_by('month').all()
-        
+
         trend_data = []
         for stat in monthly_stats:
             trend_data.append({
@@ -220,10 +228,11 @@ def get_seasonal_trends():
                 'margin': float(stat.margin),
                 'active_farmers': stat.active_farmers
             })
-        
+
         return jsonify(trend_data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 @analytics_bp.route('/analytics/inventory-insights', methods=['GET'])
 @require_permission('analytics_reports_read')
@@ -243,13 +252,13 @@ def get_inventory_insights():
         ).group_by(
             Product.id
         ).all()
-        
+
         insights_data = []
         for stat in inventory_stats:
             total_sold = stat.total_sold or 0
             stock_level = stat.stock_quantity
             turnover_rate = total_sold / max(stock_level, 1) if stock_level > 0 else 0
-            
+
             insights_data.append({
                 'product_id': stat.id,
                 'name': stat.name,
@@ -262,10 +271,11 @@ def get_inventory_insights():
                 'stock_status': 'Low' if stock_level <= stat.low_stock_threshold else 'Normal',
                 'reorder_recommended': stock_level <= stat.low_stock_threshold
             })
-        
+
         return jsonify(insights_data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 @analytics_bp.route('/analytics/partner-performance', methods=['GET'])
 @require_permission('analytics_reports_read')
@@ -286,12 +296,12 @@ def get_partner_performance():
         ).group_by(
             Partner.id
         ).all()
-        
+
         performance_data = []
         for stat in partner_stats:
             total_value = float(stat.total_value or 0)
             commission_earned = total_value * (stat.commission_rate / 100)
-            
+
             performance_data.append({
                 'partner_id': stat.id,
                 'name': stat.name,
@@ -303,10 +313,11 @@ def get_partner_performance():
                 'avg_order_value': float(stat.avg_order_value or 0),
                 'commission_earned': commission_earned
             })
-        
+
         return jsonify(performance_data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 @analytics_bp.route('/analytics/profitability-analysis', methods=['GET'])
 @require_permission('analytics_reports_read')
@@ -320,7 +331,7 @@ def get_profitability_analysis():
             func.count(Order.id).label('total_orders'),
             func.avg(Order.total_margin).label('avg_margin_per_order')
         ).first()
-        
+
         # Get profitability by category
         category_stats = db.session.query(
             Product.category,
@@ -333,14 +344,14 @@ def get_profitability_analysis():
         ).group_by(
             Product.category
         ).all()
-        
+
         category_breakdown = []
         for stat in category_stats:
             revenue = float(stat.revenue)
             cost = float(stat.cost)
             margin = float(stat.margin)
             margin_percentage = (margin / revenue * 100) if revenue > 0 else 0
-            
+
             category_breakdown.append({
                 'category': stat.category,
                 'revenue': revenue,
@@ -349,22 +360,27 @@ def get_profitability_analysis():
                 'margin_percentage': round(margin_percentage, 2),
                 'items_sold': stat.items_sold
             })
-        
+
         analysis_data = {
             'overall': {
-                'total_revenue': float(profitability_stats.total_revenue or 0),
-                'total_cost': float(profitability_stats.total_cost or 0),
-                'total_margin': float(profitability_stats.total_margin or 0),
+                'total_revenue': float(
+                    profitability_stats.total_revenue or 0),
+                'total_cost': float(
+                    profitability_stats.total_cost or 0),
+                'total_margin': float(
+                    profitability_stats.total_margin or 0),
                 'total_orders': profitability_stats.total_orders or 0,
-                'avg_margin_per_order': float(profitability_stats.avg_margin_per_order or 0),
+                'avg_margin_per_order': float(
+                    profitability_stats.avg_margin_per_order or 0),
                 'overall_margin_percentage': round(
-                    (float(profitability_stats.total_margin or 0) / float(profitability_stats.total_revenue or 1) * 100), 2
-                )
-            },
-            'by_category': category_breakdown
-        }
-        
+                    (float(
+                        profitability_stats.total_margin or 0) /
+                        float(
+                        profitability_stats.total_revenue or 1) *
+                        100),
+                    2)},
+            'by_category': category_breakdown}
+
         return jsonify(analysis_data)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-

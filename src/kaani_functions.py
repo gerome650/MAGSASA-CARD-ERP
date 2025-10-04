@@ -11,9 +11,10 @@ from src.models.order import Order, OrderItem
 from src.models.product import Product
 from flask import session
 
+
 class KaAniFunctions:
     """Function calling interface for KaAni to access ERP data"""
-    
+
     @staticmethod
     def get_farmer_profile(farmer_id=None):
         """Get farmer profile information"""
@@ -23,14 +24,14 @@ class KaAniFunctions:
                 user_id = session.get('user_id')
                 if not user_id:
                     return {"error": "No user logged in"}
-                
+
                 farmer = Farmer.query.filter_by(user_id=user_id).first()
             else:
                 farmer = Farmer.query.get(farmer_id)
-            
+
             if not farmer:
                 return {"error": "Farmer not found"}
-            
+
             return {
                 "farmer_id": farmer.id,
                 "name": farmer.name,
@@ -42,10 +43,10 @@ class KaAniFunctions:
                 "registration_date": farmer.created_at.isoformat() if farmer.created_at else None,
                 "status": "active"
             }
-            
+
         except Exception as e:
             return {"error": f"Failed to get farmer profile: {str(e)}"}
-    
+
     @staticmethod
     def get_farmer_orders(farmer_id=None, limit=10):
         """Get farmer's recent orders and input purchases"""
@@ -54,16 +55,16 @@ class KaAniFunctions:
                 user_id = session.get('user_id')
                 if not user_id:
                     return {"error": "No user logged in"}
-                
+
                 farmer = Farmer.query.filter_by(user_id=user_id).first()
                 if not farmer:
                     return {"error": "Farmer not found"}
                 farmer_id = farmer.id
-            
+
             orders = Order.query.filter_by(farmer_id=farmer_id)\
-                              .order_by(Order.created_at.desc())\
-                              .limit(limit).all()
-            
+                .order_by(Order.created_at.desc())\
+                .limit(limit).all()
+
             order_list = []
             for order in orders:
                 order_items = []
@@ -76,7 +77,7 @@ class KaAniFunctions:
                         "unit_price": float(item.unit_price),
                         "total_price": float(item.total_price)
                     })
-                
+
                 order_list.append({
                     "order_id": order.id,
                     "order_date": order.created_at.isoformat(),
@@ -84,22 +85,22 @@ class KaAniFunctions:
                     "total_amount": float(order.total_amount),
                     "items": order_items
                 })
-            
+
             return {
                 "farmer_id": farmer_id,
                 "orders": order_list,
                 "total_orders": len(order_list)
             }
-            
+
         except Exception as e:
             return {"error": f"Failed to get farmer orders: {str(e)}"}
-    
+
     @staticmethod
     def get_seasonal_recommendations(location=None, crop_type=None):
         """Get seasonal farming recommendations based on location and crop"""
         try:
             current_month = datetime.now().month
-            
+
             # Philippine seasons
             if current_month in [12, 1, 2, 3, 4]:
                 season = "dry_season"
@@ -107,7 +108,7 @@ class KaAniFunctions:
             else:
                 season = "wet_season"
                 season_name = "Wet Season"
-            
+
             # Basic recommendations by season and crop
             recommendations = {
                 "season": season_name,
@@ -115,7 +116,7 @@ class KaAniFunctions:
                 "location": location or "Philippines",
                 "crop_type": crop_type or "rice"
             }
-            
+
             if season == "dry_season":
                 if crop_type and "rice" in crop_type.lower():
                     recommendations.update({
@@ -146,18 +147,18 @@ class KaAniFunctions:
                         "pest_watch": "Fungal diseases, snails",
                         "fertilizer": "Reduce nitrogen, increase potassium"
                     })
-            
+
             return recommendations
-            
+
         except Exception as e:
             return {"error": f"Failed to get seasonal recommendations: {str(e)}"}
-    
+
     @staticmethod
     def calculate_input_needs(farm_size, crop_type="rice", season="wet"):
         """Calculate fertilizer and input needs based on farm size and crop"""
         try:
             farm_size = float(farm_size) if farm_size else 1.0
-            
+
             # Basic input calculations (per hectare)
             if crop_type.lower() in ["rice", "palay"]:
                 inputs = {
@@ -212,13 +213,13 @@ class KaAniFunctions:
                         }
                     }
                 }
-            
+
             total_cost = sum([
-                item.get('cost_estimate', 0) if isinstance(item, dict) else 
+                item.get('cost_estimate', 0) if isinstance(item, dict) else
                 sum(subitem.get('cost_estimate', 0) for subitem in item.values() if isinstance(subitem, dict))
                 for item in inputs.values()
             ])
-            
+
             return {
                 "farm_size": farm_size,
                 "crop_type": crop_type,
@@ -228,16 +229,16 @@ class KaAniFunctions:
                 "currency": "PHP",
                 "notes": "Estimates based on current market prices. Actual costs may vary."
             }
-            
+
         except Exception as e:
             return {"error": f"Failed to calculate input needs: {str(e)}"}
-    
+
     @staticmethod
     def get_weather_advice(location=None):
         """Get weather-based farming advice"""
         try:
             current_month = datetime.now().month
-            
+
             # Simulate weather data (in production, integrate with weather API)
             if current_month in [12, 1, 2, 3, 4]:
                 weather_data = {
@@ -247,7 +248,7 @@ class KaAniFunctions:
                     "humidity": "60-70%",
                     "wind": "Moderate northeast monsoon"
                 }
-                
+
                 advice = {
                     "irrigation": "Critical - ensure adequate water supply",
                     "planting": "Good for dry season crops",
@@ -262,36 +263,36 @@ class KaAniFunctions:
                     "humidity": "80-90%",
                     "wind": "Southwest monsoon"
                 }
-                
+
                 advice = {
                     "drainage": "Ensure proper field drainage",
                     "planting": "Main season for rice",
                     "pest_management": "High risk for fungal diseases",
                     "soil_management": "Prevent waterlogging"
                 }
-            
+
             return {
                 "location": location or "Philippines",
                 "current_weather": weather_data,
                 "farming_advice": advice,
                 "updated": datetime.now().isoformat()
             }
-            
+
         except Exception as e:
             return {"error": f"Failed to get weather advice: {str(e)}"}
-    
+
     @staticmethod
     def prequalify_farmer(farmer_name, location, crop, land_size_ha, loan_amount_requested):
         """Pre-qualify farmer for agricultural loan based on KaAni assessment"""
         try:
             land_size = float(land_size_ha) if land_size_ha else 0
             loan_amount = float(loan_amount_requested) if loan_amount_requested else 0
-            
+
             # Basic pre-qualification criteria
             qualification_score = 0
             recommendations = []
             risk_factors = []
-            
+
             # Land size assessment (30% weight)
             if land_size >= 2.0:
                 qualification_score += 30
@@ -304,7 +305,7 @@ class KaAniFunctions:
                 recommendations.append("Small farm - consider intensive farming methods")
             else:
                 risk_factors.append("Very small farm size may limit production capacity")
-            
+
             # Crop type assessment (25% weight)
             if crop.lower() in ['rice', 'palay']:
                 qualification_score += 25
@@ -318,12 +319,12 @@ class KaAniFunctions:
             else:
                 qualification_score += 10
                 risk_factors.append("Crop type may have limited market support")
-            
+
             # Loan amount assessment (25% weight)
             expected_income_per_ha = 80000 if crop.lower() in ['rice', 'palay'] else 60000
             expected_total_income = expected_income_per_ha * land_size
             loan_to_income_ratio = loan_amount / expected_total_income if expected_total_income > 0 else 1
-            
+
             if loan_to_income_ratio <= 0.3:
                 qualification_score += 25
                 recommendations.append("Conservative loan amount relative to expected income")
@@ -335,7 +336,7 @@ class KaAniFunctions:
                 recommendations.append("Moderate loan amount - ensure good crop management")
             else:
                 risk_factors.append("High loan amount relative to expected farm income")
-            
+
             # Location assessment (20% weight)
             favorable_locations = ['laguna', 'nueva ecija', 'pangasinan', 'iloilo', 'camarines sur']
             if any(loc in location.lower() for loc in favorable_locations):
@@ -344,7 +345,7 @@ class KaAniFunctions:
             else:
                 qualification_score += 10
                 recommendations.append("Verify local agricultural support and market access")
-            
+
             # Determine status
             if qualification_score >= 70:
                 status = "Pre-qualified"
@@ -355,7 +356,7 @@ class KaAniFunctions:
             else:
                 status = "Not Qualified"
                 confidence_score = max(0.1, qualification_score / 100)
-            
+
             # Generate input recommendations
             input_recommendations = []
             if crop.lower() in ['rice', 'palay']:
@@ -366,7 +367,7 @@ class KaAniFunctions:
                     f"{bags_urea} bags Urea (46-0-0)",
                     f"{int(land_size * 40)} kg Certified rice seeds"
                 ])
-            
+
             return {
                 "farmer_name": farmer_name,
                 "location": location,
@@ -391,9 +392,10 @@ class KaAniFunctions:
                 ],
                 "assessment_date": datetime.now().isoformat()
             }
-            
+
         except Exception as e:
             return {"error": f"Failed to prequalify farmer: {str(e)}"}
+
 
 # Function registry for KaAni
 KAANI_FUNCTION_REGISTRY = {
@@ -404,6 +406,7 @@ KAANI_FUNCTION_REGISTRY = {
     "get_weather_advice": KaAniFunctions.get_weather_advice,
     "prequalify_farmer": KaAniFunctions.prequalify_farmer
 }
+
 
 def execute_kaani_function(function_name, **kwargs):
     """Execute a KaAni function by name"""

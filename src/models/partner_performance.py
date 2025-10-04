@@ -1,9 +1,10 @@
 from src.models.user import db
 from datetime import datetime
 
+
 class PartnerPerformance(db.Model):
     __tablename__ = 'partner_performance'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     partner_id = db.Column(db.Integer, db.ForeignKey('partner.id'), nullable=False)
     metric_name = db.Column(db.String(100), nullable=False)
@@ -12,7 +13,7 @@ class PartnerPerformance(db.Model):
     period_end = db.Column(db.Date, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -24,4 +25,3 @@ class PartnerPerformance(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
-

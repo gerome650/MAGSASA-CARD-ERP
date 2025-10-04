@@ -109,22 +109,23 @@ ROLE_CUSTOMIZATIONS = {
     }
 }
 
+
 class EnhancedKaAniAssistant:
     def __init__(self):
         # Initialize OpenAI with API key
         openai.api_key = os.getenv('OPENAI_API_KEY')
         self.conversations = {}  # Store conversation threads
-        
+
     def get_available_model(self):
         """Get the best available model"""
         # Based on the error, these are the available models
         available_models = ['gpt-4.1-mini', 'gpt-4.1-nano', 'gemini-2.5-flash']
         return available_models[0]  # Use gpt-4.1-mini as primary
-    
+
     def get_or_create_thread(self, user_id, role='farmer'):
         """Get existing conversation thread or create new one"""
         thread_key = f"{user_id}_{role}"
-        
+
         if thread_key not in self.conversations:
             self.conversations[thread_key] = {
                 'id': str(uuid.uuid4()),
@@ -133,19 +134,19 @@ class EnhancedKaAniAssistant:
                 'role': role,
                 'user_id': user_id
             }
-            
+
             # Add initial greeting
             role_config = ROLE_CUSTOMIZATIONS.get(role, ROLE_CUSTOMIZATIONS['farmer'])
             greeting = role_config['greeting']
-            
+
             self.conversations[thread_key]['messages'].append({
                 'role': 'assistant',
                 'content': greeting,
                 'timestamp': datetime.now().isoformat()
             })
-        
+
         return self.conversations[thread_key]
-    
+
     def send_message(self, thread_id, message, role='farmer', user_context=None):
         """Send message to KaAni and get response"""
         try:
@@ -155,26 +156,26 @@ class EnhancedKaAniAssistant:
                 if conv['id'] == thread_id:
                     thread = conv
                     break
-            
+
             if not thread:
                 logger.error(f"Thread {thread_id} not found")
                 return None
-            
+
             # Add user message to thread
             thread['messages'].append({
                 'role': 'user',
                 'content': message,
                 'timestamp': datetime.now().isoformat()
             })
-            
+
             # Prepare role-specific context
             role_config = ROLE_CUSTOMIZATIONS.get(role, ROLE_CUSTOMIZATIONS['farmer'])
-            
+
             # Build conversation messages for API
             api_messages = [
                 {"role": "system", "content": f"{KAANI_SYSTEM_PROMPT}\n\nROLE CONTEXT: {role_config['context']}\nCOMMUNICATION TONE: {role_config['tone']}"}
             ]
-            
+
             # Add conversation history (last 10 messages)
             recent_messages = thread['messages'][-10:]
             for msg in recent_messages:
@@ -183,30 +184,30 @@ class EnhancedKaAniAssistant:
                         "role": msg['role'],
                         "content": msg['content']
                     })
-            
+
             # Add current user message if not already included
             if not any(msg['role'] == 'user' and msg['content'] == message for msg in api_messages[-3:]):
                 api_messages.append({
                     "role": "user",
                     "content": message
                 })
-            
+
             # Check if function calling is needed
             function_data = self.detect_function_call(message, role)
-            
+
             if function_data:
                 # Execute function and add result to context
                 function_result = execute_kaani_function(
                     function_data['function'],
                     **function_data['parameters']
                 )
-                
+
                 # Add function result to messages
                 api_messages.append({
                     "role": "system",
                     "content": f"FUNCTION RESULT for {function_data['function']}: {json.dumps(function_result, indent=2)}\n\nUse this data to provide a comprehensive answer to the user's question."
                 })
-            
+
             # Call OpenAI API (using older version syntax)
             response = openai.ChatCompletion.create(
                 model=self.get_available_model(),
@@ -217,31 +218,31 @@ class EnhancedKaAniAssistant:
                 frequency_penalty=0,
                 presence_penalty=0
             )
-            
+
             # Extract response (older version syntax)
             kaani_response = response['choices'][0]['message']['content']
-            
+
             # Add assistant response to thread
             thread['messages'].append({
                 'role': 'assistant',
                 'content': kaani_response,
                 'timestamp': datetime.now().isoformat()
             })
-            
+
             # Keep only last 50 messages to manage memory
             if len(thread['messages']) > 50:
                 thread['messages'] = thread['messages'][-50:]
-            
+
             return kaani_response
-            
+
         except Exception as e:
             logger.error(f"Error in send_message: {e}")
             return None
-    
+
     def detect_function_call(self, message, role):
         """Detect if a message requires function calling"""
         message_lower = message.lower()
-        
+
         # Function detection patterns
         patterns = {
             'get_farmer_profile': [
@@ -269,7 +270,7 @@ class EnhancedKaAniAssistant:
                 r'agscore', r'qualification', r'loan application', r'assess farmer'
             ]
         }
-        
+
         # Check for function patterns
         for function_name, pattern_list in patterns.items():
             for pattern in pattern_list:
@@ -280,21 +281,21 @@ class EnhancedKaAniAssistant:
                         'function': function_name,
                         'parameters': parameters
                     }
-        
+
         return None
-    
+
     def extract_parameters(self, message, function_name):
         """Extract parameters from message for function calling"""
         parameters = {}
         message_lower = message.lower()
-        
+
         # Extract common parameters
         if function_name == 'calculate_input_needs':
             # Look for farm size
             size_match = re.search(r'(\d+(?:\.\d+)?)\s*(?:hectare|ha|ektarya)', message_lower)
             if size_match:
                 parameters['farm_size'] = float(size_match.group(1))
-            
+
             # Look for crop type
             if any(crop in message_lower for crop in ['rice', 'palay']):
                 parameters['crop_type'] = 'rice'
@@ -302,26 +303,26 @@ class EnhancedKaAniAssistant:
                 parameters['crop_type'] = 'corn'
             elif any(crop in message_lower for crop in ['vegetable', 'gulay']):
                 parameters['crop_type'] = 'vegetables'
-        
+
         elif function_name == 'get_seasonal_recommendations':
             # Extract crop type
             if any(crop in message_lower for crop in ['rice', 'palay']):
                 parameters['crop_type'] = 'rice'
             elif any(crop in message_lower for crop in ['corn', 'mais']):
                 parameters['crop_type'] = 'corn'
-        
+
         elif function_name == 'prequalify_farmer':
             # Extract farmer details from message
             # Look for name
             name_match = re.search(r'(?:farmer|name|pangalan)\s*:?\s*([a-zA-Z\s]+)', message_lower)
             if name_match:
                 parameters['farmer_name'] = name_match.group(1).strip().title()
-            
+
             # Look for location
             location_match = re.search(r'(?:location|lugar|address)\s*:?\s*([a-zA-Z\s,]+)', message_lower)
             if location_match:
                 parameters['location'] = location_match.group(1).strip().title()
-            
+
             # Look for crop
             if any(crop in message_lower for crop in ['rice', 'palay']):
                 parameters['crop'] = 'rice'
@@ -329,20 +330,20 @@ class EnhancedKaAniAssistant:
                 parameters['crop'] = 'corn'
             elif any(crop in message_lower for crop in ['vegetable', 'gulay']):
                 parameters['crop'] = 'vegetables'
-            
+
             # Look for land size
             size_match = re.search(r'(\d+(?:\.\d+)?)\s*(?:hectare|ha|ektarya)', message_lower)
             if size_match:
                 parameters['land_size_ha'] = float(size_match.group(1))
-            
+
             # Look for loan amount
             amount_match = re.search(r'(?:loan|amount|halaga)\s*:?\s*(?:php\s*)?(\d+(?:,\d+)*)', message_lower)
             if amount_match:
                 amount_str = amount_match.group(1).replace(',', '')
                 parameters['loan_amount_requested'] = float(amount_str)
-        
+
         return parameters
-    
+
     def get_conversation_history(self, thread_id):
         """Get conversation history for a thread"""
         for conv in self.conversations.values():
@@ -350,8 +351,10 @@ class EnhancedKaAniAssistant:
                 return conv['messages']
         return []
 
+
 # Initialize the enhanced assistant
 kaani_enhanced = EnhancedKaAniAssistant()
+
 
 @kaani_enhanced_bp.route('/api/kaani/chat', methods=['POST'])
 def enhanced_chat():
@@ -360,17 +363,17 @@ def enhanced_chat():
         data = request.get_json()
         message = data.get('message', '')
         role = data.get('role', 'farmer')
-        
+
         if not message:
             return jsonify({'error': 'Message is required'}), 400
-        
+
         # Get user info from session
         user_id = session.get('user_id', 'anonymous')
         user_name = session.get('user_name', 'User')
-        
+
         # Get or create conversation thread
         thread = kaani_enhanced.get_or_create_thread(user_id, role)
-        
+
         # Send message to KaAni
         response = kaani_enhanced.send_message(
             thread_id=thread['id'],
@@ -378,13 +381,13 @@ def enhanced_chat():
             role=role,
             user_context=f"User: {user_name} (Role: {role})"
         )
-        
+
         if not response:
             return jsonify({'error': 'Failed to get response from KaAni'}), 500
-        
+
         # Log the interaction
         logger.info(f"Enhanced KaAni - User: {user_name} ({role}), Message: {message[:50]}...")
-        
+
         return jsonify({
             'success': True,
             'response': response,
@@ -393,10 +396,11 @@ def enhanced_chat():
             'role': role,
             'conversation_length': len(thread['messages'])
         })
-        
+
     except Exception as e:
         logger.error(f"Error in enhanced chat endpoint: {e}")
         return jsonify({'error': 'Internal server error'}), 500
+
 
 @kaani_enhanced_bp.route('/api/kaani/quick-advice', methods=['POST'])
 def enhanced_quick_advice():
@@ -405,7 +409,7 @@ def enhanced_quick_advice():
         data = request.get_json()
         category = data.get('category', '')
         role = data.get('role', 'farmer')
-        
+
         # Role-specific quick advice prompts
         quick_prompts = {
             'farmer': {
@@ -413,45 +417,40 @@ def enhanced_quick_advice():
                 'weather': 'Ate, anong dapat gawin kapag maulan ngayong season? Paano ko ma-protect ang crops ko?',
                 'pests': 'Kuya, anong mga peste ang dapat bantayan ngayong buwan sa palay? Paano ko sila mapipigilan?',
                 'crops': 'Ate, kailan ang best time para magtanim ng gulay? Anong varieties ang maganda?',
-                'finance': 'Kuya, paano ko ma-budget ang gastos sa farming? Anong mga tips para sa pera?'
-            },
+                'finance': 'Kuya, paano ko ma-budget ang gastos sa farming? Anong mga tips para sa pera?'},
             'officer': {
                 'assessment': 'What factors should I evaluate when conducting a farm assessment for loan applications?',
                 'agscore': 'Guide me through calculating AgScore for a farmer loan application. What criteria are most important?',
                 'risk': 'What are the main agricultural risks I should assess for loan evaluation?',
-                'documentation': 'What documentation and evidence should I collect during farm visits?'
-            },
+                'documentation': 'What documentation and evidence should I collect during farm visits?'},
             'manager': {
                 'portfolio': 'What agricultural factors should I consider for portfolio risk management?',
                 'approval': 'What agricultural criteria should guide loan approval decisions?',
-                'monitoring': 'How should I monitor agricultural loan performance and farmer success?'
-            },
+                'monitoring': 'How should I monitor agricultural loan performance and farmer success?'},
             'admin': {
                 'strategy': 'What strategic opportunities exist in agricultural lending in the Philippines?',
                 'market': 'What are the current market trends in agricultural finance?',
-                'expansion': 'How can we expand our agricultural lending portfolio effectively?'
-            }
-        }
-        
+                'expansion': 'How can we expand our agricultural lending portfolio effectively?'}}
+
         role_prompts = quick_prompts.get(role, quick_prompts['farmer'])
         message = role_prompts.get(category, 'Magbigay ng general farming advice.')
-        
+
         # Get user info
         user_id = session.get('user_id', 'anonymous')
-        
+
         # Get or create thread
         thread = kaani_enhanced.get_or_create_thread(user_id, role)
-        
+
         # Get response from KaAni
         response = kaani_enhanced.send_message(
             thread_id=thread['id'],
             message=message,
             role=role
         )
-        
+
         if not response:
             return jsonify({'error': 'Failed to get quick advice'}), 500
-        
+
         return jsonify({
             'success': True,
             'response': response,
@@ -459,10 +458,11 @@ def enhanced_quick_advice():
             'role': role,
             'timestamp': datetime.now().isoformat()
         })
-        
+
     except Exception as e:
         logger.error(f"Error in enhanced quick advice endpoint: {e}")
         return jsonify({'error': 'Internal server error'}), 500
+
 
 @kaani_enhanced_bp.route('/api/kaani/conversation-history', methods=['GET'])
 def enhanced_conversation_history():
@@ -470,9 +470,9 @@ def enhanced_conversation_history():
     try:
         user_id = session.get('user_id', 'anonymous')
         role = request.args.get('role', 'farmer')
-        
+
         thread = kaani_enhanced.get_or_create_thread(user_id, role)
-        
+
         return jsonify({
             'success': True,
             'conversation': thread['messages'],
@@ -480,17 +480,18 @@ def enhanced_conversation_history():
             'role': role,
             'created_at': thread['created_at']
         })
-        
+
     except Exception as e:
         logger.error(f"Error getting conversation history: {e}")
         return jsonify({'error': 'Internal server error'}), 500
+
 
 @kaani_enhanced_bp.route('/api/kaani/status', methods=['GET'])
 def enhanced_status():
     """Enhanced KaAni status with model information"""
     try:
         user_role = session.get('user', {}).get('role', 'farmer')
-        
+
         return jsonify({
             'status': 'active',
             'version': 'enhanced_v1.0',
@@ -506,7 +507,7 @@ def enhanced_status():
             },
             'active_conversations': len(kaani_enhanced.conversations)
         })
-        
+
     except Exception as e:
         return jsonify({
             'status': 'error',

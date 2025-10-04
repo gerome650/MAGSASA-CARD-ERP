@@ -15,27 +15,28 @@ logger = logging.getLogger(__name__)
 
 prequalification_bp = Blueprint('prequalification', __name__, url_prefix='/api/prequalification')
 
+
 @prequalification_bp.route('/assess', methods=['POST'])
 def assess_farmer():
     """Assess farmer for loan pre-qualification using KaAni"""
     try:
         data = request.get_json()
-        
+
         # Required fields
         required_fields = ['farmer_name', 'location', 'crop', 'land_size_ha', 'loan_amount_requested']
         missing_fields = [field for field in required_fields if not data.get(field)]
-        
+
         if missing_fields:
             return jsonify({
                 'error': f'Missing required fields: {", ".join(missing_fields)}',
                 'required_fields': required_fields
             }), 400
-        
+
         # Get user info for audit trail
         user_id = session.get('user_id', 'anonymous')
         user_name = session.get('user_name', 'Unknown')
         user_role = session.get('user', {}).get('role', 'officer')
-        
+
         # Execute pre-qualification assessment
         assessment_result = execute_kaani_function(
             'prequalify_farmer',
@@ -45,13 +46,13 @@ def assess_farmer():
             land_size_ha=data['land_size_ha'],
             loan_amount_requested=data['loan_amount_requested']
         )
-        
+
         if 'error' in assessment_result:
             return jsonify({
                 'error': 'Assessment failed',
                 'details': assessment_result['error']
             }), 500
-        
+
         # Add audit information
         assessment_result.update({
             'assessed_by': user_name,
@@ -59,15 +60,16 @@ def assess_farmer():
             'assessor_role': user_role,
             'assessment_timestamp': datetime.now().isoformat()
         })
-        
+
         # Log the assessment
-        logger.info(f"Pre-qualification assessment - Officer: {user_name}, Farmer: {data['farmer_name']}, Status: {assessment_result.get('status')}")
-        
+        logger.info(
+            f"Pre-qualification assessment - Officer: {user_name}, Farmer: {data['farmer_name']}, Status: {assessment_result.get('status')}")
+
         return jsonify({
             'success': True,
             'assessment': assessment_result
         })
-        
+
     except Exception as e:
         logger.error(f"Error in farmer assessment: {e}")
         return jsonify({
@@ -75,32 +77,33 @@ def assess_farmer():
             'details': str(e)
         }), 500
 
+
 @prequalification_bp.route('/batch-assess', methods=['POST'])
 def batch_assess_farmers():
     """Batch assess multiple farmers for pre-qualification"""
     try:
         data = request.get_json()
         farmers = data.get('farmers', [])
-        
+
         if not farmers:
             return jsonify({'error': 'No farmers provided for assessment'}), 400
-        
+
         if len(farmers) > 50:
             return jsonify({'error': 'Maximum 50 farmers allowed per batch'}), 400
-        
+
         # Get user info
         user_id = session.get('user_id', 'anonymous')
         user_name = session.get('user_name', 'Unknown')
         user_role = session.get('user', {}).get('role', 'officer')
-        
+
         results = []
-        
+
         for i, farmer_data in enumerate(farmers):
             try:
                 # Validate required fields
                 required_fields = ['farmer_name', 'location', 'crop', 'land_size_ha', 'loan_amount_requested']
                 missing_fields = [field for field in required_fields if not farmer_data.get(field)]
-                
+
                 if missing_fields:
                     results.append({
                         'farmer_index': i,
@@ -109,7 +112,7 @@ def batch_assess_farmers():
                         'status': 'Error'
                     })
                     continue
-                
+
                 # Execute assessment
                 assessment_result = execute_kaani_function(
                     'prequalify_farmer',
@@ -119,7 +122,7 @@ def batch_assess_farmers():
                     land_size_ha=farmer_data['land_size_ha'],
                     loan_amount_requested=farmer_data['loan_amount_requested']
                 )
-                
+
                 if 'error' in assessment_result:
                     results.append({
                         'farmer_index': i,
@@ -137,7 +140,7 @@ def batch_assess_farmers():
                         'assessment_timestamp': datetime.now().isoformat()
                     })
                     results.append(assessment_result)
-                
+
             except Exception as e:
                 results.append({
                     'farmer_index': i,
@@ -145,14 +148,14 @@ def batch_assess_farmers():
                     'error': str(e),
                     'status': 'Error'
                 })
-        
+
         # Summary statistics
         total_farmers = len(results)
         pre_qualified = len([r for r in results if r.get('status') == 'Pre-qualified'])
         needs_info = len([r for r in results if r.get('status') == 'Needs More Info'])
         not_qualified = len([r for r in results if r.get('status') == 'Not Qualified'])
         errors = len([r for r in results if r.get('status') == 'Error'])
-        
+
         summary = {
             'total_farmers': total_farmers,
             'pre_qualified': pre_qualified,
@@ -161,22 +164,24 @@ def batch_assess_farmers():
             'errors': errors,
             'success_rate': round((total_farmers - errors) / total_farmers * 100, 1) if total_farmers > 0 else 0
         }
-        
-        logger.info(f"Batch assessment - Officer: {user_name}, Farmers: {total_farmers}, Pre-qualified: {pre_qualified}")
-        
+
+        logger.info(
+            f"Batch assessment - Officer: {user_name}, Farmers: {total_farmers}, Pre-qualified: {pre_qualified}")
+
         return jsonify({
             'success': True,
             'summary': summary,
             'results': results,
             'batch_timestamp': datetime.now().isoformat()
         })
-        
+
     except Exception as e:
         logger.error(f"Error in batch assessment: {e}")
         return jsonify({
             'error': 'Internal server error during batch assessment',
             'details': str(e)
         }), 500
+
 
 @prequalification_bp.route('/templates', methods=['GET'])
 def get_assessment_templates():
@@ -223,12 +228,12 @@ def get_assessment_templates():
                 'location': 'Areas with good agricultural infrastructure score higher'
             }
         }
-        
+
         return jsonify({
             'success': True,
             'templates': templates
         })
-        
+
     except Exception as e:
         logger.error(f"Error getting templates: {e}")
         return jsonify({
@@ -236,16 +241,17 @@ def get_assessment_templates():
             'details': str(e)
         }), 500
 
+
 @prequalification_bp.route('/status', methods=['GET'])
 def prequalification_status():
     """Get pre-qualification service status"""
     try:
         user_role = session.get('user', {}).get('role', 'farmer')
-        
+
         # Check if user has access to pre-qualification features
         authorized_roles = ['officer', 'manager', 'admin', 'superadmin']
         has_access = user_role in authorized_roles
-        
+
         return jsonify({
             'status': 'active',
             'user_role': user_role,
@@ -261,7 +267,7 @@ def prequalification_status():
                 'assessment_timeout': 30
             }
         })
-        
+
     except Exception as e:
         return jsonify({
             'status': 'error',

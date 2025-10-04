@@ -6,9 +6,10 @@ Comprehensive order management with farmer and product relationships
 from datetime import datetime
 from .user import db
 
+
 class Order(db.Model):
     __tablename__ = 'orders'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     farmer_id = db.Column(db.Integer, db.ForeignKey('farmers.id'), nullable=False)
     order_number = db.Column(db.String(50), unique=True, nullable=False)
@@ -25,11 +26,11 @@ class Order(db.Model):
     created_by = db.Column(db.String(100))  # CARD MRI officer name
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Relationships
     farmer = db.relationship('Farmer', backref='orders')
     order_items = db.relationship('OrderItem', backref='order', cascade='all, delete-orphan')
-    
+
     # Order status options
     STATUS_OPTIONS = [
         'Pending',
@@ -40,7 +41,7 @@ class Order(db.Model):
         'Delivered',
         'Canceled'
     ]
-    
+
     # Payment status options
     PAYMENT_STATUS_OPTIONS = [
         'Pending',
@@ -48,10 +49,10 @@ class Order(db.Model):
         'Failed',
         'Refunded'
     ]
-    
+
     def __repr__(self):
         return f'<Order {self.order_number}: {self.farmer.name if self.farmer else "Unknown"}>'
-    
+
     def to_dict(self):
         """Convert order to dictionary for JSON serialization"""
         return {
@@ -78,7 +79,7 @@ class Order(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
-    
+
     def to_summary_dict(self):
         """Convert order to summary dictionary (without items)"""
         return {
@@ -95,25 +96,25 @@ class Order(db.Model):
             'created_by': self.created_by,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
-    
+
     @classmethod
     def generate_order_number(cls):
         """Generate a unique order number"""
         import random
         import string
-        
+
         # Format: AGS-YYYYMMDD-XXXX
         date_str = datetime.now().strftime('%Y%m%d')
         random_str = ''.join(random.choices(string.digits, k=4))
         order_number = f"AGS-{date_str}-{random_str}"
-        
+
         # Check if order number already exists
         while cls.query.filter_by(order_number=order_number).first():
             random_str = ''.join(random.choices(string.digits, k=4))
             order_number = f"AGS-{date_str}-{random_str}"
-        
+
         return order_number
-    
+
     def calculate_totals(self):
         """Calculate and update totals from order items"""
         if self.order_items:
@@ -125,7 +126,7 @@ class Order(db.Model):
             self.total_cost = 0.0
             self.total_margin = 0.0
         return self.total_amount
-    
+
     def update_status(self, new_status, notes=None):
         """Update order status with optional notes"""
         if new_status in self.STATUS_OPTIONS:
@@ -135,22 +136,22 @@ class Order(db.Model):
             self.updated_at = datetime.utcnow()
             return True
         return False
-    
+
     @classmethod
     def get_by_farmer(cls, farmer_id):
         """Get all orders for a specific farmer"""
         return cls.query.filter_by(farmer_id=farmer_id).order_by(cls.order_date.desc()).all()
-    
+
     @classmethod
     def get_by_status(cls, status):
         """Get all orders with a specific status"""
         return cls.query.filter_by(status=status).order_by(cls.order_date.desc()).all()
-    
+
     @classmethod
     def get_recent_orders(cls, limit=10):
         """Get recent orders"""
         return cls.query.order_by(cls.order_date.desc()).limit(limit).all()
-    
+
     def get_status_color(self):
         """Get color code for order status"""
         status_colors = {
@@ -167,7 +168,7 @@ class Order(db.Model):
 
 class OrderItem(db.Model):
     __tablename__ = 'order_items'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
@@ -179,13 +180,13 @@ class OrderItem(db.Model):
     margin = db.Column(db.Float, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Relationships
     product = db.relationship('Product', backref='order_items')
-    
+
     def __repr__(self):
         return f'<OrderItem {self.id}: {self.quantity}x Product {self.product_id}>'
-    
+
     def to_dict(self):
         """Convert order item to dictionary for JSON serialization"""
         return {
@@ -205,7 +206,7 @@ class OrderItem(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
-    
+
     @classmethod
     def create_from_cart_item(cls, order_id, cart_item, product):
         """Create an order item from a cart item and product"""
@@ -214,7 +215,7 @@ class OrderItem(db.Model):
         total_price = cart_item['quantity'] * unit_price
         total_cost = cart_item['quantity'] * unit_cost
         margin = total_price - total_cost
-        
+
         return cls(
             order_id=order_id,
             product_id=cart_item['product_id'],
@@ -225,4 +226,3 @@ class OrderItem(db.Model):
             total_cost=total_cost,
             margin=margin
         )
-

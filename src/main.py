@@ -1,43 +1,43 @@
+from src.simple_auth import simple_auth_bp
+from src.routes.health import health_bp
+from src.routes.prequalification import prequalification_bp
+from src.routes.kaani_enhanced import kaani_enhanced_bp
+from src.routes.farmer_loans import farmer_loans_bp
+from src.routes.image_upload import image_bp
+from src.routes.auth import auth_bp
+from src.routes.financial import financial_bp
+from src.routes.partnership import partnership_bp
+from src.routes.farmer_orders import farmer_orders_bp
+from src.routes.supplier import supplier_bp
+from src.routes.category import category_bp
+from src.routes.reports import reports_bp
+from src.routes.analytics import analytics_bp
+from src.routes.dashboard import dashboard_bp
+from src.routes.partner import partner_bp
+from src.routes.order import order_bp
+from src.routes.product import product_bp
+from src.routes.farmer import farmer_bp
+from src.routes.user import user_bp
+from src.models.order import Order, OrderItem
+from src.models.partner import Partner
+from src.models.product import Product
+from src.models.supplier import Supplier
+from src.models.category import Category
+from src.models.farmer import Farmer
+from src.database import db
+from observability.logging.structured_logger import get_logger, configure_root_logger
+from observability.tracing.otel_tracer import init_tracing, get_tracer
+from observability.metrics.metrics_middleware import MetricsMiddleware
+from flask_cors import CORS
+from flask import Flask, send_from_directory, redirect, session
 import os
 import sys
 import time
 # DON'T CHANGE THIS !!!
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from flask import Flask, send_from_directory, redirect, session
-from flask_cors import CORS
 
 # Observability imports
-from observability.metrics.metrics_middleware import MetricsMiddleware
-from observability.tracing.otel_tracer import init_tracing, get_tracer
-from observability.logging.structured_logger import get_logger, configure_root_logger
-from src.database import db
-from src.models.farmer import Farmer
-from src.models.category import Category
-from src.models.supplier import Supplier
-from src.models.product import Product
-from src.models.partner import Partner
-from src.models.order import Order, OrderItem
-from src.routes.user import user_bp
-from src.routes.farmer import farmer_bp
-from src.routes.product import product_bp
-from src.routes.order import order_bp
-from src.routes.partner import partner_bp
-from src.routes.dashboard import dashboard_bp
-from src.routes.analytics import analytics_bp
-from src.routes.reports import reports_bp
-from src.routes.category import category_bp
-from src.routes.supplier import supplier_bp
-from src.routes.farmer_orders import farmer_orders_bp
-from src.routes.partnership import partnership_bp
-from src.routes.financial import financial_bp
-from src.routes.auth import auth_bp
-from src.routes.image_upload import image_bp
-from src.routes.farmer_loans import farmer_loans_bp
-from src.routes.kaani_enhanced import kaani_enhanced_bp
-from src.routes.prequalification import prequalification_bp
-from src.routes.health import health_bp
-from src.simple_auth import simple_auth_bp
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 app.config['SECRET_KEY'] = 'asdf#FGSgvasgf$5$WGT'
@@ -58,7 +58,7 @@ MetricsMiddleware(app)
 # Tracing: Auto-instruments Flask, SQLAlchemy, and HTTP requests
 otlp_endpoint = os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', None)
 init_tracing(
-    app, 
+    app,
     service_name=os.getenv('OTEL_SERVICE_NAME', 'magsasa-card-erp'),
     otlp_endpoint=otlp_endpoint,
     console_export=os.getenv('OTEL_CONSOLE_EXPORT', 'False').lower() in ('true', '1', 'yes')
@@ -94,6 +94,8 @@ app.register_blueprint(prequalification_bp)  # Pre-qualification assessment API
 app.register_blueprint(health_bp)  # Health check endpoints for monitoring and chaos engineering
 
 # Add root route handler
+
+
 @app.route('/')
 def index():
     """Root route - redirect to appropriate dashboard based on login status"""
@@ -106,35 +108,43 @@ def index():
             return redirect('/login.html')
 
 # Role-specific dashboard routes
+
+
 @app.route('/admin')
 def admin_dashboard():
     """Admin dashboard"""
     return send_from_directory(app.static_folder, 'index.html')
+
 
 @app.route('/manager')
 def manager_dashboard():
     """Manager dashboard"""
     return send_from_directory(app.static_folder, 'manager_dashboard.html')
 
+
 @app.route('/officer')
 def officer_dashboard():
     """Officer dashboard"""
     return send_from_directory(app.static_folder, 'enhanced_officer_dashboard.html')
+
 
 @app.route('/farmer')
 def farmer_dashboard():
     """Farmer dashboard"""
     return send_from_directory(app.static_folder, 'farmer_dashboard.html')
 
+
 @app.route('/farmer/loans/demo')
 def farmer_loans_demo():
     """Demo page for farmer loan tracking features"""
     return send_from_directory(app.static_folder, 'farmer_loans_demo.html')
 
+
 @app.route('/officer/enhanced')
 def enhanced_officer_dashboard():
     """Enhanced field officer dashboard with offline capabilities"""
     return send_from_directory(app.static_folder, 'enhanced_officer_dashboard.html')
+
 
 @app.route('/officer/offline-demo')
 def offline_sync_demo():
@@ -142,12 +152,16 @@ def offline_sync_demo():
     return send_from_directory(app.static_folder, 'offline_sync_demo.html')
 
 # Simple test endpoint
+
+
 @app.route('/api/test')
 def test_endpoint():
     """Simple test endpoint"""
     return {'message': 'test works'}, 200
 
 # Health check endpoint for monitoring and chaos testing
+
+
 @app.route('/api/health')
 def health_check():
     """Health check endpoint for monitoring and chaos testing"""
@@ -166,7 +180,7 @@ def health_check():
             except Exception as db_error:
                 db_status = f'error: {str(db_error)}'
                 logger.error("Database health check failed", error=str(db_error))
-            
+
             response = {
                 'status': 'healthy',
                 'timestamp': time.time(),
@@ -186,10 +200,13 @@ def health_check():
             }, 503
 
 # Serve static files
+
+
 @app.route('/<path:filename>')
 def serve_static(filename):
     """Serve static files"""
     return send_from_directory(app.static_folder, filename)
+
 
 # uncomment if you need to use database
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'agsense.db')}"
@@ -206,16 +223,16 @@ if __name__ == '__main__':
     # Default to secure values: localhost binding and debug off
     flask_host = os.getenv('FLASK_HOST', '127.0.0.1')
     flask_debug = os.getenv('FLASK_DEBUG', 'False').lower() in ('true', '1', 'yes')
-    
+
     # Port configuration with environment variable support
     # Default to 8000 for consistency with chaos testing, fallback to 5001 for backward compatibility
     flask_port = int(os.getenv('APP_PORT', os.getenv('FLASK_PORT', '8000')))
-    
+
     print(f"🚀 Starting Flask application on {flask_host}:{flask_port}")
     print(f"   Health endpoint: http://{flask_host}:{flask_port}/api/health")
     print(f"   Metrics endpoint: http://{flask_host}:{flask_port}/metrics")
     print(f"   Set APP_PORT environment variable to change port")
-    
+
     logger.info(
         "Application configuration",
         host=flask_host,
@@ -223,7 +240,7 @@ if __name__ == '__main__':
         debug=flask_debug,
         environment=os.getenv('ENVIRONMENT', 'development')
     )
-    
+
     # Note: For Docker/load testing, set FLASK_HOST=0.0.0.0 in environment
     # This avoids hardcoding bind-all-interfaces (Bandit B104)
     app.run(host=flask_host, port=flask_port, debug=flask_debug)  # nosec B104

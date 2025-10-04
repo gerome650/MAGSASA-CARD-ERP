@@ -12,6 +12,7 @@ from src.routes.auth import require_permission, require_auth
 
 reports_bp = Blueprint('reports', __name__)
 
+
 @reports_bp.route('/reports/sales-summary', methods=['GET'])
 @require_permission('analytics_reports_read')
 def generate_sales_summary():
@@ -19,18 +20,18 @@ def generate_sales_summary():
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
         format_type = request.args.get('format', 'json')  # json or csv
-        
+
         # Parse dates
         if start_date:
             start_date = datetime.fromisoformat(start_date)
         else:
             start_date = datetime.utcnow() - timedelta(days=30)
-            
+
         if end_date:
             end_date = datetime.fromisoformat(end_date)
         else:
             end_date = datetime.utcnow()
-        
+
         # Get sales data
         sales_data = db.session.query(
             Order.id,
@@ -50,18 +51,18 @@ def generate_sales_summary():
         ).filter(
             and_(Order.created_at >= start_date, Order.created_at <= end_date)
         ).order_by(desc(Order.created_at)).all()
-        
+
         if format_type == 'csv':
             # Generate CSV
             output = io.StringIO()
             writer = csv.writer(output)
-            
+
             # Write header
             writer.writerow([
                 'Order ID', 'Order Number', 'Date', 'Farmer Name', 'Location',
                 'Total Amount', 'Total Cost', 'Total Margin', 'Status', 'Partner'
             ])
-            
+
             # Write data
             for row in sales_data:
                 writer.writerow([
@@ -76,7 +77,7 @@ def generate_sales_summary():
                     row.status,
                     row.partner_name or 'N/A'
                 ])
-            
+
             output.seek(0)
             return send_file(
                 io.BytesIO(output.getvalue().encode()),
@@ -84,16 +85,16 @@ def generate_sales_summary():
                 as_attachment=True,
                 download_name=f'sales_summary_{start_date.strftime("%Y%m%d")}_{end_date.strftime("%Y%m%d")}.csv'
             )
-        
+
         # Return JSON format
         summary_data = []
         total_revenue = 0
         total_margin = 0
-        
+
         for row in sales_data:
             total_revenue += row.total_amount
             total_margin += row.total_margin
-            
+
             summary_data.append({
                 'order_id': row.id,
                 'order_number': row.order_number,
@@ -106,7 +107,7 @@ def generate_sales_summary():
                 'status': row.status,
                 'partner_name': row.partner_name
             })
-        
+
         return jsonify({
             'summary': {
                 'total_orders': len(sales_data),
@@ -119,16 +120,17 @@ def generate_sales_summary():
             },
             'orders': summary_data
         })
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 @reports_bp.route('/reports/inventory-report', methods=['GET'])
 @require_permission('analytics_reports_read')
 def generate_inventory_report():
     try:
         format_type = request.args.get('format', 'json')
-        
+
         # Get inventory data with sales information
         inventory_data = db.session.query(
             Product.id,
@@ -146,23 +148,23 @@ def generate_inventory_report():
         ).outerjoin(
             OrderItem, Product.id == OrderItem.product_id
         ).filter(
-            Product.is_active == True
+            Product.is_active
         ).group_by(
             Product.id
         ).order_by(Product.category, Product.name).all()
-        
+
         if format_type == 'csv':
             # Generate CSV
             output = io.StringIO()
             writer = csv.writer(output)
-            
+
             # Write header
             writer.writerow([
                 'Product ID', 'Name', 'Category', 'Brand', 'Unit', 'Cost Price',
                 'Selling Price', 'Margin %', 'Current Stock', 'Low Stock Threshold',
                 'Total Sold', 'Total Revenue', 'Stock Status'
             ])
-            
+
             # Write data
             for row in inventory_data:
                 stock_status = 'Low Stock' if row.stock_quantity <= row.low_stock_threshold else 'Normal'
@@ -181,7 +183,7 @@ def generate_inventory_report():
                     row.total_revenue or 0,
                     stock_status
                 ])
-            
+
             output.seek(0)
             return send_file(
                 io.BytesIO(output.getvalue().encode()),
@@ -189,20 +191,20 @@ def generate_inventory_report():
                 as_attachment=True,
                 download_name=f'inventory_report_{datetime.now().strftime("%Y%m%d")}.csv'
             )
-        
+
         # Return JSON format
         report_data = []
         low_stock_count = 0
         total_inventory_value = 0
-        
+
         for row in inventory_data:
             stock_status = 'Low Stock' if row.stock_quantity <= row.low_stock_threshold else 'Normal'
             if stock_status == 'Low Stock':
                 low_stock_count += 1
-            
+
             inventory_value = row.stock_quantity * row.cost_price
             total_inventory_value += inventory_value
-            
+
             report_data.append({
                 'product_id': row.id,
                 'name': row.name,
@@ -219,7 +221,7 @@ def generate_inventory_report():
                 'stock_status': stock_status,
                 'inventory_value': inventory_value
             })
-        
+
         return jsonify({
             'summary': {
                 'total_products': len(report_data),
@@ -229,16 +231,17 @@ def generate_inventory_report():
             },
             'products': report_data
         })
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 @reports_bp.route('/reports/farmer-analysis', methods=['GET'])
 @require_permission('analytics_reports_read')
 def generate_farmer_analysis():
     try:
         format_type = request.args.get('format', 'json')
-        
+
         # Get farmer data with order statistics
         farmer_data = db.session.query(
             Farmer.id,
@@ -259,19 +262,19 @@ def generate_farmer_analysis():
         ).group_by(
             Farmer.id
         ).order_by(Farmer.location, Farmer.name).all()
-        
+
         if format_type == 'csv':
             # Generate CSV
             output = io.StringIO()
             writer = csv.writer(output)
-            
+
             # Write header
             writer.writerow([
                 'Farmer ID', 'Name', 'Location', 'Barangay', 'Crop Type', 'Land Size (ha)',
                 'AgScore', 'Loan Status', 'Loan Amount', 'Total Orders', 'Total Spent',
                 'Avg Order Value', 'Last Order Date'
             ])
-            
+
             # Write data
             for row in farmer_data:
                 writer.writerow([
@@ -289,7 +292,7 @@ def generate_farmer_analysis():
                     row.avg_order_value or 0,
                     row.last_order_date.strftime('%Y-%m-%d') if row.last_order_date else 'Never'
                 ])
-            
+
             output.seek(0)
             return send_file(
                 io.BytesIO(output.getvalue().encode()),
@@ -297,19 +300,19 @@ def generate_farmer_analysis():
                 as_attachment=True,
                 download_name=f'farmer_analysis_{datetime.now().strftime("%Y%m%d")}.csv'
             )
-        
+
         # Return JSON format
         analysis_data = []
         total_farmers = len(farmer_data)
         active_farmers = 0
         total_land_size = 0
-        
+
         for row in farmer_data:
             if row.total_orders and row.total_orders > 0:
                 active_farmers += 1
-            
+
             total_land_size += row.land_size_ha
-            
+
             analysis_data.append({
                 'farmer_id': row.id,
                 'name': row.name,
@@ -325,7 +328,7 @@ def generate_farmer_analysis():
                 'avg_order_value': float(row.avg_order_value or 0),
                 'last_order_date': row.last_order_date.isoformat() if row.last_order_date else None
             })
-        
+
         return jsonify({
             'summary': {
                 'total_farmers': total_farmers,
@@ -336,9 +339,10 @@ def generate_farmer_analysis():
             },
             'farmers': analysis_data
         })
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 @reports_bp.route('/reports/financial-summary', methods=['GET'])
 @require_permission('analytics_reports_read')
@@ -346,18 +350,18 @@ def generate_financial_summary():
     try:
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
-        
+
         # Parse dates
         if start_date:
             start_date = datetime.fromisoformat(start_date)
         else:
             start_date = datetime.utcnow() - timedelta(days=30)
-            
+
         if end_date:
             end_date = datetime.fromisoformat(end_date)
         else:
             end_date = datetime.utcnow()
-        
+
         # Get financial summary
         financial_stats = db.session.query(
             func.sum(Order.total_amount).label('total_revenue'),
@@ -368,7 +372,7 @@ def generate_financial_summary():
         ).filter(
             and_(Order.created_at >= start_date, Order.created_at <= end_date)
         ).first()
-        
+
         # Get daily breakdown
         daily_stats = db.session.query(
             func.date(Order.created_at).label('date'),
@@ -380,7 +384,7 @@ def generate_financial_summary():
         ).group_by(
             func.date(Order.created_at)
         ).order_by('date').all()
-        
+
         daily_breakdown = []
         for stat in daily_stats:
             daily_breakdown.append({
@@ -389,7 +393,7 @@ def generate_financial_summary():
                 'margin': float(stat.margin),
                 'orders': stat.orders
             })
-        
+
         summary_data = {
             'period': {
                 'start_date': start_date.isoformat(),
@@ -407,9 +411,8 @@ def generate_financial_summary():
             },
             'daily_breakdown': daily_breakdown
         }
-        
+
         return jsonify(summary_data)
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-

@@ -12,6 +12,7 @@ from src.routes.auth import require_permission, require_auth
 
 product_bp = Blueprint('product', __name__)
 
+
 @product_bp.route('/products', methods=['GET'])
 def get_products():
     """Get all products with optional filtering and pagination"""
@@ -24,19 +25,19 @@ def get_products():
         status = request.args.get('status')
         search = request.args.get('search')
         stock_status = request.args.get('stock_status')
-        
+
         query = Product.query
-        
+
         # Apply filters
         if category_id:
             query = query.filter_by(category_id=category_id)
-        
+
         if supplier_id:
             query = query.filter_by(supplier_id=supplier_id)
-        
+
         if status:
             query = query.filter_by(status=status)
-        
+
         if search:
             search_pattern = f"%{search}%"
             query = query.filter(
@@ -46,7 +47,7 @@ def get_products():
                     Product.brand.ilike(search_pattern)
                 )
             )
-        
+
         if stock_status:
             if stock_status == 'low_stock':
                 query = query.filter(Product.stock_on_hand <= Product.reorder_point)
@@ -54,14 +55,14 @@ def get_products():
                 query = query.filter(Product.stock_on_hand <= 0)
             elif stock_status == 'in_stock':
                 query = query.filter(Product.stock_on_hand > Product.reorder_point)
-        
+
         # Paginate results
         pagination = query.paginate(
             page=page, per_page=per_page, error_out=False
         )
-        
+
         products = pagination.items
-        
+
         return jsonify({
             'products': [product.to_dict() for product in products],
             'pagination': {
@@ -76,6 +77,7 @@ def get_products():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
 @product_bp.route('/products/<int:product_id>', methods=['GET'])
 @require_permission('product_catalog_read')
 def get_product(product_id):
@@ -86,33 +88,34 @@ def get_product(product_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
 @product_bp.route('/products', methods=['POST'])
 @require_permission('product_catalog_create')
 def create_product():
     """Create a new product"""
     try:
         data = request.get_json()
-        
+
         # Validate required fields
         required_fields = ['sku', 'name', 'category_id', 'supplier_id', 'uom', 'cost_price', 'selling_price']
         for field in required_fields:
             if not data.get(field):
                 return jsonify({'error': f'{field} is required'}), 400
-        
+
         # Check if SKU already exists
         existing = Product.query.filter_by(sku=data['sku']).first()
         if existing:
             return jsonify({'error': 'SKU already exists'}), 400
-        
+
         # Validate category and supplier exist
         category = Category.query.get(data['category_id'])
         if not category:
             return jsonify({'error': 'Invalid category ID'}), 400
-        
+
         supplier = Supplier.query.get(data['supplier_id'])
         if not supplier:
             return jsonify({'error': 'Invalid supplier ID'}), 400
-        
+
         product = Product(
             sku=data['sku'],
             name=data['name'],
@@ -135,10 +138,10 @@ def create_product():
             crop_suitability=data.get('crop_suitability'),
             season_suitability=data.get('season_suitability')
         )
-        
+
         db.session.add(product)
         db.session.commit()
-        
+
         return jsonify({
             'message': 'Product created successfully',
             'product': product.to_dict()
@@ -147,6 +150,7 @@ def create_product():
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+
 @product_bp.route('/products/<int:product_id>', methods=['PUT'])
 @require_permission('product_catalog_update')
 def update_product(product_id):
@@ -154,38 +158,38 @@ def update_product(product_id):
     try:
         product = Product.query.get_or_404(product_id)
         data = request.get_json()
-        
+
         # Check if SKU is being changed and if it already exists
         if 'sku' in data and data['sku'] != product.sku:
             existing = Product.query.filter_by(sku=data['sku']).first()
             if existing:
                 return jsonify({'error': 'SKU already exists'}), 400
-        
+
         # Validate category and supplier if being updated
         if 'category_id' in data:
             category = Category.query.get(data['category_id'])
             if not category:
                 return jsonify({'error': 'Invalid category ID'}), 400
-        
+
         if 'supplier_id' in data:
             supplier = Supplier.query.get(data['supplier_id'])
             if not supplier:
                 return jsonify({'error': 'Invalid supplier ID'}), 400
-        
+
         # Update fields
         updatable_fields = [
-            'sku', 'name', 'description', 'brand', 'category_id', 'uom', 
-            'unit_value', 'image_url', 'thumbnail_url', 'image_filename', 'status', 'supplier_id', 'cost_price', 
+            'sku', 'name', 'description', 'brand', 'category_id', 'uom',
+            'unit_value', 'image_url', 'thumbnail_url', 'image_filename', 'status', 'supplier_id', 'cost_price',
             'selling_price', 'stock_on_hand', 'reorder_point', 'composition',
             'application_rate', 'crop_suitability', 'season_suitability'
         ]
-        
+
         for field in updatable_fields:
             if field in data:
                 setattr(product, field, data[field])
-        
+
         db.session.commit()
-        
+
         return jsonify({
             'message': 'Product updated successfully',
             'product': product.to_dict()
@@ -194,24 +198,26 @@ def update_product(product_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+
 @product_bp.route('/products/<int:product_id>', methods=['DELETE'])
 @require_permission('product_catalog_delete')
 def delete_product(product_id):
     """Delete a product"""
     try:
         product = Product.query.get_or_404(product_id)
-        
+
         # Check if product has orders (future enhancement)
         # if product.order_items:
         #     return jsonify({'error': 'Cannot delete product with existing orders'}), 400
-        
+
         db.session.delete(product)
         db.session.commit()
-        
+
         return jsonify({'message': 'Product deleted successfully'})
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
 
 @product_bp.route('/products/<int:product_id>/stock', methods=['PUT'])
 @require_permission('product_catalog_update')
@@ -220,16 +226,16 @@ def update_stock(product_id):
     try:
         product = Product.query.get_or_404(product_id)
         data = request.get_json()
-        
+
         if 'quantity_change' not in data:
             return jsonify({'error': 'quantity_change is required'}), 400
-        
+
         quantity_change = int(data['quantity_change'])
         reason = data.get('reason', 'Manual Adjustment')
-        
+
         new_stock = product.update_stock(quantity_change, reason)
         db.session.commit()
-        
+
         return jsonify({
             'message': 'Stock updated successfully',
             'new_stock': new_stock,
@@ -238,6 +244,7 @@ def update_stock(product_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
 
 @product_bp.route('/products/low-stock', methods=['GET'])
 @require_permission('product_catalog_read')
@@ -252,6 +259,7 @@ def get_low_stock_products():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
 @product_bp.route('/products/search', methods=['GET'])
 @require_permission('product_catalog_read')
 def search_products():
@@ -260,7 +268,7 @@ def search_products():
         search_term = request.args.get('q', '')
         if not search_term:
             return jsonify({'error': 'Search term is required'}), 400
-        
+
         products = Product.search_products(search_term)
         return jsonify({
             'products': [product.to_dict() for product in products],
@@ -268,6 +276,7 @@ def search_products():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 @product_bp.route('/products/by-category/<int:category_id>', methods=['GET'])
 @require_permission('product_catalog_read')
@@ -282,6 +291,7 @@ def get_products_by_category(category_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
 @product_bp.route('/products/by-supplier/<int:supplier_id>', methods=['GET'])
 @require_permission('product_catalog_read')
 def get_products_by_supplier(supplier_id):
@@ -294,4 +304,3 @@ def get_products_by_supplier(supplier_id):
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-

@@ -6,9 +6,10 @@ Handles supplier information and relationships with products
 from datetime import datetime
 from .user import db
 
+
 class Supplier(db.Model):
     __tablename__ = 'suppliers'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
     contact_person = db.Column(db.String(100))
@@ -22,10 +23,10 @@ class Supplier(db.Model):
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     def __repr__(self):
         return f'<Supplier {self.name}>'
-    
+
     def to_dict(self):
         """Convert supplier to dictionary for JSON serialization"""
         return {
@@ -43,14 +44,13 @@ class Supplier(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
-    
+
     @classmethod
     def get_active_suppliers(cls):
         """Get all active suppliers"""
         return cls.query.filter_by(status='Active').all()
-    
+
     def get_product_count(self):
         """Get the number of products from this supplier"""
         from models.product import Product
         return Product.query.filter_by(supplier_id=self.id).count()
-

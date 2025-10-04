@@ -1,9 +1,10 @@
 from src.models.user import db
 from datetime import datetime
 
+
 class PartnerContract(db.Model):
     __tablename__ = 'partner_contract'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     partner_id = db.Column(db.Integer, db.ForeignKey('partner.id'), nullable=False)
     contract_title = db.Column(db.String(200), nullable=False)
@@ -16,7 +17,7 @@ class PartnerContract(db.Model):
     terms_and_conditions = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -32,4 +33,3 @@ class PartnerContract(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
-
