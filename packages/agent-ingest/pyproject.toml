@@ -31,6 +31,12 @@ dependencies = [
     "agsense-core",
 ]
 
+[tool.uv.sources]
+agsense-core = { workspace = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent_ingest"]
+
 [project.optional-dependencies]
 dev = [
     "pytest>=7.4.0",

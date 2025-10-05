@@ -1,8 +1,8 @@
 """Core contracts and protocols for AgSense agent orchestration."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Union
 from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -26,24 +26,24 @@ class Priority(str, Enum):
 
 class AgentInput(BaseModel):
     """Input contract for agent requests."""
-    
+
     request_id: str = Field(..., description="Unique request identifier")
     agent_type: str = Field(..., description="Type of agent to execute")
-    payload: Dict[str, Any] = Field(..., description="Request payload data")
-    metadata: Optional[Dict[str, Any]] = Field(
-        default=None, 
+    payload: dict[str, Any] = Field(..., description="Request payload data")
+    metadata: dict[str, Any] | None = Field(
+        default=None,
         description="Additional metadata for the request"
     )
     priority: Priority = Field(
-        default=Priority.NORMAL, 
+        default=Priority.NORMAL,
         description="Request priority level"
     )
-    timeout: Optional[int] = Field(
-        default=30, 
+    timeout: int | None = Field(
+        default=30,
         description="Request timeout in seconds"
     )
-    correlation_id: Optional[str] = Field(
-        default=None, 
+    correlation_id: str | None = Field(
+        default=None,
         description="Correlation ID for request tracing"
     )
 
@@ -57,32 +57,32 @@ class AgentInput(BaseModel):
 
 class AgentOutput(BaseModel):
     """Output contract for agent responses."""
-    
+
     request_id: str = Field(..., description="Request identifier")
     agent_type: str = Field(..., description="Type of agent that processed the request")
     status: AgentStatus = Field(..., description="Execution status")
-    result: Optional[Dict[str, Any]] = Field(
-        default=None, 
+    result: dict[str, Any] | None = Field(
+        default=None,
         description="Successful execution result"
     )
-    error: Optional[str] = Field(
-        default=None, 
+    error: str | None = Field(
+        default=None,
         description="Error message if execution failed"
     )
-    error_code: Optional[str] = Field(
-        default=None, 
+    error_code: str | None = Field(
+        default=None,
         description="Error code for programmatic handling"
     )
-    execution_time: Optional[float] = Field(
-        default=None, 
+    execution_time: float | None = Field(
+        default=None,
         description="Execution time in seconds"
     )
-    metadata: Optional[Dict[str, Any]] = Field(
-        default=None, 
+    metadata: dict[str, Any] | None = Field(
+        default=None,
         description="Additional response metadata"
     )
-    correlation_id: Optional[str] = Field(
-        default=None, 
+    correlation_id: str | None = Field(
+        default=None,
         description="Correlation ID for request tracing"
     )
 
@@ -93,11 +93,11 @@ class AgentOutput(BaseModel):
 
 class AgentProtocol(ABC):
     """Abstract base class for all AgSense agents."""
-    
+
     def __init__(self, agent_type: str) -> None:
         """Initialize the agent with its type."""
         self.agent_type = agent_type
-    
+
     @abstractmethod
     async def run(self, data: AgentInput) -> AgentOutput:
         """
@@ -113,7 +113,7 @@ class AgentProtocol(ABC):
             NotImplementedError: Must be implemented by subclasses
         """
         raise NotImplementedError("Subclasses must implement run method")
-    
+
     @abstractmethod
     async def health_check(self) -> bool:
         """
@@ -123,7 +123,7 @@ class AgentProtocol(ABC):
             bool: True if agent is healthy, False otherwise
         """
         raise NotImplementedError("Subclasses must implement health_check method")
-    
+
     @abstractmethod
     async def validate_input(self, data: AgentInput) -> bool:
         """
@@ -136,8 +136,8 @@ class AgentProtocol(ABC):
             bool: True if input is valid, False otherwise
         """
         raise NotImplementedError("Subclasses must implement validate_input method")
-    
-    def get_agent_info(self) -> Dict[str, Any]:
+
+    def get_agent_info(self) -> dict[str, Any]:
         """
         Get information about the agent.
         
@@ -153,11 +153,11 @@ class AgentProtocol(ABC):
 
 class AgentRegistry:
     """Registry for managing available agents."""
-    
+
     def __init__(self) -> None:
         """Initialize the agent registry."""
-        self._agents: Dict[str, AgentProtocol] = {}
-    
+        self._agents: dict[str, AgentProtocol] = {}
+
     def register(self, agent: AgentProtocol) -> None:
         """
         Register an agent in the registry.
@@ -166,8 +166,8 @@ class AgentRegistry:
             agent: The agent to register
         """
         self._agents[agent.agent_type] = agent
-    
-    def get_agent(self, agent_type: str) -> Optional[AgentProtocol]:
+
+    def get_agent(self, agent_type: str) -> AgentProtocol | None:
         """
         Get an agent by type.
         
@@ -178,8 +178,8 @@ class AgentRegistry:
             AgentProtocol if found, None otherwise
         """
         return self._agents.get(agent_type)
-    
-    def list_agents(self) -> Dict[str, Dict[str, Any]]:
+
+    def list_agents(self) -> dict[str, dict[str, Any]]:
         """
         List all registered agents with their information.
         
@@ -187,11 +187,11 @@ class AgentRegistry:
             Dict mapping agent types to their info
         """
         return {
-            agent_type: agent.get_agent_info() 
+            agent_type: agent.get_agent_info()
             for agent_type, agent in self._agents.items()
         }
-    
-    async def health_check_all(self) -> Dict[str, bool]:
+
+    async def health_check_all(self) -> dict[str, bool]:
         """
         Check health of all registered agents.
         

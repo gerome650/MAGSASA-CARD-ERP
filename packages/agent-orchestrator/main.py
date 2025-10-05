@@ -37,38 +37,38 @@ logger = structlog.get_logger(__name__)
 
 class OrchestratorService:
     """Main service class for the Agent Orchestrator."""
-    
+
     def __init__(self) -> None:
         """Initialize the orchestrator service."""
         self.orchestrator = AgentOrchestrator()
         self.shutdown_event = asyncio.Event()
-    
+
     async def start(self) -> None:
         """Start the orchestrator service."""
         logger.info("Starting AgSense Agent Orchestrator service")
-        
+
         # Set up signal handlers for graceful shutdown
         for sig in [signal.SIGTERM, signal.SIGINT]:
             signal.signal(sig, self._signal_handler)
-        
+
         try:
             await self.orchestrator.start()
-            
+
             # Keep the service running until shutdown signal
             await self.shutdown_event.wait()
-            
+
         except Exception as e:
             logger.error(f"Orchestrator service error: {e}")
             raise
         finally:
             await self.stop()
-    
+
     async def stop(self) -> None:
         """Stop the orchestrator service."""
         logger.info("Stopping AgSense Agent Orchestrator service")
         await self.orchestrator.stop()
         logger.info("Orchestrator service stopped")
-    
+
     def _signal_handler(self, signum: int, frame) -> None:
         """Handle shutdown signals."""
         logger.info(f"Received signal {signum}, initiating shutdown")
@@ -78,7 +78,7 @@ class OrchestratorService:
 async def main() -> None:
     """Main entrypoint."""
     service = OrchestratorService()
-    
+
     try:
         await service.start()
     except KeyboardInterrupt:

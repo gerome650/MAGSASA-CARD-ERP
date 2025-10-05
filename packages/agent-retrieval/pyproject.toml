@@ -30,6 +30,12 @@ dependencies = [
     "agsense-core",
 ]
 
+[tool.uv.sources]
+agsense-core = { workspace = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent_retrieval"]
+
 [project.optional-dependencies]
 dev = [
     "pytest>=7.4.0",

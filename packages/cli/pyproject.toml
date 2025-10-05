@@ -22,12 +22,18 @@ classifiers = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "typer[all]>=0.9.0",
+    "typer>=0.9.0",
     "rich>=13.7.0",
     "structlog>=23.2.0",
     "httpx>=0.25.0",
     "agsense-core",
 ]
+
+[tool.uv.sources]
+agsense-core = { workspace = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ags"]
 
 [project.optional-dependencies]
 dev = [

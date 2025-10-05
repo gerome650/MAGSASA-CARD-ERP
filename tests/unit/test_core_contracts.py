@@ -1,7 +1,7 @@
 """Unit tests for core contracts and models."""
 
 import pytest
-from agsense_core.models.contracts import (
+from core.models.contracts import (
     AgentInput,
     AgentOutput,
     AgentProtocol,

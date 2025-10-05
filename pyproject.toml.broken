@@ -1,7 +1,73 @@
-# AgSense Workspace Configuration
-# This is a workspace root - individual packages are in the packages/ directory
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agsense"
+version = "0.1.0"
+description = "AgSense Stage 7 - Intelligent Agent Orchestration Platform"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "AgSense Team", email = "team@agsense.com"},
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "structlog>=23.2.0",
+    "tenacity>=8.2.3",
+    "typer[all]>=0.9.0",
+    "rich>=13.7.0",
+    "httpx>=0.25.0",
+    "asyncio-mqtt>=0.16.0",
+    "redis>=5.0.0",
+    "aioredis>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.1.0",
+    "black>=23.12.0",
+    "mypy>=1.8.0",
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.21.0",
+    "pre-commit>=3.6.0",
+    "build>=1.0.0",
+    "twine>=4.0.0",
+]
+test = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-mock>=3.12.0",
+    "httpx>=0.25.0",
+]
+all = [
+    "agsense[dev,test]",
+]
+
+[project.scripts]
+ags = "ags.app:app"
+
+[project.urls]
+Homepage = "https://github.com/agsense/agsense"
+Repository = "https://github.com/agsense/agsense.git"
+Documentation = "https://docs.agsense.com"
+"Bug Tracker" = "https://github.com/agsense/agsense/issues"
 
 [tool.uv]
+workspace = true
 dev-dependencies = [
     "ruff>=0.1.0",
     "black>=23.12.0", 

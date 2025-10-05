@@ -1,113 +1,39 @@
-# Pre-commit configuration for AgSense Stage 7
-# See https://pre-commit.com for more information
 repos:
-  # Ruff - Fast Python linter and formatter
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: debug-statements
+
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.1.0
+    rev: v0.1.9
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
-        types_or: [python, pyi]
-      - id: ruff-format
-        types_or: [python, pyi]
 
-  # Black - Python code formatter
   - repo: https://github.com/psf/black
-    rev: 23.12.0
+    rev: 23.12.1
     hooks:
       - id: black
-        language_version: python3
-        args: [--line-length=88]
+        language_version: python3.10
 
-  # MyPy - Static type checker
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.8.0
     hooks:
       - id: mypy
-        additional_dependencies: [types-all]
-        args: [--ignore-missing-imports, --no-strict-optional]
-        exclude: ^tests/
+        additional_dependencies: [pydantic>=2.5.0, types-all]
+        args: [--ignore-missing-imports]
+        exclude: ^(tests/|docs/)
 
-  # General hooks
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
-    hooks:
-      # File checks
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
-      - id: check-yaml
-        args: [--unsafe]  # Allow custom YAML tags
-      - id: check-toml
-      - id: check-json
-      - id: check-merge-conflict
-      - id: check-added-large-files
-        args: [--maxkb=1000]  # 1MB limit
-      
-      # Python-specific
-      - id: debug-statements
-      - id: check-docstring-first
-      - id: requirements-txt-fixer
-      
-      # Security
-      - id: detect-private-key
-      
-      # Git
-      - id: check-commit-message-format
-        args: [--pattern, '^(feat|fix|docs|style|refactor|test|chore)(\(.+\))?: .{1,50}']
-
-  # Python imports sorting
-  - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
-    hooks:
-      - id: isort
-        args: [--profile=black, --line-length=88]
-
-  # Security checks
-  - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.5
+  - repo: https://github.com/pycqa/bandit
+    rev: 1.7.6
     hooks:
       - id: bandit
-        args: [-r, packages/, -f, json, -o, bandit-report.json]
+        args: [-c, pyproject.toml]
         additional_dependencies: ["bandit[toml]"]
-        exclude: ^tests/
-
-  # Documentation
-  - repo: https://github.com/pycqa/pydocstyle
-    rev: 6.3.0
-    hooks:
-      - id: pydocstyle
-        args: [--convention=google]
-        exclude: ^tests/
-
-  # Commit message linting
-  - repo: https://github.com/commitizen-tools/commitizen
-    rev: v3.13.0
-    hooks:
-      - id: commitizen
-        stages: [commit-msg]
-
-# Configuration
-default_stages: [commit]
-fail_fast: false
-minimum_pre_commit_version: "3.0.0"
-
-# Exclude patterns
-exclude: |
-  (?x)^(
-    \.git/.*|
-    \.venv/.*|
-    venv/.*|
-    __pycache__/.*|
-    \.pytest_cache/.*|
-    \.mypy_cache/.*|
-    \.ruff_cache/.*|
-    build/.*|
-    dist/.*|
-    \.coverage.*|
-    htmlcov/.*|
-    \.tox/.*|
-    node_modules/.*|
-    \.DS_Store|
-    \.vscode/.*|
-    \.idea/.*
-  )$

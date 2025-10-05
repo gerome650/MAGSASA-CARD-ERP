@@ -2,7 +2,7 @@
 
 import pytest
 import asyncio
-from agsense_core.models.contracts import (
+from core.models.contracts import (
     AgentInput,
     AgentOutput,
     AgentStatus,
