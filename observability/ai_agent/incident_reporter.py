@@ -42,7 +42,7 @@ class IncidentReport:
 class IncidentReporter:
     """Formats and delivers incident summaries to various channels"""
 
-    def __init__(self, _config: dict[str, _Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Initialize the incident reporter with configuration
 
@@ -83,8 +83,9 @@ class IncidentReporter:
 
         reports = []
 
-        for _channel in self.channels:
-# Check if this channel should receive this incident and if self._should_notify_channel(channel, insight, remediation_actions):
+        for channel in self.channels:
+            if self._should_notify_channel(channel, insight, remediation_actions):
+                report = self._generate_channel_report(
                     channel, insight, remediation_actions
                 )
                 reports.append(report)
@@ -106,7 +107,7 @@ class IncidentReporter:
         if channel.priority_filter:
             has_matching_priority = any(
                 action.priority.value in channel.priority_filter
-                for _action in remediation_actions
+                for action in remediation_actions
             )
             if not has_matching_priority:
                 return False
@@ -195,7 +196,7 @@ class IncidentReporter:
         # Root causes block
         if insight.likely_root_causes:
             causes_text = ""
-            for _i, cause in enumerate(insight.likely_root_causes[:3]):  # Top 3 causes
+            for i, cause in enumerate(insight.likely_root_causes[:3]):  # Top 3 causes
                 causes_text += f"{i+1}. *{cause.cause_type.value.replace('_', ' ').title()}* ({cause.confidence:.1%})\n"
                 causes_text += f"   {cause.description}\n\n"
 
@@ -211,12 +212,12 @@ class IncidentReporter:
         # Immediate actions block
         immediate_actions = [
             action
-            for _action in remediation_actions
+            for action in remediation_actions
             if action.priority.value == "immediate"
         ]
         if immediate_actions:
             actions_text = ""
-            for _action in immediate_actions[:3]:  # Top 3 immediate actions
+            for action in immediate_actions[:3]:  # Top 3 immediate actions
                 actions_text += (
                     f"• *{action.title}* ({action.expected_duration_minutes}min)\n"
                 )
@@ -234,7 +235,7 @@ class IncidentReporter:
         # Timeline block (simplified)
         if insight.timeline:
             timeline_text = ""
-            for _event in insight.timeline[:5]:  # First 5 events
+            for event in insight.timeline[:5]:  # First 5 events
                 timeline_text += (
                     f"• {event.timestamp.strftime('%H:%M')} - {event.description}\n"
                 )
@@ -321,14 +322,14 @@ class IncidentReporter:
                 <h2 style="color: #0366d6; border-top: 1px solid #e1e4e8; padding-top: 20px;">Likely Root Causes</h2>
                 <div style="background: #fff5b4; padding: 15px; border-radius: 5px; margin: 20px 0;">
             """
-            for _i, cause in enumerate(insight.likely_root_causes):
+            for i, cause in enumerate(insight.likely_root_causes):
                 html_content += f"""
                     <h3>{i+1}. {cause.cause_type.value.replace('_', ' ').title()} ({cause.confidence:.1%} confidence)</h3>
                     <p>{cause.description}</p>
                     <p><strong>Evidence:</strong></p>
                     <ul>
                 """
-                for _evidence in cause.evidence[:3]:  # Top 3 evidence items
+                for evidence in cause.evidence[:3]:  # Top 3 evidence items
                     html_content += f"<li>{evidence}</li>"
                 html_content += """
                     </ul>
@@ -338,7 +339,7 @@ class IncidentReporter:
         # Immediate actions section
         immediate_actions = [
             action
-            for _action in remediation_actions
+            for action in remediation_actions
             if action.priority.value == "immediate"
         ]
         if immediate_actions:
@@ -346,7 +347,7 @@ class IncidentReporter:
                 <h2 style="color: #d73a49;">Immediate Actions Required</h2>
                 <div style="background: #ffeef0; padding: 15px; border-radius: 5px; margin: 20px 0;">
             """
-            for _action in immediate_actions:
+            for action in immediate_actions:
                 html_content += f"""
                     <h3>{action.title}</h3>
                     <p>{action.description}</p>
@@ -355,7 +356,7 @@ class IncidentReporter:
                     <p><strong>Steps:</strong></p>
                     <ol>
                 """
-                for _step in action.steps[:3]:  # First 3 steps
+                for step in action.steps[:3]:  # First 3 steps
                     html_content += f"<li>{step}</li>"
                 html_content += """
                     </ol>
@@ -369,7 +370,7 @@ class IncidentReporter:
                 <div style="background: #f6f8fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
                     <ul>
             """
-            for _event in insight.timeline[:10]:  # First 10 events
+            for event in insight.timeline[:10]:  # First 10 events
                 html_content += f"""
                     <li><strong>{event.timestamp.strftime('%H:%M UTC')}</strong> - {event.description}</li>
                 """
@@ -430,7 +431,7 @@ class IncidentReporter:
                     "description": cause.description,
                     "evidence": cause.evidence[:3],  # Top 3 evidence items
                 }
-                for _cause in insight.likely_root_causes
+                for cause in insight.likely_root_causes
             ],
             "remediation_actions": [
                 {
@@ -440,7 +441,7 @@ class IncidentReporter:
                     "risk_level": action.risk_level,
                     "automation_possible": action.automation_possible,
                 }
-                for _action in remediation_actions
+                for action in remediation_actions
             ],
             "timeline": [
                 {
@@ -449,7 +450,7 @@ class IncidentReporter:
                     "description": event.description,
                     "severity": event.severity,
                 }
-                for _event in insight.timeline
+                for event in insight.timeline
             ],
         }
 
@@ -491,7 +492,7 @@ IMPACT ANALYSIS:
 ROOT CAUSES:
 """
 
-        for _i, cause in enumerate(insight.likely_root_causes):
+        for i, cause in enumerate(insight.likely_root_causes):
             content += f"""
 {i+1}. {cause.cause_type.value.replace('_', ' ').title()} ({cause.confidence:.1%} confidence)
    {cause.description}
@@ -501,10 +502,10 @@ ROOT CAUSES:
         content += "\nIMMEDIATE ACTIONS REQUIRED:\n"
         immediate_actions = [
             action
-            for _action in remediation_actions
+            for action in remediation_actions
             if action.priority.value == "immediate"
         ]
-        for _action in immediate_actions:
+        for action in immediate_actions:
             content += f"""
 - {action.title} ({action.expected_duration_minutes} minutes)
   {action.description}
@@ -533,7 +534,7 @@ ROOT CAUSES:
         """Initialize notification channels from config"""
         channels = []
 
-        for _channel_config in self.config.get("channels", []):
+        for channel_config in self.config.get("channels", []):
             channel = ReportChannel(
                 channel_type=channel_config["type"],
                 destination=channel_config["destination"],

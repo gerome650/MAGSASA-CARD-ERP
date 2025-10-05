@@ -11,9 +11,8 @@ sys.path.append("/home/ubuntu/agsense_erp/src")
 
 from datetime import datetime
 
-from flask import Flask
-
 from database import db
+from flask import Flask
 from models.user import Permission, Role, RolePermission, User
 
 

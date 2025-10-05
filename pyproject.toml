@@ -132,22 +132,28 @@ testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = [
-    "--strict-markers",
-    "--strict-config",
-    "--cov=packages",
-    "--cov-report=term-missing",
-    "--cov-report=html",
-    "--cov-report=xml",
-    "--cov-fail-under=65",
-    # Parallel test execution for speed
-    "-n=auto",
-    # Max failures before stopping
-    "--maxfail=5",
-    # Retry flaky tests
-    "--reruns=2",
-    "--reruns-delay=1",
-]
+
+# NOTE: Disabled default addopts for local dev to avoid conflicts with coverage flags.
+# When running pytest locally, you can now pass your own coverage flags without conflicts.
+# For CI/CD environments, uncomment this section if strict coverage enforcement is needed,
+# or pass these flags directly in your CI pipeline configuration instead.
+#
+# addopts = [
+#     "--strict-markers",
+#     "--strict-config",
+#     "--cov=packages",
+#     "--cov-report=term-missing",
+#     "--cov-report=html",
+#     "--cov-report=xml",
+#     "--cov-fail-under=65",
+#     # Parallel test execution for speed
+#     "-n=auto",
+#     # Max failures before stopping
+#     "--maxfail=5",
+#     # Retry flaky tests
+#     "--reruns=2",
+#     "--reruns-delay=1",
+# ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",

@@ -1,3 +1,7 @@
+# MAGSASA-CARD-ERP
+
+[![🛡️ Safety Gate](https://github.com/gerome650/MAGSASA-CARD-ERP/actions/workflows/safety-gate.yml/badge.svg)](https://github.com/gerome650/MAGSASA-CARD-ERP/actions/workflows/safety-gate.yml)
+
 # AgSense Stage 7 - Intelligent Agent Orchestration Platform
 
 🧠 **AgSense Stage 7** is a Python 3.12+ monorepo built with `uv` workspaces for intelligent agent orchestration. This scaffold provides a complete development environment with CI/CD, testing, and deployment workflows.
@@ -393,6 +397,20 @@ Average latency: 216ms
 ```
 
 See [MCP_QUICK_START.md](MCP_QUICK_START.md) for detailed guide.
+
+---
+
+## 🛡️ Repository Hygiene Status
+
+This repository is protected by an automated **Safety Gate CI** system that checks for:
+
+- ✅ No tracked virtual environments
+- ✅ Clean `.gitignore` configuration
+- ✅ Pre-commit and pre-push hooks enforcement
+- ✅ Safety check passing in CI
+
+**Current Status:**  
+[![Safety Gate Status](https://github.com/gerome650/MAGSASA-CARD-ERP/actions/workflows/safety-gate.yml/badge.svg)](https://github.com/gerome650/MAGSASA-CARD-ERP/actions/workflows/safety-gate.yml)
 
 ---
 

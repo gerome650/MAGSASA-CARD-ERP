@@ -65,7 +65,7 @@ class AnalysisResponse(BaseModel):
 
 
 @app.on_event("startup")
-async def startup_event(_):
+async def startup_event():
     """Initialize the agent on startup"""
     global agent
 
@@ -120,13 +120,13 @@ async def startup_event(_):
 
 
 @app.on_event("shutdown")
-async def shutdown_event(_):
+async def shutdown_event():
     """Cleanup on shutdown"""
     logger.info("Shutting down AI Incident Insight Agent webhook server")
 
 
 @app.get("/health")
-async def health_check(_):
+async def health_check():
     """Health check endpoint"""
     return {
         "status": "healthy",
@@ -137,7 +137,7 @@ async def health_check(_):
 
 
 @app.get("/metrics")
-async def metrics(_):
+async def metrics():
     """Prometheus metrics endpoint"""
     # In a real implementation, this would return Prometheus metrics
     return {
@@ -149,7 +149,7 @@ async def metrics(_):
 
 
 @app.post("/webhook/alertmanager", response_model=AnalysisResponse)
-async def alertmanager_webhook(_alert_payload: AlertPayload, _background_tasks: BackgroundTasks, _request: Request):
+async def alertmanager_webhook(alert_payload: AlertPayload, background_tasks: BackgroundTasks, request: Request):
     """
     Handle Alertmanager webhook
 
@@ -186,7 +186,7 @@ async def alertmanager_webhook(_alert_payload: AlertPayload, _background_tasks: 
 
 
 @app.post("/api/incidents/{incident_id}/analyze", response_model=AnalysisResponse)
-async def analyze_incident(_incident_id: str, _request: IncidentRequest, _background_tasks: BackgroundTasks):
+async def analyze_incident(incident_id: str, request: IncidentRequest, background_tasks: BackgroundTasks):
     """
     Analyze a specific incident
 
@@ -222,7 +222,7 @@ async def analyze_incident(_incident_id: str, _request: IncidentRequest, _backgr
 
 
 @app.get("/api/incidents/{incident_id}/status")
-async def get_incident_status(_incident_id: str):
+async def get_incident_status(incident_id: str):
     """
     Get incident analysis status
 
@@ -238,7 +238,7 @@ async def get_incident_status(_incident_id: str):
 
 
 @app.get("/api/incidents/{incident_id}/postmortem")
-async def get_postmortem(_incident_id: str):
+async def get_postmortem(incident_id: str):
     """
     Get postmortem report for an incident
 
@@ -277,7 +277,7 @@ async def get_postmortem(_incident_id: str):
 
 
 @app.post("/api/slack/command")
-async def slack_command(_request: Request):
+async def slack_command(request: Request):
     """
     Handle Slack slash commands
 
@@ -306,7 +306,7 @@ async def slack_command(_request: Request):
 
 
 @app.post("/api/slack/interactive")
-async def slack_interactive(_request: Request):
+async def slack_interactive(request: Request):
     """
     Handle Slack interactive messages
 
@@ -335,7 +335,7 @@ async def slack_interactive(_request: Request):
         )
 
 
-async def analyze_incident_background(_incident_id: str, _alert_payload: dict[str, _Any], resolution_notes: str | None = None, engineer_notes: str | None = None, _):
+async def analyze_incident_background(incident_id: str, alert_payload: dict[str, Any], resolution_notes: str | None = None, engineer_notes: str | None = None):
     """Run incident analysis in background"""
     try:
         logger.info(f"Starting background analysis for incident {incident_id}")
@@ -366,7 +366,7 @@ async def analyze_incident_background(_incident_id: str, _alert_payload: dict[st
         logger.error(f"Error in background analysis for incident {incident_id}: {e}")
 
 
-def main(_):
+def main():
     """Main function to run the webhook server"""
     import argparse
 

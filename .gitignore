@@ -220,4 +220,4 @@ chaos_results.json
 notion_cache/
 
 # Control center
-control_center_cache/
+control_center_cache/venv/

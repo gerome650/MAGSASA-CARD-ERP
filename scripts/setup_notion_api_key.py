@@ -84,7 +84,7 @@ def validate_api_key(api_key: str) -> tuple[bool, str]:
     # Test connectivity
     print("\n🔍 Testing API key with Notion...")
     try:
-        
+
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",

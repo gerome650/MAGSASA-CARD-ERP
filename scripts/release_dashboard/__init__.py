@@ -5,16 +5,15 @@ This package provides modular components for updating the release readiness dash
 """
 
 from .fetch import GitHubWorkflowFetcher
-from .update import MarkdownUpdater
 from .notify import SlackNotifier
 from .scoring import ReadinessScorer
+from .update import MarkdownUpdater
 
 __all__ = [
-    'GitHubWorkflowFetcher',
-    'MarkdownUpdater',
-    'SlackNotifier',
-    'ReadinessScorer'
+    "GitHubWorkflowFetcher",
+    "MarkdownUpdater",
+    "SlackNotifier",
+    "ReadinessScorer",
 ]
 
-__version__ = '1.0.0'
-
+__version__ = "1.0.0"

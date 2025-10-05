@@ -21,7 +21,7 @@ _tracer_provider: TracerProvider | None = None
 _is_initialized = False
 
 
-def init_tracing(app: Flask | None = None, service_name: str = "magsasa-card-erp", service_version: str = "1.0.0", otlp_endpoint: str | None = None, console_export: bool = True, _):
+def init_tracing(app: Flask | None = None, service_name: str = "magsasa-card-erp", service_version: str = "1.0.0", otlp_endpoint: str | None = None, console_export: bool = True):
     """
     Initialize OpenTelemetry tracing for the application.
 
@@ -115,7 +115,7 @@ def get_tracer(name: str = __name__) -> trace.Tracer:
     return trace.get_tracer(name)
 
 
-def add_span_attributes(_**attributes):
+def add_span_attributes(**attributes):
     """
     Add attributes to the current span.
 
@@ -129,11 +129,11 @@ def add_span_attributes(_**attributes):
     """
     span = trace.get_current_span()
     if span.is_recording():
-        for _key, value in attributes.items():
+        for key, value in attributes.items():
             span.set_attribute(key, value)
 
 
-def add_span_event(_name: str, attributes: dict | None = None):
+def add_span_event(name: str, attributes: dict | None = None):
     """
     Add an event to the current span.
 
@@ -151,7 +151,7 @@ def add_span_event(_name: str, attributes: dict | None = None):
         span.add_event(name, attributes=attributes or {})
 
 
-def get_trace_context(_):
+def get_trace_context():
     """
     Get the current trace context (trace_id, span_id).
 
