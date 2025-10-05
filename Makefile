@@ -1,4 +1,11 @@
-.PHONY: help setup install dev-install lint format test quick-test coverage-local test-fast coverage-ci run run-orchestrator mcp-check agent-run-all clean build ci-preflight notify-test coverage-report push-workflow release-workflows
+# ===== Protected Commit configuration =====
+SHELL := /bin/bash
+COVERAGE_MIN ?= 65
+PYTEST ?= pytest
+BLACK ?= black
+RUFF ?= ruff
+
+.PHONY: help setup install dev-install lint format test quick-test coverage-local test-fast coverage-ci run run-orchestrator mcp-check agent-run-all clean build ci-preflight notify-test coverage-report push-workflow release-workflows resolve-conflicts safe-commit ensure-hooks hygiene coverage-check
 
 # 🔧 Developer Note: PYTHONPATH Configuration
 # All test targets set PYTHONPATH=$(PWD) inline to ensure Python can resolve internal modules
@@ -12,6 +19,12 @@ help:
 	@echo "  make setup          - Complete development setup"
 	@echo "  make install        - Install production dependencies"
 	@echo "  make dev-install    - Install development dependencies"
+	@echo ""
+	@echo "🔒 Protected Commit:"
+	@echo "  make safe-commit [MSG=\"message\"] - Protected commit with all checks"
+	@echo "  make hygiene        - Run format & lint checks (black --check, ruff)"
+	@echo "  make coverage-check - Run tests with coverage and enforce threshold"
+	@echo "  make ensure-hooks   - Configure Git to use .githooks"
 	@echo ""
 	@echo "Code Quality:"
 	@echo "  make lint           - Run all linting (ruff, black, mypy)"
@@ -32,6 +45,9 @@ help:
 	@echo "  make ci-debug       - Debug CI step-by-step locally (lint + tests + security)"
 	@echo "  make security-scan  - Run security scans (Bandit + pip-audit)"
 	@echo "  make ci-health      - Generate CI health report"
+	@echo ""
+	@echo "🔧 Conflict Resolution:"
+	@echo "  make resolve-conflicts [DRY_RUN=true] - Detect and resolve merge conflicts"
 	@echo ""
 	@echo "📝 Note: All Python commands use 'python3' for cross-platform compatibility"
 	@echo ""
@@ -71,6 +87,51 @@ install:
 
 dev-install:
 	uv sync --dev
+
+# ===== Hygiene / Safety / Coverage =====
+hygiene: ## Run format & lint checks (black --check, ruff)
+	@echo "🧼 Running hygiene checks (black --check, ruff)…"
+	@command -v $(BLACK) >/dev/null 2>&1 || { echo "❌ black not found. Install with: pip install black"; exit 1; }
+	@command -v $(RUFF)  >/dev/null 2>&1 || { echo "❌ ruff not found. Install with: pip install ruff"; exit 1; }
+	uv run $(BLACK) --check .
+	uv run $(RUFF) check .
+
+coverage-check: ## Run tests with coverage and enforce threshold
+	@echo "📊 Running tests with coverage (minimum $(COVERAGE_MIN)%)…"
+	@command -v $(PYTEST) >/dev/null 2>&1 || { echo "❌ pytest not found. Install with: pip install pytest pytest-cov"; exit 1; }
+	PYTHONPATH=$(PWD) uv run $(PYTEST) -q --maxfail=1 --disable-warnings --cov=. --cov-report=term-missing:skip-covered --cov-report=xml --cov-fail-under=$(COVERAGE_MIN)
+
+
+ensure-hooks: ## Configure Git to use .githooks and ensure pre-commit is executable
+	@echo "🪝 Ensuring git hooks are installed…"
+	@git config core.hooksPath .githooks
+	@mkdir -p .githooks
+	@[ -f .githooks/pre-commit ] && chmod +x .githooks/pre-commit || true
+	@echo "✅ Hooks path set to .githooks"
+
+safe-commit: ensure-hooks ## Protected commit: runs hygiene, safety, and coverage checks before committing
+	@set -euo pipefail; \
+	if git diff --name-only --diff-filter=U | grep -q .; then \
+		echo "❌ Unresolved merge conflicts detected. Resolve them before committing."; \
+		exit 1; \
+	fi; \
+	echo "🧪 Running protected commit gate…"; \
+	$(MAKE) hygiene; \
+	$(MAKE) safety-check; \
+	$(MAKE) coverage-check; \
+	if [ -z "$${MSG-}" ]; then \
+		read -r -p "✍️  Commit message: " MSG_INPUT; \
+		if [ -z "$$MSG_INPUT" ]; then echo "❌ Commit message required."; exit 1; fi; \
+		MSG="$$MSG_INPUT"; \
+	else \
+		MSG="$$MSG"; \
+	fi; \
+	echo "📦 Staging changes…"; \
+	git add -A; \
+	echo "🔐 Creating protected commit…"; \
+	SAFE_COMMIT=1 git commit -m "$$MSG"; \
+	echo "🚀 Pushing…"; \
+	git push
 
 lint:
 	@echo "🔍 Running linters..."
@@ -311,4 +372,90 @@ push-workflow:
 	else \
 		echo "💡 Install GitHub CLI (gh) to verify workflow status automatically"; \
 		echo "🌐 Check manually at: https://github.com/gerome650/MAGSASA-CARD-ERP/actions"; \
+	fi
+# 🔧 Conflict Resolution System
+# Automated detection and resolution of merge conflicts in critical files
+resolve-conflicts:
+	@echo "🔍 Conflict Sentinel: Scanning for merge conflicts..."
+	@echo "================================================="
+	@CONFLICTS_DETECTED=false; \
+	CONFLICT_FILES=""; \
+	CONFLICT_COUNT=0; \
+	\
+	echo "🔍 Scanning critical files for conflict markers..."; \
+	for file in Makefile .github/workflows/*.yml pyproject.toml; do \
+		if [ -f "$$file" ]; then \
+			if grep -q "<<<<<<< \|======= \|>>>>>>> " "$$file" 2>/dev/null; then \
+				echo "❌ Conflict detected in: $$file"; \
+				CONFLICTS_DETECTED=true; \
+				CONFLICT_FILES="$$CONFLICT_FILES $$file"; \
+				CONFLICT_COUNT=$$((CONFLICT_COUNT + 1)); \
+			else \
+				echo "✅ No conflicts in: $$file"; \
+			fi; \
+		fi; \
+	done; \
+	\
+	echo ""; \
+	echo "🔍 Checking git status for unmerged paths..."; \
+	if git status --porcelain | grep -q "^UU\|^AA\|^DD\|^AU\|^UA\|^DU\|^UD"; then \
+		echo "❌ Unmerged paths detected in git status:"; \
+		git status --porcelain | grep "^UU\|^AA\|^DD\|^AU\|^UA\|^DU\|^UD" | sed 's/^/   /'; \
+		CONFLICTS_DETECTED=true; \
+		CONFLICT_COUNT=$$((CONFLICT_COUNT + 1)); \
+	else \
+		echo "✅ No unmerged paths in git status"; \
+	fi; \
+	\
+	echo ""; \
+	echo "🔍 Checking for stash conflicts..."; \
+	if git stash list | grep -q "WIP on"; then \
+		echo "⚠️  Stash entries found (may contain conflicts):"; \
+		git stash list | sed 's/^/   /'; \
+		echo "   💡 Run 'git stash show -p' to inspect stash contents"; \
+	fi; \
+	\
+	echo ""; \
+	echo "📊 Conflict Detection Summary"; \
+	echo "=============================="; \
+	if [ "$$CONFLICTS_DETECTED" = "true" ]; then \
+		echo "❌ CONFLICTS DETECTED: $$CONFLICT_COUNT issue(s) found"; \
+		if [ -n "$$CONFLICT_FILES" ]; then \
+			echo "   📁 Files with conflict markers:$$CONFLICT_FILES"; \
+		fi; \
+		echo ""; \
+		if [ "$$DRY_RUN" = "true" ]; then \
+			echo "🔍 DRY RUN MODE: No changes made"; \
+			echo "   💡 To resolve conflicts, run: make resolve-conflicts"; \
+		else \
+			echo "🔧 Attempting automatic resolution..."; \
+			echo "   📝 Resolving conflict markers in critical files..."; \
+			for file in $$CONFLICT_FILES; do \
+				if [ -f "$$file" ]; then \
+					echo "   🔧 Processing: $$file"; \
+					cp "$$file" "$$file.backup"; \
+					sed -i.tmp '/^<<<<<<< .*/d; /^=======.*/d; /^>>>>>>> .*/d' "$$file" 2>/dev/null || true; \
+					rm -f "$$file.tmp"; \
+				fi; \
+			done; \
+			echo "   ✅ Automatic resolution attempted"; \
+			echo "   💡 Please review changes and test before committing"; \
+			echo "   📋 Backup files created with .backup extension"; \
+		fi; \
+		echo ""; \
+		echo "🚨 ACTION REQUIRED:"; \
+		echo "   1. Review all marked files for conflicts"; \
+		echo "   2. Manually resolve any remaining conflicts"; \
+		echo "   3. Test your changes thoroughly"; \
+		echo "   4. Commit resolved changes"; \
+		exit 1; \
+	else \
+		echo "✅ NO CONFLICTS DETECTED: Repository is clean"; \
+		echo ""; \
+		if [ "$$DRY_RUN" = "true" ]; then \
+			echo "🎉 All checks passed! Repository is ready for merge."; \
+		else \
+			echo "🎉 No conflicts to resolve."; \
+		fi; \
+		exit 0; \
 	fi

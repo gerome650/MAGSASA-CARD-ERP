@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Protected Commit Hook
+# - Blocks plain `git commit` unless hygiene, safety, and coverage checks pass.
+# - `make safe-commit` sets SAFE_COMMIT=1 to indicate checks already ran.
+#
+# Emergency bypass (not recommended):
+#   git commit --no-verify
+
+if [[ "${SAFE_COMMIT:-0}" == "1" ]]; then
+  # Fast path: `make safe-commit` already executed all checks.
+  exit 0
+fi
+
+echo "🔒 pre-commit: Enforcing Protected Commit policy…"
+
+# Use repo Makefile checks if available
+MAKEFILE_FOUND=0
+if [ -f "Makefile" ] || [ -f "makefile" ]; then
+  MAKEFILE_FOUND=1
+fi
+
+if git diff --name-only --diff-filter=U | grep -q .; then
+  echo "❌ pre-commit: Unresolved merge conflicts detected. Resolve them before committing."
+  exit 1
+fi
+
+if [[ "$MAKEFILE_FOUND" -eq 1 ]]; then
+  # Run the same checks as safe-commit
+  echo "🧼 pre-commit: Running hygiene…"
+  if ! make -s hygiene; then
+    echo "❌ pre-commit: Hygiene checks failed."
+    exit 1
+  fi
+  echo "🔍 pre-commit: Running safety-check…"
+  if ! make -s safety-check; then
+    echo "❌ pre-commit: Safety checks failed."
+    exit 1
+  fi
+  echo "📊 pre-commit: Running coverage-check…"
+  if ! make -s coverage-check; then
+    echo "❌ pre-commit: Coverage check failed."
+    exit 1
+  fi
+else
+  echo "❌ pre-commit: No Makefile found to run checks. Aborting."
+  exit 1
+fi
+
+echo "✅ pre-commit: All checks passed."
+exit 0
