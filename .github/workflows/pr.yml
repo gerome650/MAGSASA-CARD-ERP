@@ -1,0 +1,100 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, edited, synchronize]
+
+jobs:
+  title-lint:
+    name: Check PR Title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR title
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            chore
+            refactor
+            docs
+            test
+            perf
+            ci
+            build
+            revert
+          requireScope: false
+          disallowScopes: |
+            wip
+            temp
+            test
+
+  pr-size-check:
+    name: Check PR Size
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR size
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Count changed files
+        id: count
+        run: |
+          CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | wc -l)
+          echo "changed_files=$CHANGED_FILES" >> $GITHUB_OUTPUT
+          echo "Changed files: $CHANGED_FILES"
+          
+          # Warn if more than 50 files changed
+          if [ $CHANGED_FILES -gt 50 ]; then
+            echo "⚠️ Large PR detected: $CHANGED_FILES files changed"
+            echo "Consider breaking this into smaller PRs for better review"
+          fi
+      
+      - name: Comment on large PR
+        if: steps.count.outputs.changed_files > 50
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `⚠️ **Large PR Detected**\n\nThis PR contains \`${{ steps.count.outputs.changed_files }}\` changed files. Consider breaking this into smaller, focused PRs for:\n\n- 🎯 Easier code review\n- 🚀 Faster CI/CD cycles\n- 🔍 Better change tracking\n- 🐛 Reduced risk of conflicts\n\n**Suggested approach:**\n1. Split by feature/component\n2. Use feature flags for gradual rollout\n3. Create separate PRs for refactoring vs new features`
+            })
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+      
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v3
+        with:
+          fail-on-severity: moderate
