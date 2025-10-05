@@ -1,0 +1,183 @@
+name: Test & Coverage CI
+
+# Trigger workflow on push to any branch and pull requests
+on:
+  push:
+    branches: [ "*" ]
+  pull_request:
+    branches: [ "*" ]
+
+# Set environment variables that will be available to all jobs
+env:
+  PYTHONPATH: ${{ github.workspace }}
+
+jobs:
+  test-and-coverage:
+    name: Test & Coverage
+    runs-on: ubuntu-latest
+    
+    # Matrix strategy allows us to easily add more Python versions in the future
+    strategy:
+      matrix:
+        python-version: [3.11]
+    
+    steps:
+    # Checkout the repository code
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for better caching
+    
+    # Set up Python environment
+    - name: 🐍 Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    # Cache uv dependencies for faster builds
+    # This significantly speeds up CI runs by avoiding re-downloading dependencies
+    - name: 💾 Cache uv dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/uv
+          .venv
+        key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-uv-
+    
+    # Check if uv is available and install dependencies accordingly
+    # uv is a fast Python package installer, fallback to pip if not available
+    - name: 📦 Install dependencies with uv (if available)
+      id: install-uv
+      run: |
+        if command -v uv &> /dev/null; then
+          echo "✅ uv found, installing dependencies..."
+          uv sync --dev
+          echo "uv_available=true" >> $GITHUB_OUTPUT
+        else
+          echo "⚠️ uv not found, falling back to pip..."
+          echo "uv_available=false" >> $GITHUB_OUTPUT
+        fi
+    
+    # Fallback to pip installation if uv is not available
+    - name: 📦 Install dependencies with pip (fallback)
+      if: steps.install-uv.outputs.uv_available == 'false'
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-asyncio pytest-rerunfailures pytest-xdist
+        pip install ruff black mypy pre-commit
+        pip install bandit[toml] safety pip-audit
+    
+    # Determine which test commands to run based on branch
+    # Feature branches get lighter testing, main/develop get full coverage
+    - name: 🧪 Run tests and coverage (Feature Branch)
+      if: github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop'
+      run: |
+        echo "🚀 Running feature branch tests..."
+        echo "Branch: ${{ github.ref_name }}"
+        
+        # Run coverage smoke test (ultra-fast import validation)
+        echo "📊 Running coverage smoke test..."
+        make coverage-smoke
+        
+        # Run fast tests without full coverage
+        echo "🧪 Running fast tests..."
+        make test-fast
+    
+    # Full coverage testing for main and develop branches
+    - name: 🧪 Run tests and coverage (Main/Develop Branch)
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+      run: |
+        echo "🚀 Running main/develop branch tests..."
+        echo "Branch: ${{ github.ref_name }}"
+        
+        # Run coverage smoke test
+        echo "📊 Running coverage smoke test..."
+        make coverage-smoke
+        
+        # Run full CI coverage with strict enforcement
+        echo "🧪 Running full CI coverage..."
+        make coverage-ci
+    
+    # Upload coverage reports as artifacts on failure
+    # This helps debug test failures and coverage issues
+    - name: 📤 Upload coverage artifacts (on failure)
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report-${{ github.ref_name }}-${{ github.run_id }}
+        path: |
+          htmlcov/
+          coverage.xml
+          .coverage
+        retention-days: 7
+    
+    # Upload test results for better visibility
+    - name: 📤 Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results-${{ github.ref_name }}-${{ github.run_id }}
+        path: |
+          .pytest_cache/
+          test-results/
+        retention-days: 3
+    
+    # Comment on PR with test results (optional enhancement)
+    - name: 💬 Comment test results on PR
+      if: github.event_name == 'pull_request' && always()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          // Try to read coverage summary if available
+          let coverageInfo = '';
+          try {
+            if (fs.existsSync('coverage.xml')) {
+              coverageInfo = '\n📊 Coverage report generated (check artifacts)';
+            }
+          } catch (e) {
+            console.log('No coverage file found');
+          }
+          
+          const comment = `## 🧪 Test Results
+          
+          **Status:** ${{ job.status }}
+          **Python Version:** ${{ matrix.python-version }}
+          **Branch:** ${{ github.ref_name }}
+          
+          ${coverageInfo}
+          
+          Check the workflow logs for detailed results.`;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+# 🔧 Developer Notes:
+# 
+# This workflow is designed to:
+# 1. Run on all branches and pull requests
+# 2. Use Python 3.11 with matrix strategy for future expansion
+# 3. Cache dependencies for faster builds
+# 4. Use uv when available, fallback to pip
+# 5. Run different test levels based on branch type:
+#    - Feature branches: coverage-smoke + test-fast (quick feedback)
+#    - Main/develop: coverage-smoke + coverage-ci (full validation)
+# 6. Upload artifacts on failure for debugging
+# 7. Set PYTHONPATH to project root for proper module resolution
+#
+# To add more Python versions, simply add them to the matrix:
+#   python-version: [3.10, 3.11, 3.12]
+#
+# The Makefile targets used:
+# - coverage-smoke: Ultra-fast import test (<1s, perfect for CI)
+# - test-fast: Quick test run without coverage
+# - coverage-ci: Full coverage with strict enforcement (65% minimum)
