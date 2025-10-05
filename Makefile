@@ -1,4 +1,4 @@
-.PHONY: help setup install dev-install lint format test quick-test run run-orchestrator mcp-check agent-run-all clean build
+.PHONY: help setup install dev-install lint format test quick-test run run-orchestrator mcp-check agent-run-all clean build ci-preflight
 
 help:
 	@echo "AgSense Makefile Commands"
@@ -13,6 +13,7 @@ help:
 	@echo "  make format         - Format code automatically"
 	@echo "  make test           - Run tests with coverage"
 	@echo "  make quick-test     - Quick test run (no coverage)"
+	@echo "  make ci-preflight   - Run full CI checks (lint, test, mcp, agent, build) before pushing"
 	@echo ""
 	@echo "MCP Simulation:"
 	@echo "  make mcp-check      - Check MCP readiness"
@@ -59,6 +60,9 @@ test:
 quick-test:
 	@echo "🧪 Running quick tests..."
 	uv run pytest tests/ -v --tb=short || true
+
+ci-preflight:
+	@python3 scripts/ci_preflight.py
 
 mcp-check:
 	@echo "🧠 Checking MCP readiness..."
