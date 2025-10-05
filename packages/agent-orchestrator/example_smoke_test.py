@@ -37,7 +37,7 @@ async def smoke_test():
             "agent-retrieval",
             "agent-scoring",
             "agent-notify",
-            "agent-billing"
+            "agent-billing",
         ]
 
         print(f"\n🤖 Testing {len(agent_types)} agents...")
@@ -51,10 +51,10 @@ async def smoke_test():
                 agent_type=agent_type,
                 payload={
                     "test_data": f"Hello from {agent_type}",
-                    "timestamp": asyncio.get_event_loop().time()
+                    "timestamp": asyncio.get_event_loop().time(),
                 },
                 metadata={"smoke_test": True},
-                priority=Priority.NORMAL
+                priority=Priority.NORMAL,
             )
 
             # Route the request
@@ -75,7 +75,7 @@ async def smoke_test():
             AgentInput(
                 request_id=f"concurrent-test-{i}",
                 agent_type="agent-ingest",
-                payload={"concurrent_test": i}
+                payload={"concurrent_test": i},
             )
             for i in range(3)
         ]
@@ -84,7 +84,9 @@ async def smoke_test():
             *[orchestrator.route_request(req) for req in concurrent_requests]
         )
 
-        success_count = sum(1 for resp in responses if resp.status == AgentStatus.COMPLETED)
+        success_count = sum(
+            1 for resp in responses if resp.status == AgentStatus.COMPLETED
+        )
         print(f"   ✅ {success_count}/{len(responses)} concurrent requests succeeded")
 
         # Test health checks

@@ -3,4 +3,3 @@
 from agent_billing.adapters.mcp_stub import BillingMCPStub
 
 __all__ = ["BillingMCPStub"]
-

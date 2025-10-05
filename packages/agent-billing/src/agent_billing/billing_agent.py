@@ -33,7 +33,7 @@ class BillingAgent(AgentProtocol):
                 "amount": data.payload.get("amount", 0),
                 "currency": data.payload.get("currency", "USD"),
                 "processed_at": time.time(),
-                "processed_by": self.agent_type
+                "processed_by": self.agent_type,
             }
 
             return AgentOutput(
@@ -41,7 +41,7 @@ class BillingAgent(AgentProtocol):
                 agent_type=self.agent_type,
                 status=AgentStatus.COMPLETED,
                 result=billing_data,
-                metadata={"billing_successful": True}
+                metadata={"billing_successful": True},
             )
 
         except Exception as e:
@@ -51,7 +51,7 @@ class BillingAgent(AgentProtocol):
                 agent_type=self.agent_type,
                 status=AgentStatus.FAILED,
                 error=str(e),
-                error_code="BILLING_ERROR"
+                error_code="BILLING_ERROR",
             )
 
     async def health_check(self) -> bool:

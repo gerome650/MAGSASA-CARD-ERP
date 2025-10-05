@@ -32,7 +32,7 @@ class NotifyAgent(AgentProtocol):
             notification_data = {
                 "message": data.payload.get("message", "Notification sent"),
                 "sent_at": time.time(),
-                "processed_by": self.agent_type
+                "processed_by": self.agent_type,
             }
 
             return AgentOutput(
@@ -40,7 +40,7 @@ class NotifyAgent(AgentProtocol):
                 agent_type=self.agent_type,
                 status=AgentStatus.COMPLETED,
                 result=notification_data,
-                metadata={"notification_sent": True}
+                metadata={"notification_sent": True},
             )
 
         except Exception as e:
@@ -50,7 +50,7 @@ class NotifyAgent(AgentProtocol):
                 agent_type=self.agent_type,
                 status=AgentStatus.FAILED,
                 error=str(e),
-                error_code="NOTIFICATION_ERROR"
+                error_code="NOTIFICATION_ERROR",
             )
 
     async def health_check(self) -> bool:

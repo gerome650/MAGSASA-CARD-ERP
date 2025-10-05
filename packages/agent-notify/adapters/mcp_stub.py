@@ -17,10 +17,10 @@ class NotifyMCPStub(MCPAdapter):
     async def _process_request(self, data: AgentInput) -> AgentOutput:
         """
         Process notification request via MCP stub.
-        
+
         Args:
             data: Input request data
-            
+
         Returns:
             AgentOutput: Notification result
         """
@@ -34,7 +34,7 @@ class NotifyMCPStub(MCPAdapter):
             "status": "sent",
             "processed_by": self.agent_type,
             "mcp_adapter": "stub",
-            "transport": self.config.transport
+            "transport": self.config.transport,
         }
 
         return AgentOutput(
@@ -44,8 +44,7 @@ class NotifyMCPStub(MCPAdapter):
             result=notification_data,
             metadata={
                 "notification_successful": True,
-                "mcp_enabled": self.config.enabled
+                "mcp_enabled": self.config.enabled,
             },
-            correlation_id=data.correlation_id
+            correlation_id=data.correlation_id,
         )
-

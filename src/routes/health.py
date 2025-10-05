@@ -6,13 +6,15 @@ Provides service health and readiness checks for chaos engineering tests.
 
 import time
 from datetime import datetime
+
 from flask import Blueprint, jsonify
+
 from src.database import db
 
-health_bp = Blueprint('health', __name__)
+health_bp = Blueprint("health", __name__)
 
 
-@health_bp.route('/api/health', methods=['GET'])
+@health_bp.route("/api/health", methods=["GET"])
 def health_check():
     """
     Health check endpoint for service monitoring and chaos engineering.
@@ -29,7 +31,8 @@ def health_check():
         try:
             # Simple query to test database connection
             from sqlalchemy import text
-            db.session.execute(text('SELECT 1'))
+
+            db.session.execute(text("SELECT 1"))
             db.session.commit()
         except Exception as e:
             db_healthy = False
@@ -47,17 +50,12 @@ def health_check():
             "healthy": healthy,
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "response_time_ms": round(response_time_ms, 2),
-            "checks": {
-                "database": {
-                    "healthy": db_healthy,
-                    "error": db_error
-                }
-            },
+            "checks": {"database": {"healthy": db_healthy, "error": db_error}},
             "service": {
                 "name": "MAGSASA-CARD-ERP",
                 "version": "6.5.0",
-                "environment": "development"
-            }
+                "environment": "development",
+            },
         }
 
         # Return appropriate HTTP status code
@@ -75,13 +73,13 @@ def health_check():
             "service": {
                 "name": "MAGSASA-CARD-ERP",
                 "version": "6.5.0",
-                "environment": "development"
-            }
+                "environment": "development",
+            },
         }
         return jsonify(response), 500
 
 
-@health_bp.route('/api/health/ready', methods=['GET'])
+@health_bp.route("/api/health/ready", methods=["GET"])
 def readiness_check():
     """
     Readiness check endpoint - more comprehensive than health check.
@@ -98,11 +96,18 @@ def readiness_check():
         # Database readiness
         try:
             from sqlalchemy import text
-            db.session.execute(text('SELECT 1'))
+
+            db.session.execute(text("SELECT 1"))
             db.session.commit()
-            checks["database"] = {"ready": True, "message": "Database connection successful"}
+            checks["database"] = {
+                "ready": True,
+                "message": "Database connection successful",
+            }
         except Exception as e:
-            checks["database"] = {"ready": False, "message": f"Database error: {str(e)}"}
+            checks["database"] = {
+                "ready": False,
+                "message": f"Database error: {str(e)}",
+            }
             all_ready = False
 
         # Add more readiness checks here as needed
@@ -118,8 +123,8 @@ def readiness_check():
             "service": {
                 "name": "MAGSASA-CARD-ERP",
                 "version": "6.5.0",
-                "environment": "development"
-            }
+                "environment": "development",
+            },
         }
 
         status_code = 200 if all_ready else 503
@@ -134,13 +139,13 @@ def readiness_check():
             "service": {
                 "name": "MAGSASA-CARD-ERP",
                 "version": "6.5.0",
-                "environment": "development"
-            }
+                "environment": "development",
+            },
         }
         return jsonify(response), 500
 
 
-@health_bp.route('/api/health/live', methods=['GET'])
+@health_bp.route("/api/health/live", methods=["GET"])
 def liveness_check():
     """
     Liveness check endpoint - minimal check to verify service is alive.
@@ -148,8 +153,13 @@ def liveness_check():
     Returns:
         Simple JSON response indicating service is alive
     """
-    return jsonify({
-        "alive": True,
-        "timestamp": datetime.utcnow().isoformat() + "Z",
-        "service": "MAGSASA-CARD-ERP"
-    }), 200
+    return (
+        jsonify(
+            {
+                "alive": True,
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "service": "MAGSASA-CARD-ERP",
+            }
+        ),
+        200,
+    )

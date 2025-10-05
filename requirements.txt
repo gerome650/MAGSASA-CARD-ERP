@@ -4,33 +4,48 @@ jsonschema==4.22.0
 Jinja2==3.1.4
 
 # Chaos Engineering Dependencies (Stage 7.2 - Auto-healing)
-aiohttp>=3.9.0  # Async HTTP client for chaos injector and resilience validator
-fastapi>=0.118.0  # FastAPI for chaos endpoints
-psutil>=7.0.0  # System monitoring for chaos injection
-pydantic>=2.0.0  # Data validation for chaos scenarios
-uvicorn>=0.37.0  # ASGI server for chaos services
+aiohttp==3.9.5  # Async HTTP client for chaos injector and resilience validator
+fastapi==0.111.0  # FastAPI for chaos endpoints
+psutil==5.9.8  # System monitoring for chaos injection
+pydantic==2.7.1  # Data validation for chaos scenarios
+uvicorn==0.29.0  # ASGI server for chaos services
 
 # Observability dependencies (STAGE 6.7)
-prometheus-client>=0.19.0
-opentelemetry-api>=1.21.0
-opentelemetry-sdk>=1.21.0
-opentelemetry-instrumentation-flask>=0.42b0
-opentelemetry-instrumentation-requests>=0.42b0
-opentelemetry-instrumentation-sqlalchemy>=0.42b0
-opentelemetry-exporter-otlp-proto-grpc>=1.21.0
+prometheus-client==0.20.0
+opentelemetry-api==1.24.0
+opentelemetry-sdk==1.24.0
+opentelemetry-instrumentation-flask==0.45b0
+opentelemetry-instrumentation-requests==0.45b0
+opentelemetry-instrumentation-sqlalchemy==0.45b0
+opentelemetry-exporter-otlp-proto-grpc==1.24.0
 
 # Runtime Intelligence Dependencies (Stage 6.8)
-numpy>=1.21.0          # ML anomaly detection
-scipy>=1.7.0           # Statistical analysis
-schedule>=1.1.0        # Scheduled jobs
+numpy==1.26.4          # ML anomaly detection
+scipy==1.13.0           # Statistical analysis
+schedule==1.2.1        # Scheduled jobs
 
 # Additional ML/Observability dependencies for CI/CD
-pytest>=7.0.0
-pytest-cov>=4.0.0
-pytest-asyncio>=0.21.0
-tabulate>=0.9.0  # For CI Intelligence Agent CLI tables
+pytest==7.4.3
+pytest-cov==4.1.0
+pytest-asyncio==0.21.1
+pytest-rerunfailures==14.0
+pytest-xdist==3.5.0
+tabulate==0.9.0  # For CI Intelligence Agent CLI tables
 
 # Notion Integration Dependencies (AI Studio Master Automation)
-notion-client>=2.0.0  # Official Notion API client
-requests>=2.31.0  # HTTP requests for Notion API calls
-python-dotenv>=1.0.0  # Environment variable management
+notion-client==2.2.1  # Official Notion API client
+requests==2.31.0  # HTTP requests for Notion API calls
+python-dotenv==1.0.1  # Environment variable management
+
+# Release Dashboard Updater Dependencies
+PyGithub==2.3.0  # GitHub API client for workflow runs
+rich==13.7.0  # Beautiful terminal output for dashboard updater
+
+# Security and Quality Tools
+bandit==1.7.8
+safety==3.2.0
+pip-audit==2.7.3
+
+# CI Hardening and Verification Dependencies (pinned versions)
+requests==2.31.0
+tabulate==0.9.0

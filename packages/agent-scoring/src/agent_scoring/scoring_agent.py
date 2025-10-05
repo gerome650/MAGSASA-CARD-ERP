@@ -33,7 +33,7 @@ class ScoringAgent(AgentProtocol):
                 "score": 85.5,
                 "confidence": 0.92,
                 "scored_at": time.time(),
-                "processed_by": self.agent_type
+                "processed_by": self.agent_type,
             }
 
             return AgentOutput(
@@ -41,7 +41,7 @@ class ScoringAgent(AgentProtocol):
                 agent_type=self.agent_type,
                 status=AgentStatus.COMPLETED,
                 result=score_data,
-                metadata={"scoring_successful": True}
+                metadata={"scoring_successful": True},
             )
 
         except Exception as e:
@@ -51,7 +51,7 @@ class ScoringAgent(AgentProtocol):
                 agent_type=self.agent_type,
                 status=AgentStatus.FAILED,
                 error=str(e),
-                error_code="SCORING_ERROR"
+                error_code="SCORING_ERROR",
             )
 
     async def health_check(self) -> bool:

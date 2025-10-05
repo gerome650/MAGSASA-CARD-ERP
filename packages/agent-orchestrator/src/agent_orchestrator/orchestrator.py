@@ -54,7 +54,7 @@ class AgentOrchestrator:
             "agent-retrieval",
             "agent-scoring",
             "agent-notify",
-            "agent-billing"
+            "agent-billing",
         ]
 
         for agent_name in agents_to_register:
@@ -73,14 +73,12 @@ class AgentOrchestrator:
             try:
                 health_status = await self.registry.health_check_all()
                 unhealthy_agents = [
-                    agent for agent, healthy in health_status.items()
-                    if not healthy
+                    agent for agent, healthy in health_status.items() if not healthy
                 ]
 
                 if unhealthy_agents:
                     logger.warning(
-                        "Unhealthy agents detected",
-                        unhealthy_agents=unhealthy_agents
+                        "Unhealthy agents detected", unhealthy_agents=unhealthy_agents
                     )
                 else:
                     logger.debug("All agents healthy")
@@ -93,10 +91,10 @@ class AgentOrchestrator:
     async def route_request(self, request: AgentInput) -> AgentOutput:
         """
         Route a request to the appropriate agent.
-        
+
         Args:
             request: The agent input request
-            
+
         Returns:
             AgentOutput: The response from the agent
         """
@@ -107,7 +105,7 @@ class AgentOrchestrator:
                 "Routing request",
                 request_id=request.request_id,
                 agent_type=request.agent_type,
-                priority=request.priority
+                priority=request.priority,
             )
 
             # Get the appropriate agent
@@ -118,7 +116,7 @@ class AgentOrchestrator:
                     agent_type=request.agent_type,
                     status=AgentStatus.FAILED,
                     error=f"Agent type '{request.agent_type}' not found",
-                    error_code="AGENT_NOT_FOUND"
+                    error_code="AGENT_NOT_FOUND",
                 )
 
             # Validate input
@@ -128,7 +126,7 @@ class AgentOrchestrator:
                     agent_type=request.agent_type,
                     status=AgentStatus.FAILED,
                     error="Invalid input data",
-                    error_code="INVALID_INPUT"
+                    error_code="INVALID_INPUT",
                 )
 
             # Execute the agent
@@ -142,7 +140,7 @@ class AgentOrchestrator:
                 request_id=request.request_id,
                 agent_type=request.agent_type,
                 status=result.status,
-                execution_time=execution_time
+                execution_time=execution_time,
             )
 
             return result
@@ -154,7 +152,7 @@ class AgentOrchestrator:
                 request_id=request.request_id,
                 agent_type=request.agent_type,
                 error=str(e),
-                execution_time=execution_time
+                execution_time=execution_time,
             )
 
             return AgentOutput(
@@ -163,14 +161,15 @@ class AgentOrchestrator:
                 status=AgentStatus.FAILED,
                 error=str(e),
                 error_code="ORCHESTRATOR_ERROR",
-                execution_time=execution_time
+                execution_time=execution_time,
             )
 
     @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=4, max=10)
+        stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10)
     )
-    async def _execute_agent(self, agent: AgentProtocol, request: AgentInput) -> AgentOutput:
+    async def _execute_agent(
+        self, agent: AgentProtocol, request: AgentInput
+    ) -> AgentOutput:
         """Execute an agent with retry logic."""
         return await agent.run(request)
 
@@ -184,13 +183,10 @@ class AgentOrchestrator:
             is_healthy = await agent.health_check()
             return {
                 "status": "healthy" if is_healthy else "unhealthy",
-                "info": agent.get_agent_info()
+                "info": agent.get_agent_info(),
             }
         except Exception as e:
-            return {
-                "status": "error",
-                "error": str(e)
-            }
+            return {"status": "error", "error": str(e)}
 
     async def get_system_status(self) -> dict[str, Any]:
         """Get overall system status."""
@@ -200,15 +196,15 @@ class AgentOrchestrator:
         return {
             "orchestrator": {
                 "status": "running" if self.running else "stopped",
-                "registered_agents": len(agents_info)
+                "registered_agents": len(agents_info),
             },
             "agents": {
                 agent_type: {
                     "info": info,
-                    "healthy": health_status.get(agent_type, False)
+                    "healthy": health_status.get(agent_type, False),
                 }
                 for agent_type, info in agents_info.items()
-            }
+            },
         }
 
 
@@ -231,9 +227,9 @@ class PlaceholderAgent(AgentProtocol):
             result={
                 "message": f"Processed by {self.agent_type}",
                 "payload_size": len(str(data.payload)),
-                "timestamp": time.time()
+                "timestamp": time.time(),
             },
-            metadata={"processed_by": "placeholder_agent"}
+            metadata={"processed_by": "placeholder_agent"},
         )
 
     async def health_check(self) -> bool:
@@ -243,7 +239,7 @@ class PlaceholderAgent(AgentProtocol):
     async def validate_input(self, data: AgentInput) -> bool:
         """Validate the input data."""
         return (
-            data.request_id is not None and
-            data.agent_type is not None and
-            data.payload is not None
+            data.request_id is not None
+            and data.agent_type is not None
+            and data.payload is not None
         )

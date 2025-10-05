@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 class AgentStatus(str, Enum):
     """Agent execution status."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -18,6 +19,7 @@ class AgentStatus(str, Enum):
 
 class Priority(str, Enum):
     """Request priority levels."""
+
     LOW = "low"
     NORMAL = "normal"
     HIGH = "high"
@@ -31,24 +33,19 @@ class AgentInput(BaseModel):
     agent_type: str = Field(..., description="Type of agent to execute")
     payload: dict[str, Any] = Field(..., description="Request payload data")
     metadata: dict[str, Any] | None = Field(
-        default=None,
-        description="Additional metadata for the request"
+        default=None, description="Additional metadata for the request"
     )
     priority: Priority = Field(
-        default=Priority.NORMAL,
-        description="Request priority level"
+        default=Priority.NORMAL, description="Request priority level"
     )
-    timeout: int | None = Field(
-        default=30,
-        description="Request timeout in seconds"
-    )
+    timeout: int | None = Field(default=30, description="Request timeout in seconds")
     correlation_id: str | None = Field(
-        default=None,
-        description="Correlation ID for request tracing"
+        default=None, description="Correlation ID for request tracing"
     )
 
     class Config:
         """Pydantic configuration."""
+
         use_enum_values = True
         json_encoders = {
             # Add custom encoders if needed
@@ -62,32 +59,27 @@ class AgentOutput(BaseModel):
     agent_type: str = Field(..., description="Type of agent that processed the request")
     status: AgentStatus = Field(..., description="Execution status")
     result: dict[str, Any] | None = Field(
-        default=None,
-        description="Successful execution result"
+        default=None, description="Successful execution result"
     )
     error: str | None = Field(
-        default=None,
-        description="Error message if execution failed"
+        default=None, description="Error message if execution failed"
     )
     error_code: str | None = Field(
-        default=None,
-        description="Error code for programmatic handling"
+        default=None, description="Error code for programmatic handling"
     )
     execution_time: float | None = Field(
-        default=None,
-        description="Execution time in seconds"
+        default=None, description="Execution time in seconds"
     )
     metadata: dict[str, Any] | None = Field(
-        default=None,
-        description="Additional response metadata"
+        default=None, description="Additional response metadata"
     )
     correlation_id: str | None = Field(
-        default=None,
-        description="Correlation ID for request tracing"
+        default=None, description="Correlation ID for request tracing"
     )
 
     class Config:
         """Pydantic configuration."""
+
         use_enum_values = True
 
 
@@ -102,13 +94,13 @@ class AgentProtocol(ABC):
     async def run(self, data: AgentInput) -> AgentOutput:
         """
         Execute the agent logic.
-        
+
         Args:
             data: The input data for the agent
-            
+
         Returns:
             AgentOutput: The result of the agent execution
-            
+
         Raises:
             NotImplementedError: Must be implemented by subclasses
         """
@@ -118,7 +110,7 @@ class AgentProtocol(ABC):
     async def health_check(self) -> bool:
         """
         Check if the agent is healthy and ready to process requests.
-        
+
         Returns:
             bool: True if agent is healthy, False otherwise
         """
@@ -128,10 +120,10 @@ class AgentProtocol(ABC):
     async def validate_input(self, data: AgentInput) -> bool:
         """
         Validate the input data before processing.
-        
+
         Args:
             data: The input data to validate
-            
+
         Returns:
             bool: True if input is valid, False otherwise
         """
@@ -140,15 +132,11 @@ class AgentProtocol(ABC):
     def get_agent_info(self) -> dict[str, Any]:
         """
         Get information about the agent.
-        
+
         Returns:
             Dict containing agent metadata
         """
-        return {
-            "agent_type": self.agent_type,
-            "version": "0.1.0",
-            "status": "active"
-        }
+        return {"agent_type": self.agent_type, "version": "0.1.0", "status": "active"}
 
 
 class AgentRegistry:
@@ -161,7 +149,7 @@ class AgentRegistry:
     def register(self, agent: AgentProtocol) -> None:
         """
         Register an agent in the registry.
-        
+
         Args:
             agent: The agent to register
         """
@@ -170,10 +158,10 @@ class AgentRegistry:
     def get_agent(self, agent_type: str) -> AgentProtocol | None:
         """
         Get an agent by type.
-        
+
         Args:
             agent_type: The type of agent to retrieve
-            
+
         Returns:
             AgentProtocol if found, None otherwise
         """
@@ -182,7 +170,7 @@ class AgentRegistry:
     def list_agents(self) -> dict[str, dict[str, Any]]:
         """
         List all registered agents with their information.
-        
+
         Returns:
             Dict mapping agent types to their info
         """
@@ -194,7 +182,7 @@ class AgentRegistry:
     async def health_check_all(self) -> dict[str, bool]:
         """
         Check health of all registered agents.
-        
+
         Returns:
             Dict mapping agent types to their health status
         """

@@ -18,10 +18,10 @@ class ScoringMCPStub(MCPAdapter):
     async def _process_request(self, data: AgentInput) -> AgentOutput:
         """
         Process scoring request via MCP stub.
-        
+
         Args:
             data: Input request data
-            
+
         Returns:
             AgentOutput: Scoring results
         """
@@ -34,7 +34,7 @@ class ScoringMCPStub(MCPAdapter):
             "confidence": round(random.uniform(0.7, 0.95), 2),
             "processed_by": self.agent_type,
             "mcp_adapter": "stub",
-            "transport": self.config.transport
+            "transport": self.config.transport,
         }
 
         return AgentOutput(
@@ -42,10 +42,6 @@ class ScoringMCPStub(MCPAdapter):
             agent_type=self.agent_type,
             status=AgentStatus.COMPLETED,
             result=scoring_data,
-            metadata={
-                "scoring_successful": True,
-                "mcp_enabled": self.config.enabled
-            },
-            correlation_id=data.correlation_id
+            metadata={"scoring_successful": True, "mcp_enabled": self.config.enabled},
+            correlation_id=data.correlation_id,
         )
-

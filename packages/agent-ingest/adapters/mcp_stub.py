@@ -17,10 +17,10 @@ class IngestMCPStub(MCPAdapter):
     async def _process_request(self, data: AgentInput) -> AgentOutput:
         """
         Process ingestion request via MCP stub.
-        
+
         Args:
             data: Input request data
-            
+
         Returns:
             AgentOutput: Processing result
         """
@@ -30,10 +30,12 @@ class IngestMCPStub(MCPAdapter):
         processed_data = {
             "ingested_at": time.time(),
             "data_size": len(str(data.payload)),
-            "source": data.metadata.get("source", "unknown") if data.metadata else "unknown",
+            "source": (
+                data.metadata.get("source", "unknown") if data.metadata else "unknown"
+            ),
             "processed_by": self.agent_type,
             "mcp_adapter": "stub",
-            "transport": self.config.transport
+            "transport": self.config.transport,
         }
 
         return AgentOutput(
@@ -41,10 +43,6 @@ class IngestMCPStub(MCPAdapter):
             agent_type=self.agent_type,
             status=AgentStatus.COMPLETED,
             result=processed_data,
-            metadata={
-                "ingestion_successful": True,
-                "mcp_enabled": self.config.enabled
-            },
-            correlation_id=data.correlation_id
+            metadata={"ingestion_successful": True, "mcp_enabled": self.config.enabled},
+            correlation_id=data.correlation_id,
         )
-

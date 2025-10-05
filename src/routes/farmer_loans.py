@@ -4,22 +4,20 @@ Farmer Loan Tracking and Payment Routes
 Handles loan history, payment processing, and tracking for farmers
 """
 
-from flask import Blueprint, request, jsonify, session, render_template_string
-from src.database import db
-from src.routes.auth import require_auth
-from src.models.farmer import Farmer
-from src.models.user import User
+import os
 import sqlite3
 from datetime import datetime, timedelta
-import json
-import os
 
-farmer_loans_bp = Blueprint('farmer_loans', __name__)
+from flask import Blueprint, jsonify, render_template_string, request, session
+
+from src.routes.auth import require_auth
+
+farmer_loans_bp = Blueprint("farmer_loans", __name__)
 
 
-def get_db_connection():
+def get_db_connection(_):
     """Get direct database connection for complex queries"""
-    db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'agsense.db')
+    db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "agsense.db")
     return sqlite3.connect(db_path)
 
 
@@ -30,7 +28,8 @@ def get_farmer_loans(farmer_id):
         cursor = conn.cursor()
 
         # Get farmer's loans with detailed information
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT
                 f.id as farmer_id,
                 f.full_name,
@@ -44,7 +43,9 @@ def get_farmer_loans(farmer_id):
                 f.updated_at
             FROM farmers f
             WHERE f.id = ?
-        """, (farmer_id,))
+        """,
+            (farmer_id,),
+        )
 
         farmer_data = cursor.fetchone()
 
@@ -53,10 +54,10 @@ def get_farmer_loans(farmer_id):
 
         # Convert to dictionary
         columns = [description[0] for description in cursor.description]
-        farmer_loan = dict(zip(columns, farmer_data))
+        farmer_loan = dict(zip(columns, farmer_data, strict=False))
 
         # Calculate payment schedule and history
-        loan_amount = farmer_loan['loan_amount'] or 0
+        loan_amount = farmer_loan["loan_amount"] or 0
         monthly_payment = loan_amount / 12 if loan_amount > 0 else 0
 
         # Generate payment schedule (12 months)
@@ -67,18 +68,24 @@ def get_farmer_loans(farmer_id):
             payment_date = start_date + timedelta(days=30 * i)
             status = "PAID" if i < 4 else "DUE_SOON" if i == 4 else "SCHEDULED"
 
-            payments.append({
-                'payment_number': i + 1,
-                'due_date': payment_date.strftime('%Y-%m-%d'),
-                'amount': monthly_payment,
-                'status': status,
-                'paid_date': payment_date.strftime('%Y-%m-%d') if status == "PAID" else None
-            })
+            payments.append(
+                {
+                    "payment_number": i + 1,
+                    "due_date": payment_date.strftime("%Y-%m-%d"),
+                    "amount": monthly_payment,
+                    "status": status,
+                    "paid_date": (
+                        payment_date.strftime("%Y-%m-%d") if status == "PAID" else None
+                    ),
+                }
+            )
 
-        farmer_loan['payments'] = payments
-        farmer_loan['total_paid'] = monthly_payment * 4  # 4 payments made
-        farmer_loan['remaining_balance'] = loan_amount - farmer_loan['total_paid']
-        farmer_loan['progress_percentage'] = (farmer_loan['total_paid'] / loan_amount * 100) if loan_amount > 0 else 0
+        farmer_loan["payments"] = payments
+        farmer_loan["total_paid"] = monthly_payment * 4  # 4 payments made
+        farmer_loan["remaining_balance"] = loan_amount - farmer_loan["total_paid"]
+        farmer_loan["progress_percentage"] = (
+            (farmer_loan["total_paid"] / loan_amount * 100) if loan_amount > 0 else 0
+        )
 
         return farmer_loan
 
@@ -90,18 +97,19 @@ def get_farmer_loans(farmer_id):
             conn.close()
 
 
-@farmer_loans_bp.route('/api/farmer/loans')
+@farmer_loans_bp.route("/api/farmer/loans")
 @require_auth
-def get_farmer_loan_data():
+def get_farmer_loan_data(_):
     """API endpoint to get farmer's loan data"""
-    user_id = session.get('user_id')
+    user_id = session.get("user_id")
 
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
 
         # Get farmer ID from user ID - try multiple matching strategies
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT f.id
             FROM farmers f
             JOIN users u ON (
@@ -110,54 +118,55 @@ def get_farmer_loan_data():
                 LOWER(f.full_name) = LOWER(TRIM(u.first_name || ' ' || u.last_name))
             )
             WHERE u.id = ?
-        """, (user_id,))
+        """,
+            (user_id,),
+        )
 
         result = cursor.fetchone()
         if not result:
             # Fallback: try to find farmer by username directly
-            cursor.execute("SELECT id FROM farmers WHERE full_name LIKE ? OR full_name LIKE ?",
-                           (f"%Carlos%", f"%{user_id}%"))
+            cursor.execute(
+                "SELECT id FROM farmers WHERE full_name LIKE ? OR full_name LIKE ?",
+                ("%Carlos%", f"%{user_id}%"),
+            )
             result = cursor.fetchone()
 
-        if not result:
-            # Create demo data for Carlos Lopez if not found
-            farmer_id = 1  # Use first farmer as demo
-        else:
-            farmer_id = result[0]
+        farmer_id = 1 if not result else result[0]
         loan_data = get_farmer_loans(farmer_id)
 
         if not loan_data:
-            return jsonify({'error': 'Loan data not found'}), 404
+            return jsonify({"error": "Loan data not found"}), 404
 
         return jsonify(loan_data)
 
     except Exception as e:
         print(f"Error in get_farmer_loan_data: {e}")
-        return jsonify({'error': 'Internal server error'}), 500
+        return jsonify({"error": "Internal server error"}), 500
     finally:
         if conn:
             conn.close()
 
 
-@farmer_loans_bp.route('/api/farmer/payment', methods=['POST'])
+@farmer_loans_bp.route("/api/farmer/payment", methods=["POST"])
 @require_auth
-def process_payment():
+def process_payment(_):
     """Process a loan payment"""
-    user_id = session.get('user_id')
+    user_id = session.get("user_id")
     data = request.get_json()
 
-    payment_amount = data.get('amount')
-    payment_method = data.get('method', 'online')
+    payment_amount = data.get("amount")
+    payment_method = data.get("method", "online")
 
     if not payment_amount:
-        return jsonify({'error': 'Payment amount is required'}), 400
+        return jsonify({"error": "Payment amount is required"}), 400
 
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
 
         # Get farmer ID - use same fallback logic
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT f.id, f.full_name, f.loan_amount
             FROM farmers f
             JOIN users u ON (
@@ -166,7 +175,9 @@ def process_payment():
                 LOWER(f.full_name) = LOWER(TRIM(u.first_name || ' ' || u.last_name))
             )
             WHERE u.id = ?
-        """, (user_id,))
+        """,
+            (user_id,),
+        )
 
         result = cursor.fetchone()
         if not result:
@@ -175,40 +186,42 @@ def process_payment():
             result = cursor.fetchone()
 
         if not result:
-            return jsonify({'error': 'Farmer not found'}), 404
+            return jsonify({"error": "Farmer not found"}), 404
 
         farmer_id, farmer_name, loan_amount = result
 
         # Create payment record (we'll add a payments table later)
-        payment_record = {
-            'farmer_id': farmer_id,
-            'amount': payment_amount,
-            'method': payment_method,
-            'timestamp': datetime.now().isoformat(),
-            'status': 'COMPLETED'
+        {
+            "farmer_id": farmer_id,
+            "amount": payment_amount,
+            "method": payment_method,
+            "timestamp": datetime.now().isoformat(),
+            "status": "COMPLETED",
         }
 
         # For now, we'll return success
         # In production, this would integrate with actual payment processing
 
-        return jsonify({
-            'success': True,
-            'message': f'Payment of ₱{payment_amount:,.2f} processed successfully',
-            'payment_id': f'PAY_{farmer_id}_{int(datetime.now().timestamp())}',
-            'farmer_name': farmer_name
-        })
+        return jsonify(
+            {
+                "success": True,
+                "message": f"Payment of ₱{payment_amount:,.2f} processed successfully",
+                "payment_id": f"PAY_{farmer_id}_{int(datetime.now().timestamp())}",
+                "farmer_name": farmer_name,
+            }
+        )
 
     except Exception as e:
         print(f"Error processing payment: {e}")
-        return jsonify({'error': 'Payment processing failed'}), 500
+        return jsonify({"error": "Payment processing failed"}), 500
     finally:
         if conn:
             conn.close()
 
 
-@farmer_loans_bp.route('/farmer/loans')
+@farmer_loans_bp.route("/farmer/loans")
 @require_auth
-def farmer_loans_page():
+def farmer_loans_page(_):
     """Farmer loans tracking page"""
 
     # HTML template for the loans page

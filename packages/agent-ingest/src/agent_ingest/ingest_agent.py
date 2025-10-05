@@ -32,8 +32,12 @@ class IngestAgent(AgentProtocol):
             processed_data = {
                 "ingested_at": time.time(),
                 "data_size": len(str(data.payload)),
-                "source": data.metadata.get("source", "unknown") if data.metadata else "unknown",
-                "processed_by": self.agent_type
+                "source": (
+                    data.metadata.get("source", "unknown")
+                    if data.metadata
+                    else "unknown"
+                ),
+                "processed_by": self.agent_type,
             }
 
             return AgentOutput(
@@ -41,7 +45,7 @@ class IngestAgent(AgentProtocol):
                 agent_type=self.agent_type,
                 status=AgentStatus.COMPLETED,
                 result=processed_data,
-                metadata={"ingestion_successful": True}
+                metadata={"ingestion_successful": True},
             )
 
         except Exception as e:
@@ -51,7 +55,7 @@ class IngestAgent(AgentProtocol):
                 agent_type=self.agent_type,
                 status=AgentStatus.FAILED,
                 error=str(e),
-                error_code="INGEST_ERROR"
+                error_code="INGEST_ERROR",
             )
 
     async def health_check(self) -> bool:

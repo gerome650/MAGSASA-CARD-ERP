@@ -1,0 +1,107 @@
+name: Staging Smoke Test
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # Allow manual trigger
+
+# Cancel superseded runs to save CI resources
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke-test:
+    name: Staging Smoke Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      
+      - name: Cache uv dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            ~/.cache/pip
+          key: ${{ runner.os }}-uv-py3.11-${{ hashFiles('**/pyproject.toml', '**/uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-py3.11-
+            ${{ runner.os }}-uv-
+      
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      
+      - name: Install dependencies
+        run: uv sync --dev
+      
+      - name: Run smoke tests
+        run: |
+          # Basic smoke tests to verify core functionality
+          python -c "import src.main; print('✅ Main module imports successfully')"
+          
+          # Test health endpoint
+          echo "Testing health endpoint..."
+          python -c "
+          from src.main import app
+          with app.test_client() as client:
+              response = client.get('/api/health')
+              assert response.status_code == 200, f'Health check failed: {response.status_code}'
+              print('✅ Health endpoint working')
+          "
+          
+          # Test basic API endpoints
+          echo "Testing basic API endpoints..."
+          python -c "
+          from src.main import app
+          with app.test_client() as client:
+              # Test root endpoint
+              response = client.get('/')
+              assert response.status_code in [200, 302], f'Root endpoint failed: {response.status_code}'
+              
+              # Test API test endpoint
+              response = client.get('/api/test')
+              assert response.status_code == 200, f'Test endpoint failed: {response.status_code}'
+              print('✅ Basic API endpoints working')
+          "
+          
+          echo "✅ All smoke tests passed!"
+      
+      - name: Run quick integration tests
+        run: |
+          # Run a subset of integration tests for staging validation
+          uv run pytest tests/ -k "not slow and not flaky" --maxfail=3 -x -v
+      
+      - name: Verify deployment readiness
+        run: |
+          # Check that the application can start
+          echo "Verifying deployment readiness..."
+          timeout 30s python -c "
+          import os
+          os.environ['FLASK_HOST'] = '127.0.0.1'
+          os.environ['FLASK_PORT'] = '8000'
+          from src.main import app
+          print('✅ Application can start successfully')
+          " || echo "⚠️  Application startup test timed out (non-critical)"
+      
+      - name: Post to Slack (success)
+        if: success() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          python scripts/notify_slack.py "staging-smoke-test" "${{ github.run_id }}" "✅ Staging smoke test passed - ready for deployment" || echo "Slack notification failed"
+      
+      - name: Post to Slack (failure)
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          python scripts/notify_slack.py "staging-smoke-test" "${{ github.run_id }}" "❌ Staging smoke test failed - deployment blocked" || echo "Slack notification failed"

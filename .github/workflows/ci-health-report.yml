@@ -1,0 +1,74 @@
+name: Daily CI Health Report
+
+on:
+  schedule:
+    # Run daily at 09:00 UTC
+    - cron: '0 9 * * *'
+  workflow_dispatch:  # Allow manual trigger
+
+# Cancel superseded runs to save CI resources
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generate-health-report:
+    name: Generate CI Health Report
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for analysis
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-health-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-health-
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install PyGithub==2.3.0 rich==13.7.0 requests==2.31.0 python-dotenv==1.0.1
+      
+      - name: Generate CI Health Report
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          python scripts/ci_health_report.py --verbose
+      
+      - name: Commit report to repository (main branch only)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add reports/ci_health.json reports/ci_health.md
+          git commit -m "📊 Daily CI Health Report - $(date '+%Y-%m-%d')" || echo "No changes to commit"
+          git push || echo "Push failed (may be no changes)"
+      
+      - name: Upload reports as artifacts (non-main branches)
+        if: github.ref != 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-health-report-${{ github.run_number }}
+          path: |
+            reports/ci_health.json
+            reports/ci_health.md
+          retention-days: 30
+      
+      - name: Post to Slack (if configured)
+        if: always() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          python scripts/notify_slack.py "ci-health-report" "${{ github.run_id }}" "Daily CI Health Report generated" || echo "Slack notification failed"

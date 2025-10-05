@@ -3,13 +3,14 @@
 Check existing database tables and create farmers table if needed
 """
 
-import sqlite3
 import os
+import sqlite3
 
 # Database connection
-db_path = 'src/agsense.db'
+db_path = "src/agsense.db"
 conn = sqlite3.connect(db_path)
 cursor = conn.cursor()
+
 
 def check_existing_tables():
     """Check what tables exist in the database"""
@@ -20,9 +21,11 @@ def check_existing_tables():
         print(f"  - {table[0]}")
     return [table[0] for table in tables]
 
+
 def create_farmers_table():
     """Create the farmers table with all necessary fields"""
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS farmers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             first_name TEXT NOT NULL,
@@ -39,12 +42,15 @@ def create_farmers_table():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    """)
+    """
+    )
     print("✓ Created farmers table")
+
 
 def create_products_table():
     """Create the products table"""
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
@@ -58,12 +64,15 @@ def create_products_table():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    """)
+    """
+    )
     print("✓ Created products table")
+
 
 def create_orders_table():
     """Create the orders table"""
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             farmer_id INTEGER,
@@ -76,12 +85,15 @@ def create_orders_table():
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (farmer_id) REFERENCES farmers (id)
         )
-    """)
+    """
+    )
     print("✓ Created orders table")
+
 
 def create_partners_table():
     """Create the partners table"""
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS partners (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
@@ -95,24 +107,30 @@ def create_partners_table():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    """)
+    """
+    )
     print("✓ Created partners table")
+
 
 def create_categories_table():
     """Create the categories table"""
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL UNIQUE,
             description TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    """)
+    """
+    )
     print("✓ Created categories table")
+
 
 def create_suppliers_table():
     """Create the suppliers table"""
-    cursor.execute("""
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS suppliers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
@@ -124,17 +142,19 @@ def create_suppliers_table():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-    """)
+    """
+    )
     print("✓ Created suppliers table")
+
 
 def main():
     print("Checking database structure...")
     print(f"Database path: {os.path.abspath(db_path)}")
-    
-    existing_tables = check_existing_tables()
-    
+
+    check_existing_tables()
+
     print("\nCreating missing tables...")
-    
+
     # Create all necessary tables
     create_farmers_table()
     create_products_table()
@@ -142,16 +162,16 @@ def main():
     create_partners_table()
     create_categories_table()
     create_suppliers_table()
-    
+
     # Commit changes
     conn.commit()
-    
+
     print("\nFinal table list:")
     check_existing_tables()
-    
+
     conn.close()
     print("\nDatabase setup complete!")
 
+
 if __name__ == "__main__":
     main()
-

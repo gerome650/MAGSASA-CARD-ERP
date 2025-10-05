@@ -1,52 +1,48 @@
-from src.simple_auth import simple_auth_bp
-from src.routes.health import health_bp
-from src.routes.prequalification import prequalification_bp
-from src.routes.kaani_enhanced import kaani_enhanced_bp
-from src.routes.farmer_loans import farmer_loans_bp
-from src.routes.image_upload import image_bp
-from src.routes.auth import auth_bp
-from src.routes.financial import financial_bp
-from src.routes.partnership import partnership_bp
-from src.routes.farmer_orders import farmer_orders_bp
-from src.routes.supplier import supplier_bp
-from src.routes.category import category_bp
-from src.routes.reports import reports_bp
-from src.routes.analytics import analytics_bp
-from src.routes.dashboard import dashboard_bp
-from src.routes.partner import partner_bp
-from src.routes.order import order_bp
-from src.routes.product import product_bp
-from src.routes.farmer import farmer_bp
-from src.routes.user import user_bp
-from src.models.order import Order, OrderItem
-from src.models.partner import Partner
-from src.models.product import Product
-from src.models.supplier import Supplier
-from src.models.category import Category
-from src.models.farmer import Farmer
-from src.database import db
-from observability.logging.structured_logger import get_logger, configure_root_logger
-from observability.tracing.otel_tracer import init_tracing, get_tracer
-from observability.metrics.metrics_middleware import MetricsMiddleware
-from flask_cors import CORS
-from flask import Flask, send_from_directory, redirect, session
 import os
 import sys
 import time
+
+from flask import Flask, redirect, send_from_directory, session
+from flask_cors import CORS
+
+from observability.logging.structured_logger import configure_root_logger, get_logger
+from observability.metrics.metrics_middleware import MetricsMiddleware
+from observability.tracing.otel_tracer import get_tracer, init_tracing
+from src.database import db
+from src.routes.analytics import analytics_bp
+from src.routes.category import category_bp
+from src.routes.dashboard import dashboard_bp
+from src.routes.farmer import farmer_bp
+from src.routes.farmer_loans import farmer_loans_bp
+from src.routes.farmer_orders import farmer_orders_bp
+from src.routes.financial import financial_bp
+from src.routes.health import health_bp
+from src.routes.image_upload import image_bp
+from src.routes.kaani_enhanced import kaani_enhanced_bp
+from src.routes.order import order_bp
+from src.routes.partner import partner_bp
+from src.routes.partnership import partnership_bp
+from src.routes.prequalification import prequalification_bp
+from src.routes.product import product_bp
+from src.routes.reports import reports_bp
+from src.routes.supplier import supplier_bp
+from src.routes.user import user_bp
+from src.simple_auth import simple_auth_bp
+
 # DON'T CHANGE THIS !!!
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 
 # Observability imports
 
-app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
-app.config['SECRET_KEY'] = 'asdf#FGSgvasgf$5$WGT'
+app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), "static"))
+app.config["SECRET_KEY"] = "asdf#FGSgvasgf$5$WGT"
 
 # Session configuration for better security
-app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour session timeout
+app.config["SESSION_COOKIE_SECURE"] = False  # Set to True in production with HTTPS
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["PERMANENT_SESSION_LIFETIME"] = 3600  # 1 hour session timeout
 
 # Enable CORS for all routes
 CORS(app)
@@ -56,12 +52,13 @@ CORS(app)
 MetricsMiddleware(app)
 
 # Tracing: Auto-instruments Flask, SQLAlchemy, and HTTP requests
-otlp_endpoint = os.getenv('OTEL_EXPORTER_OTLP_ENDPOINT', None)
+otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", None)
 init_tracing(
     app,
-    service_name=os.getenv('OTEL_SERVICE_NAME', 'magsasa-card-erp'),
+    service_name=os.getenv("OTEL_SERVICE_NAME", "magsasa-card-erp"),
     otlp_endpoint=otlp_endpoint,
-    console_export=os.getenv('OTEL_CONSOLE_EXPORT', 'False').lower() in ('true', '1', 'yes')
+    console_export=os.getenv("OTEL_CONSOLE_EXPORT", "False").lower()
+    in ("true", "1", "yes"),
 )
 
 # Structured logging: JSON-formatted logs with trace context
@@ -69,148 +66,161 @@ configure_root_logger()
 logger = get_logger(__name__)
 tracer = get_tracer(__name__)
 
-logger.info("Application starting", environment=os.getenv('ENVIRONMENT', 'development'))
+logger.info("Application starting", environment=os.getenv("ENVIRONMENT", "development"))
 
 # Register blueprints
-app.register_blueprint(user_bp, url_prefix='/api')
-app.register_blueprint(farmer_bp, url_prefix='/api')
-app.register_blueprint(product_bp, url_prefix='/api')
-app.register_blueprint(order_bp, url_prefix='/api')
-app.register_blueprint(partner_bp, url_prefix='/api')
+app.register_blueprint(user_bp, url_prefix="/api")
+app.register_blueprint(farmer_bp, url_prefix="/api")
+app.register_blueprint(product_bp, url_prefix="/api")
+app.register_blueprint(order_bp, url_prefix="/api")
+app.register_blueprint(partner_bp, url_prefix="/api")
 app.register_blueprint(dashboard_bp)  # No prefix for dashboard routes
-app.register_blueprint(analytics_bp, url_prefix='/api')
-app.register_blueprint(reports_bp, url_prefix='/api')
-app.register_blueprint(category_bp, url_prefix='/api')
-app.register_blueprint(supplier_bp, url_prefix='/api')
-app.register_blueprint(farmer_orders_bp, url_prefix='/api')
-app.register_blueprint(partnership_bp, url_prefix='/api')
-app.register_blueprint(financial_bp, url_prefix='/api')
+app.register_blueprint(analytics_bp, url_prefix="/api")
+app.register_blueprint(reports_bp, url_prefix="/api")
+app.register_blueprint(category_bp, url_prefix="/api")
+app.register_blueprint(supplier_bp, url_prefix="/api")
+app.register_blueprint(farmer_orders_bp, url_prefix="/api")
+app.register_blueprint(partnership_bp, url_prefix="/api")
+app.register_blueprint(financial_bp, url_prefix="/api")
 # app.register_blueprint(auth_bp)  # Disabled - using simple auth instead
 app.register_blueprint(simple_auth_bp)  # Simple authentication
 app.register_blueprint(image_bp)
 app.register_blueprint(farmer_loans_bp)
 app.register_blueprint(kaani_enhanced_bp)  # Enhanced KaAni Assistant integration
 app.register_blueprint(prequalification_bp)  # Pre-qualification assessment API
-app.register_blueprint(health_bp)  # Health check endpoints for monitoring and chaos engineering
+app.register_blueprint(
+    health_bp
+)  # Health check endpoints for monitoring and chaos engineering
 
 # Add root route handler
 
 
-@app.route('/')
+@app.route("/")
 def index():
     """Root route - redirect to appropriate dashboard based on login status"""
     with tracer.start_as_current_span("index_route"):
-        if 'user_id' in session:
-            logger.info("User accessing dashboard", user_id=session.get('user_id'))
-            return redirect('/dashboard')
+        if "user_id" in session:
+            logger.info("User accessing dashboard", user_id=session.get("user_id"))
+            return redirect("/dashboard")
         else:
             logger.info("Anonymous user redirected to login")
-            return redirect('/login.html')
+            return redirect("/login.html")
+
 
 # Role-specific dashboard routes
 
 
-@app.route('/admin')
+@app.route("/admin")
 def admin_dashboard():
     """Admin dashboard"""
-    return send_from_directory(app.static_folder, 'index.html')
+    return send_from_directory(app.static_folder, "index.html")
 
 
-@app.route('/manager')
+@app.route("/manager")
 def manager_dashboard():
     """Manager dashboard"""
-    return send_from_directory(app.static_folder, 'manager_dashboard.html')
+    return send_from_directory(app.static_folder, "manager_dashboard.html")
 
 
-@app.route('/officer')
+@app.route("/officer")
 def officer_dashboard():
     """Officer dashboard"""
-    return send_from_directory(app.static_folder, 'enhanced_officer_dashboard.html')
+    return send_from_directory(app.static_folder, "enhanced_officer_dashboard.html")
 
 
-@app.route('/farmer')
+@app.route("/farmer")
 def farmer_dashboard():
     """Farmer dashboard"""
-    return send_from_directory(app.static_folder, 'farmer_dashboard.html')
+    return send_from_directory(app.static_folder, "farmer_dashboard.html")
 
 
-@app.route('/farmer/loans/demo')
+@app.route("/farmer/loans/demo")
 def farmer_loans_demo():
     """Demo page for farmer loan tracking features"""
-    return send_from_directory(app.static_folder, 'farmer_loans_demo.html')
+    return send_from_directory(app.static_folder, "farmer_loans_demo.html")
 
 
-@app.route('/officer/enhanced')
+@app.route("/officer/enhanced")
 def enhanced_officer_dashboard():
     """Enhanced field officer dashboard with offline capabilities"""
-    return send_from_directory(app.static_folder, 'enhanced_officer_dashboard.html')
+    return send_from_directory(app.static_folder, "enhanced_officer_dashboard.html")
 
 
-@app.route('/officer/offline-demo')
+@app.route("/officer/offline-demo")
 def offline_sync_demo():
     """Offline synchronization demo for field officers"""
-    return send_from_directory(app.static_folder, 'offline_sync_demo.html')
+    return send_from_directory(app.static_folder, "offline_sync_demo.html")
+
 
 # Simple test endpoint
 
 
-@app.route('/api/test')
+@app.route("/api/test")
 def test_endpoint():
     """Simple test endpoint"""
-    return {'message': 'test works'}, 200
+    return {"message": "test works"}, 200
+
 
 # Health check endpoint for monitoring and chaos testing
 
 
-@app.route('/api/health')
+@app.route("/api/health")
 def health_check():
     """Health check endpoint for monitoring and chaos testing"""
     with tracer.start_as_current_span("health_check"):
         try:
             # Basic health check - verify database connection
-            db_status = 'unknown'
+            db_status = "unknown"
             try:
                 with app.app_context():
                     # Use text() for SQLAlchemy 2.0 compatibility
                     from sqlalchemy import text
+
                     with tracer.start_as_current_span("database_check"):
-                        db.session.execute(text('SELECT 1'))
-                        db_status = 'connected'
-                        logger.debug("Database health check passed", db_status=db_status)
+                        db.session.execute(text("SELECT 1"))
+                        db_status = "connected"
+                        logger.debug(
+                            "Database health check passed", db_status=db_status
+                        )
             except Exception as db_error:
-                db_status = f'error: {str(db_error)}'
+                db_status = f"error: {str(db_error)}"
                 logger.error("Database health check failed", error=str(db_error))
 
             response = {
-                'status': 'healthy',
-                'timestamp': time.time(),
-                'service': 'MAGSASA-CARD-ERP',
-                'version': '1.0.0',
-                'database': db_status
+                "status": "healthy",
+                "timestamp": time.time(),
+                "service": "MAGSASA-CARD-ERP",
+                "version": "1.0.0",
+                "database": db_status,
             }
-            logger.info("Health check completed", status='healthy', db_status=db_status)
+            logger.info("Health check completed", status="healthy", db_status=db_status)
             return response, 200
         except Exception as e:
-            logger.error("Health check failed", error=str(e), exception_type=type(e).__name__)
+            logger.error(
+                "Health check failed", error=str(e), exception_type=type(e).__name__
+            )
             return {
-                'status': 'unhealthy',
-                'timestamp': time.time(),
-                'service': 'MAGSASA-CARD-ERP',
-                'error': str(e)
+                "status": "unhealthy",
+                "timestamp": time.time(),
+                "service": "MAGSASA-CARD-ERP",
+                "error": str(e),
             }, 503
+
 
 # Serve static files
 
 
-@app.route('/<path:filename>')
+@app.route("/<path:filename>")
 def serve_static(filename):
     """Serve static files"""
     return send_from_directory(app.static_folder, filename)
 
 
 # uncomment if you need to use database
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'agsense.db')}"
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config["SQLALCHEMY_DATABASE_URI"] = (
+    f"sqlite:///{os.path.join(os.path.dirname(__file__), 'agsense.db')}"
+)
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
 with app.app_context():
     db.create_all()
@@ -218,27 +228,27 @@ with app.app_context():
 # Removed problematic catch-all route that was overriding specific dashboard routes
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Security: Use environment variables for host and debug settings
     # Default to secure values: localhost binding and debug off
-    flask_host = os.getenv('FLASK_HOST', '127.0.0.1')
-    flask_debug = os.getenv('FLASK_DEBUG', 'False').lower() in ('true', '1', 'yes')
+    flask_host = os.getenv("FLASK_HOST", "127.0.0.1")
+    flask_debug = os.getenv("FLASK_DEBUG", "False").lower() in ("true", "1", "yes")
 
     # Port configuration with environment variable support
     # Default to 8000 for consistency with chaos testing, fallback to 5001 for backward compatibility
-    flask_port = int(os.getenv('APP_PORT', os.getenv('FLASK_PORT', '8000')))
+    flask_port = int(os.getenv("APP_PORT", os.getenv("FLASK_PORT", "8000")))
 
     print(f"🚀 Starting Flask application on {flask_host}:{flask_port}")
     print(f"   Health endpoint: http://{flask_host}:{flask_port}/api/health")
     print(f"   Metrics endpoint: http://{flask_host}:{flask_port}/metrics")
-    print(f"   Set APP_PORT environment variable to change port")
+    print("   Set APP_PORT environment variable to change port")
 
     logger.info(
         "Application configuration",
         host=flask_host,
         port=flask_port,
         debug=flask_debug,
-        environment=os.getenv('ENVIRONMENT', 'development')
+        environment=os.getenv("ENVIRONMENT", "development"),
     )
 
     # Note: For Docker/load testing, set FLASK_HOST=0.0.0.0 in environment

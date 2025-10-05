@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-import os, json, glob
+import glob
+import json
+import os
 from datetime import datetime
 
 try:
     import yaml  # PyYAML
 except ImportError:
     yaml = None
+
 
 def load_slos():
     slos = []
@@ -14,7 +17,7 @@ def load_slos():
         objective = "n/a"
         if yaml is not None:
             try:
-                with open(path, "r") as f:
+                with open(path) as f:
                     data = yaml.safe_load(f) or {}
                     # try common keys
                     objective = (
@@ -27,8 +30,11 @@ def load_slos():
                     name = data.get("name") or data.get("id") or name
             except Exception:
                 pass
-        slos.append({"slo": name, "objective": str(objective), "status": "ok", "value": 0})
+        slos.append(
+            {"slo": name, "objective": str(objective), "status": "ok", "value": 0}
+        )
     return slos
+
 
 def main():
     # Allow forcing a non-zero regression count for demos/tests
@@ -47,7 +53,7 @@ def main():
 
     payload = {
         "generated_at": datetime.utcnow().isoformat() + "Z",
-        "chaos_failed": False,            # keep compatibility with existing OPA input
+        "chaos_failed": False,  # keep compatibility with existing OPA input
         "slo_regressions": forced if forced > 0 else 0,
         "details": details,
     }
@@ -56,6 +62,6 @@ def main():
         json.dump(payload, f, indent=2)
     print(out)
 
+
 if __name__ == "__main__":
     main()
-

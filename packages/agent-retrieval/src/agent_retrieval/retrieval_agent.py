@@ -34,7 +34,7 @@ class RetrievalAgent(AgentProtocol):
                 "query": query,
                 "results_count": len(query.split()) if query else 0,
                 "retrieved_at": time.time(),
-                "processed_by": self.agent_type
+                "processed_by": self.agent_type,
             }
 
             return AgentOutput(
@@ -42,7 +42,7 @@ class RetrievalAgent(AgentProtocol):
                 agent_type=self.agent_type,
                 status=AgentStatus.COMPLETED,
                 result=retrieved_data,
-                metadata={"retrieval_successful": True}
+                metadata={"retrieval_successful": True},
             )
 
         except Exception as e:
@@ -52,7 +52,7 @@ class RetrievalAgent(AgentProtocol):
                 agent_type=self.agent_type,
                 status=AgentStatus.FAILED,
                 error=str(e),
-                error_code="RETRIEVAL_ERROR"
+                error_code="RETRIEVAL_ERROR",
             )
 
     async def health_check(self) -> bool:

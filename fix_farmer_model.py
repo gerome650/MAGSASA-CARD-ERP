@@ -10,10 +10,10 @@ import uuid
 
 class Farmer(db.Model):
     __tablename__ = 'farmers'
-    
+
     # Primary Key
     id = db.Column(db.Integer, primary_key=True)
-    
+
     # Personal Information - matching enhanced schema
     full_name = db.Column(db.String(120), nullable=False)
     first_name = db.Column(db.String(60), nullable=True)
@@ -22,30 +22,30 @@ class Farmer(db.Model):
     mobile_number = db.Column(db.String(20), nullable=True)
     government_id = db.Column(db.String(120), nullable=True)
     address = db.Column(db.Text, nullable=True)
-    
+
     # Farm Information - matching enhanced schema
     land_size_ha = db.Column(db.Float, nullable=True)
     crop_types = db.Column(db.Text, nullable=True)  # This matches the database
     land_tenure = db.Column(db.String(50), nullable=True)
     farming_experience = db.Column(db.Integer, nullable=True)
-    
+
     # AgScore & Risk Assessment - matching enhanced schema
     agscore = db.Column(db.Integer, nullable=True)
     agscore_grade = db.Column(db.String(10), nullable=True)
     risk_factors = db.Column(db.Text, nullable=True)
-    
+
     # Loan Management - matching enhanced schema
     loan_status = db.Column(db.String(50), default='None')
     loan_amount = db.Column(db.Float, nullable=True)
-    
+
     # Additional fields from enhanced schema
     registration_date = db.Column(db.Date, nullable=True)
     notes = db.Column(db.Text, nullable=True)
-    
+
     # System Fields
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -75,12 +75,12 @@ class Farmer(db.Model):
             'phone': self.mobile_number,
             'crop_type': self.crop_types.split(',')[0].strip() if self.crop_types else None
         }
-    
+
     def get_agscore_grade(self):
         """Calculate AgScore grade based on score"""
         if not self.agscore:
             return 'Poor'
-        
+
         if self.agscore >= 800:
             return 'Excellent'
         elif self.agscore >= 700:
@@ -89,7 +89,7 @@ class Farmer(db.Model):
             return 'Fair'
         else:
             return 'Poor'
-    
+
     def update_agscore(self, score, risk_factors=None):
         """Update AgScore and related fields"""
         self.agscore = score
@@ -99,9 +99,8 @@ class Farmer(db.Model):
 '''
 
 # Write the updated model
-with open('src/models/farmer.py', 'w') as f:
+with open("src/models/farmer.py", "w") as f:
     f.write(farmer_model_content)
 
 print("✅ Updated farmer model to match enhanced database schema")
 print("🔧 Fixed field mappings and to_dict() method")
-

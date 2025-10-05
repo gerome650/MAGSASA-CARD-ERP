@@ -17,19 +17,24 @@ class MCPConfig(BaseModel):
     """Configuration for MCP adapter."""
 
     enabled: bool = Field(
-        default_factory=lambda: os.getenv("AGS_MCP_ENABLED", "false").lower() in ("true", "1", "yes"),
-        description="Whether MCP mode is enabled"
+        default_factory=lambda: os.getenv("AGS_MCP_ENABLED", "false").lower()
+        in ("true", "1", "yes"),
+        description="Whether MCP mode is enabled",
     )
     protocol_version: str = Field(default="1.0.0", description="MCP protocol version")
-    transport: str = Field(default="stdio", description="Transport mechanism (stdio, http, mqtt)")
-    schema_validation: bool = Field(default=True, description="Enable schema validation")
+    transport: str = Field(
+        default="stdio", description="Transport mechanism (stdio, http, mqtt)"
+    )
+    schema_validation: bool = Field(
+        default=True, description="Enable schema validation"
+    )
     trace_enabled: bool = Field(default=True, description="Enable request tracing")
 
 
 class MCPAdapter(ABC):
     """
     Base MCP adapter for agent communication.
-    
+
     This is a stub implementation that simulates MCP-like behavior
     locally before integrating real MCP transport adapters.
     """
@@ -37,7 +42,7 @@ class MCPAdapter(ABC):
     def __init__(self, agent_type: str, config: MCPConfig | None = None) -> None:
         """
         Initialize the MCP adapter.
-        
+
         Args:
             agent_type: Type of agent this adapter serves
             config: MCP configuration (defaults to env-based config)
@@ -53,7 +58,7 @@ class MCPAdapter(ABC):
     def validate_protocol_compliance(self) -> bool:
         """
         Validate that the agent implements MCP protocol correctly.
-        
+
         Returns:
             bool: True if protocol compliant, False otherwise
         """
@@ -73,10 +78,10 @@ class MCPAdapter(ABC):
     def validate_schema(self, data: AgentInput) -> bool:
         """
         Validate input data against schema.
-        
+
         Args:
             data: Input data to validate
-            
+
         Returns:
             bool: True if schema valid, False otherwise
         """
@@ -94,13 +99,13 @@ class MCPAdapter(ABC):
     async def send_request(self, data: AgentInput) -> AgentOutput:
         """
         Send a request through the MCP adapter.
-        
+
         This is a stub implementation that simulates MCP transport.
         In production, this would use actual MCP transport (stdio, HTTP, MQTT, etc.)
-        
+
         Args:
             data: Request data
-            
+
         Returns:
             AgentOutput: Response from agent
         """
@@ -110,7 +115,7 @@ class MCPAdapter(ABC):
             "MCP request started",
             request_id=data.request_id,
             agent=self.agent_type,
-            transport=self.config.transport
+            transport=self.config.transport,
         )
 
         try:
@@ -121,7 +126,7 @@ class MCPAdapter(ABC):
                     agent_type=self.agent_type,
                     status=AgentStatus.FAILED,
                     error="Schema validation failed",
-                    error_code="SCHEMA_VALIDATION_ERROR"
+                    error_code="SCHEMA_VALIDATION_ERROR",
                 )
 
             # Process the request (stub implementation)
@@ -134,7 +139,7 @@ class MCPAdapter(ABC):
                 request_id=data.request_id,
                 agent=self.agent_type,
                 latency_ms=latency_ms,
-                status="ok"
+                status="ok",
             )
 
             return result
@@ -148,7 +153,7 @@ class MCPAdapter(ABC):
                 agent=self.agent_type,
                 latency_ms=latency_ms,
                 status="error",
-                error=str(e)
+                error=str(e),
             )
 
             return AgentOutput(
@@ -157,17 +162,17 @@ class MCPAdapter(ABC):
                 status=AgentStatus.FAILED,
                 error=str(e),
                 error_code="MCP_REQUEST_ERROR",
-                execution_time=latency_ms / 1000
+                execution_time=latency_ms / 1000,
             )
 
     @abstractmethod
     async def _process_request(self, data: AgentInput) -> AgentOutput:
         """
         Process the request (to be implemented by subclasses).
-        
+
         Args:
             data: Request data
-            
+
         Returns:
             AgentOutput: Response
         """
@@ -176,7 +181,7 @@ class MCPAdapter(ABC):
     def get_diagnostics(self) -> dict[str, Any]:
         """
         Get diagnostic information about the MCP adapter.
-        
+
         Returns:
             Dict with diagnostic information
         """
@@ -187,6 +192,5 @@ class MCPAdapter(ABC):
             "transport": self.config.transport,
             "schema_validation": self.config.schema_validation,
             "trace_enabled": self.config.trace_enabled,
-            "protocol_compliant": self.validate_protocol_compliance()
+            "protocol_compliant": self.validate_protocol_compliance(),
         }
-

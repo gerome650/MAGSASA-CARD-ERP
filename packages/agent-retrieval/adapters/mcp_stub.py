@@ -17,10 +17,10 @@ class RetrievalMCPStub(MCPAdapter):
     async def _process_request(self, data: AgentInput) -> AgentOutput:
         """
         Process retrieval request via MCP stub.
-        
+
         Args:
             data: Input request data
-            
+
         Returns:
             AgentOutput: Retrieved data
         """
@@ -34,7 +34,7 @@ class RetrievalMCPStub(MCPAdapter):
             "results_count": 10,  # Simulated
             "processed_by": self.agent_type,
             "mcp_adapter": "stub",
-            "transport": self.config.transport
+            "transport": self.config.transport,
         }
 
         return AgentOutput(
@@ -42,10 +42,6 @@ class RetrievalMCPStub(MCPAdapter):
             agent_type=self.agent_type,
             status=AgentStatus.COMPLETED,
             result=retrieved_data,
-            metadata={
-                "retrieval_successful": True,
-                "mcp_enabled": self.config.enabled
-            },
-            correlation_id=data.correlation_id
+            metadata={"retrieval_successful": True, "mcp_enabled": self.config.enabled},
+            correlation_id=data.correlation_id,
         )
-

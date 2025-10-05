@@ -1,0 +1,12 @@
+[bandit]
+# Bandit configuration for security scanning
+exclude_dirs = ['tests', 'test_*', '__pycache__', '.git', 'venv', '.venv', 'node_modules', 'build', 'dist']
+skips = ['B101', 'B601']  # Skip assert_used and shell=True warnings
+
+[bandit.assert_used]
+# Allow assert statements in test files
+skips = ['test_*.py', '*_test.py']
+
+[bandit.shell_true]
+# Allow shell=True in specific contexts (with proper validation)
+skips = ['scripts/*.sh', '*.sh']

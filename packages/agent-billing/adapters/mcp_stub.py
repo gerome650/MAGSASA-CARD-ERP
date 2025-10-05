@@ -18,10 +18,10 @@ class BillingMCPStub(MCPAdapter):
     async def _process_request(self, data: AgentInput) -> AgentOutput:
         """
         Process billing request via MCP stub.
-        
+
         Args:
             data: Input request data
-            
+
         Returns:
             AgentOutput: Billing result
         """
@@ -36,7 +36,7 @@ class BillingMCPStub(MCPAdapter):
             "status": "completed",
             "processed_by": self.agent_type,
             "mcp_adapter": "stub",
-            "transport": self.config.transport
+            "transport": self.config.transport,
         }
 
         return AgentOutput(
@@ -44,10 +44,6 @@ class BillingMCPStub(MCPAdapter):
             agent_type=self.agent_type,
             status=AgentStatus.COMPLETED,
             result=billing_data,
-            metadata={
-                "billing_successful": True,
-                "mcp_enabled": self.config.enabled
-            },
-            correlation_id=data.correlation_id
+            metadata={"billing_successful": True, "mcp_enabled": self.config.enabled},
+            correlation_id=data.correlation_id,
         )
-
