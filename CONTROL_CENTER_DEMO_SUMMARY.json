@@ -1,0 +1,68 @@
+{
+  "timestamp": "2025-10-04T16:51:03.777116",
+  "schema_version": "1.0.0",
+  "databases_created": 4,
+  "pages_created": 2,
+  "sample_data_items": 8,
+  "databases": {
+    "ci_intelligence_reports": {
+      "title": "CI Intelligence Reports",
+      "id": "demo_ci_intelligence_reports_20251004_165103",
+      "properties_count": 15,
+      "sample_data_count": 1
+    },
+    "engineering_roadmap": {
+      "title": "Engineering Roadmap",
+      "id": "demo_engineering_roadmap_20251004_165103",
+      "properties_count": 17,
+      "sample_data_count": 2
+    },
+    "ai_studio_milestones": {
+      "title": "AI Studio Milestones",
+      "id": "demo_ai_studio_milestones_20251004_165103",
+      "properties_count": 10,
+      "sample_data_count": 2
+    },
+    "kpi_dashboard": {
+      "title": "KPI Dashboard",
+      "id": "demo_kpi_dashboard_20251004_165103",
+      "properties_count": 11,
+      "sample_data_count": 3
+    }
+  },
+  "environment_variables": {
+    "MAGSASA_CI_DB_ID": "demo_ci_intelligence_reports_20251004_165103",
+    "MAGSASA_ROADMAP_DB_ID": "demo_engineering_roadmap_20251004_165103",
+    "AI_STUDIO_MILESTONES_DB_ID": "demo_ai_studio_milestones_20251004_165103"
+  },
+  "views": {
+    "kanban_by_stage": {
+      "title": "Kanban by Stage",
+      "type": "kanban",
+      "database": "engineering_roadmap"
+    },
+    "timeline_view": {
+      "title": "Timeline View",
+      "type": "timeline",
+      "database": "engineering_roadmap"
+    },
+    "kpi_trends": {
+      "title": "KPI Trends",
+      "type": "table",
+      "database": "kpi_dashboard"
+    },
+    "weekly_reports": {
+      "title": "Weekly Reports",
+      "type": "table",
+      "database": "ci_intelligence_reports"
+    }
+  },
+  "next_steps": [
+    "Set up your Notion API key in .env file",
+    "Run the actual rebuild: python scripts/rebuild_control_center.py --rebuild-all",
+    "Test database access with: python scripts/test_notion_connection.py",
+    "Validate schemas with: python scripts/validate_notion_schema.py",
+    "Set up automated sync workflows",
+    "Create custom views and filters in Notion"
+  ]
+}

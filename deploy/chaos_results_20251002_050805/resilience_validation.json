@@ -1,0 +1,52 @@
+{
+  "passed": true,
+  "timestamp": "2025-10-02T05:10:08.017052",
+  "slo_targets": {
+    "mttr_seconds": 45,
+    "max_error_rate_percent": 8.0,
+    "min_availability_percent": 92.0,
+    "max_latency_degradation_ms": 800,
+    "max_recovery_time_seconds": 15,
+    "required_health_checks": 3,
+    "health_check_interval_seconds": 2
+  },
+  "slo_severity": {
+    "blocking": {
+      "mttr_seconds": 60,
+      "max_error_rate_percent": 15.0,
+      "min_availability_percent": 85.0,
+      "max_latency_degradation_ms": 1500,
+      "max_recovery_time_seconds": 30,
+      "required_health_checks": 3,
+      "health_check_interval_seconds": 2.0
+    },
+    "warning": {
+      "mttr_seconds": 45,
+      "max_error_rate_percent": 8.0,
+      "min_availability_percent": 92.0,
+      "max_latency_degradation_ms": 800,
+      "max_recovery_time_seconds": 15,
+      "required_health_checks": 3,
+      "health_check_interval_seconds": 2.0
+    }
+  },
+  "metrics": {
+    "mttr": 41.388888888888886,
+    "recovery_time": 4.0163891315460205,
+    "total_requests": 0,
+    "failed_requests": 0,
+    "error_rate_percent": 0.0,
+    "uptime_seconds": 0.0,
+    "downtime_seconds": 0.0,
+    "availability_percent": 0.0,
+    "baseline_latency_ms": 4.236459732055664,
+    "chaos_latency_ms": null,
+    "post_chaos_latency_ms": 4.088044166564941,
+    "latency_degradation_ms": -0.14841556549072266,
+    "health_check_failures": 0,
+    "consecutive_successes": 3,
+    "first_success_after_chaos": 0.0055789947509765625
+  },
+  "violations": [],
+  "warnings": []
+}

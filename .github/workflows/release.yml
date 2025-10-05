@@ -1,0 +1,214 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  build-and-publish:
+    name: Build and Publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write  # For GitHub Packages authentication
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Run tests
+        run: uv run pytest tests/ --cov=packages --cov-report=term-missing
+
+      - name: Build packages
+        run: uv build
+
+      - name: Check package contents
+        run: |
+          echo "📦 Built packages:"
+          ls -la dist/
+          echo "Package contents:"
+          for pkg in dist/*.whl; do
+            echo "=== $pkg ==="
+            unzip -l "$pkg"
+          done
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Extract version from tag
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          
+          # Generate changelog from git commits since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$LAST_TAG" ]; then
+            echo "changelog<<EOF" >> $GITHUB_OUTPUT
+            echo "## Changes in v$VERSION" >> $GITHUB_OUTPUT
+            git log --pretty=format:"- %s (%h)" ${LAST_TAG}..HEAD >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "changelog=## Initial Release v$VERSION" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ steps.changelog.outputs.version }}
+          body: ${{ steps.changelog.outputs.changelog }}
+          draft: false
+          prerelease: false
+
+      - name: Upload release assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/
+          asset_name: dist
+          asset_content_type: application/zip
+
+      - name: Publish to GitHub Packages
+        run: |
+          # Configure twine for GitHub Packages
+          echo "[pypi]" > ~/.pypirc
+          echo "username = __token__" >> ~/.pypirc
+          echo "password = ${{ secrets.GITHUB_TOKEN }}" >> ~/.pypirc
+          echo "repository = https://upload.pypi.org/legacy/" >> ~/.pypirc
+          
+          # Publish packages
+          uv run twine upload --repository-url https://upload.pypi.org/legacy/ dist/*
+
+      - name: Publish to internal registry (GitHub Packages)
+        if: false  # Disabled for now, enable when internal registry is set up
+        run: |
+          echo "[github]" > ~/.pypirc
+          echo "username = __token__" >> ~/.pypirc
+          echo "password = ${{ secrets.GITHUB_TOKEN }}" >> ~/.pypirc
+          echo "repository = https://npm.pkg.github.com/OWNER/REPO" >> ~/.pypirc
+          
+          uv run twine upload --repository-url https://npm.pkg.github.com/OWNER/REPO dist/*
+
+      - name: Notify deployment
+        run: |
+          echo "🚀 Release v${{ steps.changelog.outputs.version }} published successfully!"
+          echo "📦 Packages available on PyPI and GitHub Packages"
+          echo "📋 Release notes:"
+          echo "${{ steps.changelog.outputs.changelog }}"
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Run security scan
+        run: |
+          uv run bandit -r packages/ -f json -o bandit-report.json
+          uv run safety check --json --output safety-report.json || true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-reports
+          path: |
+            bandit-report.json
+            safety-report.json
+
+  performance-benchmark:
+    name: Performance Benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Run performance benchmarks
+        run: |
+          uv run pytest tests/ --benchmark-only --benchmark-save=release-benchmark
+          
+          # Generate performance report
+          echo "# Performance Benchmark Report" > performance-report.md
+          echo "## Release v${GITHUB_REF#refs/tags/v}" >> performance-report.md
+          echo "Generated on: $(date)" >> performance-report.md
+          echo "" >> performance-report.md
+          echo "### Benchmark Results" >> performance-report.md
+          echo "\`\`\`" >> performance-report.md
+          uv run pytest --benchmark-compare=release-benchmark --benchmark-compare-fail=mean:5% >> performance-report.md || true
+          echo "\`\`\`" >> performance-report.md
+
+      - name: Upload performance report
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-report
+          path: |
+            .benchmarks/
+            performance-report.md
+
+  deploy-notification:
+    name: Deploy Notification
+    runs-on: ubuntu-latest
+    needs: [build-and-publish, security-scan, performance-benchmark]
+    if: always()
+    steps:
+      - name: Notify successful release
+        if: ${{ !contains(needs.*.result, 'failure') }}
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "🎉 Release v$VERSION deployed successfully!"
+          echo "📦 Available packages:"
+          echo "  - PyPI: https://pypi.org/project/agsense/"
+          echo "  - GitHub Packages: https://github.com/OWNER/REPO/packages"
+          echo "🔒 Security scan: ${{ needs.security-scan.result }}"
+          echo "⚡ Performance benchmark: ${{ needs.performance-benchmark.result }}"
+
+      - name: Notify failed release
+        if: ${{ contains(needs.*.result, 'failure') }}
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "❌ Release v$VERSION failed!"
+          echo "Failed jobs:"
+          echo "- Build and Publish: ${{ needs.build-and-publish.result }}"
+          echo "- Security Scan: ${{ needs.security-scan.result }}"
+          echo "- Performance Benchmark: ${{ needs.performance-benchmark.result }}"
+          exit 1

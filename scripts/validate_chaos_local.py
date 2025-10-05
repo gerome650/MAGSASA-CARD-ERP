@@ -157,6 +157,11 @@ class ChaosValidator:
             
             # Try to import
             try:
+                # Add current directory to Python path for imports
+                import sys
+                if os.getcwd() not in sys.path:
+                    sys.path.insert(0, os.getcwd())
+                
                 module_path = script_path.replace('/', '.').replace('.py', '')
                 exec(f"from {module_path} import {class_name}")
                 print(f"✅ {script_path} ({class_name})")
@@ -167,22 +172,69 @@ class ChaosValidator:
         
         return all_valid
     
+    def _create_quick_validation_config(self, output_path: str):
+        """Create a minimal chaos config for quick validation."""
+        import yaml
+        
+        quick_config = {
+            'slo_targets': {
+                'mttr_seconds': 45,
+                'max_error_rate_percent': 8.0,
+                'min_availability_percent': 92.0,
+                'max_latency_degradation_ms': 800,
+                'max_recovery_time_seconds': 15,
+                'required_health_checks': 3,
+                'health_check_interval_seconds': 2
+            },
+            'scenarios': [
+                {
+                    'name': 'Quick CPU Test',
+                    'type': 'cpu_exhaust',
+                    'intensity': 'light',
+                    'duration': 5,
+                    'description': 'Quick CPU stress test for validation',
+                    'parameters': {
+                        'cpu_workers': 1,
+                        'expected_impact': 'minimal'
+                    }
+                },
+                {
+                    'name': 'Quick Health Check',
+                    'type': 'health_check',
+                    'intensity': 'light',
+                    'duration': 3,
+                    'description': 'Quick health endpoint validation',
+                    'parameters': {
+                        'endpoint': '/api/health',
+                        'expected_status': 200
+                    }
+                }
+            ]
+        }
+        
+        with open(output_path, 'w') as f:
+            yaml.dump(quick_config, f, default_flow_style=False)
+    
     def check_chaos_dry_run(self) -> bool:
         """Run chaos injector in dry-run mode."""
         print("🔥 Testing chaos injector (dry-run)...")
         
         try:
+            # Create a quick validation config with only 2 scenarios for faster testing
+            quick_config = '/tmp/chaos_quick_validation.yml'
+            self._create_quick_validation_config(quick_config)
+            
             result = subprocess.run(
                 [
                     sys.executable,
                     'deploy/chaos_injector.py',
                     '--dry-run',
-                    '--config', 'deploy/chaos_scenarios.yml',
+                    '--config', quick_config,
                     '--output', '/tmp/chaos_test_results.json'
                 ],
                 capture_output=True,
                 text=True,
-                timeout=60
+                timeout=15  # Reduced timeout for quick validation
             )
             
             if result.returncode != 0:

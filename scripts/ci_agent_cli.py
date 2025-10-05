@@ -334,6 +334,110 @@ class CIAgentCLI:
         }
         return arrows.get(trend, '→')
     
+    def sync_to_notion(self, include_roadmap: bool = False, milestone: str = None):
+        """Sync CI report and roadmap to Notion."""
+        print("📤 Syncing to Notion...\n")
+        
+        try:
+            # Check if sync script exists
+            sync_script = Path("scripts/sync_ci_report_to_notion.py")
+            if not sync_script.exists():
+                print("❌ Sync script not found: scripts/sync_ci_report_to_notion.py")
+                return
+            
+            # Build command
+            cmd = [
+                sys.executable,
+                str(sync_script),
+                "--sync-notion",
+                "--report", "reports/CI_WEEKLY_INTELLIGENCE.md"
+            ]
+            
+            if include_roadmap:
+                cmd.extend(["--include-roadmap"])
+                if milestone:
+                    cmd.extend(["--milestone", milestone])
+                else:
+                    # Extract milestone from current branch or environment
+                    milestone = self._detect_current_milestone()
+                    if milestone:
+                        cmd.extend(["--milestone", milestone])
+            
+            # Run sync
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            print(result.stdout)
+            
+            if result.stderr:
+                print(f"⚠️ Warnings: {result.stderr}")
+            
+            print("✅ Notion sync completed successfully!")
+            
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Sync failed: {e}")
+            if e.stdout:
+                print(f"Output: {e.stdout}")
+            if e.stderr:
+                print(f"Error: {e.stderr}")
+        except Exception as e:
+            print(f"❌ Error: {e}")
+    
+    def show_roadmap_status(self):
+        """Show roadmap status from Notion."""
+        print("🗺️ Engineering Roadmap Status\n")
+        
+        try:
+            sync_script = Path("scripts/sync_ci_report_to_notion.py")
+            if not sync_script.exists():
+                print("❌ Sync script not found: scripts/sync_ci_report_to_notion.py")
+                return
+            
+            result = subprocess.run([
+                sys.executable,
+                str(sync_script),
+                "--roadmap-status"
+            ], capture_output=True, text=True, check=True)
+            
+            print(result.stdout)
+            
+            if result.stderr:
+                print(f"⚠️ Warnings: {result.stderr}")
+                
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Failed to fetch roadmap status: {e}")
+            if e.stdout:
+                print(f"Output: {e.stdout}")
+            if e.stderr:
+                print(f"Error: {e.stderr}")
+        except Exception as e:
+            print(f"❌ Error: {e}")
+    
+    def _detect_current_milestone(self) -> str:
+        """Detect current milestone from git branch or environment."""
+        try:
+            # Try to get branch name
+            result = subprocess.run(
+                ['git', 'branch', '--show-current'],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            branch = result.stdout.strip()
+            
+            # Extract milestone from branch name (e.g., feature/stage-7-3)
+            if 'stage' in branch.lower():
+                # Convert "stage-7-3" to "Stage 7.3"
+                import re
+                match = re.search(r'stage-?(\d+)-?(\d+)', branch.lower())
+                if match:
+                    major = match.group(1)
+                    minor = match.group(2) if match.group(2) else "0"
+                    return f"Stage {major}.{minor}"
+            
+            return "Stage 7.3"  # Default fallback
+            
+        except Exception:
+            return "Stage 7.3"  # Default fallback
+    
     def close(self):
         """Close database connection."""
         if self.conn:
@@ -361,6 +465,15 @@ Examples:
   
   # Show recent fix attempts
   python scripts/ci_agent_cli.py --recent-fixes
+  
+  # Sync to Notion
+  python scripts/ci_agent_cli.py --sync-notion
+  
+  # Sync with roadmap
+  python scripts/ci_agent_cli.py --sync-roadmap --milestone "Stage 7.3"
+  
+  # Show roadmap status
+  python scripts/ci_agent_cli.py --roadmap-status
         """
     )
     
@@ -390,6 +503,25 @@ Examples:
         help='Show recent fix attempts'
     )
     parser.add_argument(
+        '--sync-notion',
+        action='store_true',
+        help='Sync CI report to Notion'
+    )
+    parser.add_argument(
+        '--sync-roadmap',
+        action='store_true',
+        help='Sync roadmap milestone to Notion'
+    )
+    parser.add_argument(
+        '--roadmap-status',
+        action='store_true',
+        help='Show roadmap status from Notion'
+    )
+    parser.add_argument(
+        '--milestone',
+        help='Milestone name for roadmap sync'
+    )
+    parser.add_argument(
         '--days',
         type=int,
         default=7,
@@ -405,7 +537,8 @@ Examples:
     
     # If no action specified, show help
     if not any([args.analyze_latest, args.generate_report, args.show_trends, 
-                args.stats, args.recent_fixes]):
+                args.stats, args.recent_fixes, args.sync_notion, 
+                args.sync_roadmap, args.roadmap_status]):
         parser.print_help()
         sys.exit(0)
     
@@ -426,6 +559,15 @@ Examples:
         
         if args.recent_fixes:
             cli.show_recent_fixes()
+        
+        if args.sync_notion:
+            cli.sync_to_notion()
+        
+        if args.sync_roadmap:
+            cli.sync_to_notion(include_roadmap=True, milestone=args.milestone)
+        
+        if args.roadmap_status:
+            cli.show_roadmap_status()
     
     finally:
         cli.close()

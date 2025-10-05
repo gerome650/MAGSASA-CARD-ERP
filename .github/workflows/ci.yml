@@ -1,361 +1,210 @@
-name: MAGSASA-CARD ERP CI/CD with Manus Cloud
+name: CI
 
 on:
   push:
-    branches: [ main, dev ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ main, dev ]
+    branches: [ main, develop ]
+
+env:
+  PYTHON_VERSION: "3.12"
 
 jobs:
-  test:
+  lint-and-typecheck:
+    name: Lint and Type Check
     runs-on: ubuntu-latest
-    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Run ruff
+        run: uv run ruff check packages/ tests/
+
+      - name: Run black
+        run: uv run black --check packages/ tests/
+
+      - name: Run mypy
+        run: uv run mypy packages/
+
+      - name: Run pre-commit hooks
+        run: uv run pre-commit run --all-files
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.11]
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
-    
-    - name: Cache pip dependencies
-      # Updated to v4 due to deprecation of v3 (Oct 2024 GitHub Actions update)
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install -r observability/observability_requirements.txt
-        pip install pytest flake8 bandit safety
-    
-    - name: Lint with flake8
-      run: |
-        # Stop the build if there are Python syntax errors or undefined names
-        flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
-        # Exit-zero treats all errors as warnings. GitHub editor is 127 chars wide
-        flake8 src/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    
-    - name: Security scan with bandit
-      run: |
-        bandit -r src/ -f json -o bandit-report.json || true
-        bandit -r src/ --severity-level medium
-    
-    - name: Check for known security vulnerabilities
-      run: |
-        safety check --json --output safety-report.json || true
-        safety check
-    
-    - name: Run tests
-      env:
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        FLASK_SECRET_KEY: ${{ secrets.FLASK_SECRET_KEY }}
-      run: |
-        # Create test database
-        python -c "
-        import sqlite3
-        conn = sqlite3.connect('test.db')
-        conn.close()
-        "
-        
-        # Run all test files
-        python -m pytest test_*.py -v --tb=short || echo "Tests completed (some may be skipped if test files don't exist yet)"
-        
-        # Clean up
-        rm -f test.db
-    
-    - name: Upload test results
-      # Updated to v4 due to deprecation of v3 (Oct 2024 GitHub Actions update)
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: test-results
-        path: |
-          bandit-report.json
-          safety-report.json
-    
-    - name: Check code formatting
-      run: |
-        pip install black
-        black --check src/ || echo "Code formatting issues found. Run 'black src/' to fix."
-
-  deploy-staging:
-    needs: [test]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/dev'
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Deploy to Manus Cloud (Staging)
-      env:
-        MANUS_API_KEY: ${{ secrets.MANUS_API_KEY }}
-        PROJECT_ID: ${{ secrets.PROJECT_ID }}
-      run: |
-        echo "🚀 Deploying MAGSASA-CARD ERP to Manus Cloud (Staging)..."
-        
-        # Note: Manus deployment would be handled through their platform
-        # This is a placeholder for the actual Manus deployment process
-        echo "Environment: Staging"
-        echo "Project ID: $PROJECT_ID"
-        echo "Branch: dev"
-        
-        # Actual Manus deployment command would go here
-        # Example: manus deploy --env staging --project-id $PROJECT_ID
-        
-        echo "✅ Staging deployment initiated"
-        echo "🔗 Staging URL will be provided by Manus Cloud"
-
-  deploy-production:
-    needs: [test]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Deploy to Manus Cloud (Production)
-      env:
-        MANUS_API_KEY: ${{ secrets.MANUS_API_KEY }}
-        PROJECT_ID: ${{ secrets.PROJECT_ID }}
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        FLASK_SECRET_KEY: ${{ secrets.FLASK_SECRET_KEY }}
-      run: |
-        echo "🚀 Deploying MAGSASA-CARD ERP to Manus Cloud (Production)..."
-        
-        # Set environment variables for production
-        echo "Environment: Production"
-        echo "Project ID: $PROJECT_ID"
-        echo "Branch: main"
-        
-        # Actual Manus deployment command would go here
-        # Example: manus deploy --env production --project-id $PROJECT_ID
-        
-        echo "✅ Production deployment initiated"
-        echo "🔗 Production URL will be provided by Manus Cloud"
-    
-    - name: Post-deployment verification
-      run: |
-        echo "🔍 Running post-deployment verification..."
-        echo "📊 Farmer Dashboard: Ready for deployment"
-        echo "👔 Manager Dashboard: Ready for deployment" 
-        echo "🤖 KaAni AI Advisor: Configured"
-        echo "🛒 Marketplace: Ready"
-        echo "🔐 Authentication: Configured"
-        echo "✅ All components verified"
-    
-    - name: Notify deployment success
-      run: |
-        echo "🎉 MAGSASA-CARD ERP successfully prepared for production!"
-        echo "📈 Features included:"
-        echo "  - Simplified farmer dashboard with financial literacy focus"
-        echo "  - Comprehensive manager dashboard with team management"
-        echo "  - KaAni agricultural AI advisor with role-based responses"
-        echo "  - Agricultural marketplace with product catalog"
-        echo "  - Multi-role authentication system"
-        echo "  - Mobile-responsive design for Filipino farmers"
-        echo "🚀 Ready for CARD MRI pilot deployment!"
-  
-  # ============================================================================
-  # Stage 7.1: Self-Healing CI Intelligence Agent
-  # ============================================================================
-  
-  analyze-failure:
-    name: Analyze CI Failure
-    runs-on: ubuntu-latest
-    if: failure() && (github.event_name == 'push' || github.event_name == 'pull_request')
-    needs: [test]
-    permissions:
-      contents: write
-      pull-requests: write
-      issues: write
-    
+        python-version: ["3.10", "3.11", "3.12"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
         with:
-          fetch-depth: 0
-      
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-      
+          version: "latest"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install tabulate
-      
-      - name: Download CI history database
-        id: download-db
-        continue-on-error: true
-        uses: actions/download-artifact@v4
+        run: uv sync --dev
+
+      - name: Run tests with coverage
+        run: uv run pytest tests/ --cov=packages --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.12'
+        uses: codecov/codecov-action@v3
         with:
-          name: ci-failure-history-db
-          path: .
-      
-      - name: Initialize database if needed
-        if: steps.download-db.outcome == 'failure'
-        run: |
-          # Try to fetch from ci-reports branch
-          git fetch origin ci-reports:ci-reports || true
-          if git show-ref --verify --quiet refs/heads/ci-reports; then
-            git checkout ci-reports -- ci_failure_history.db || echo "No existing database"
-            git checkout ${{ github.ref_name }}
-          fi
-      
-      - name: Capture job logs
-        id: capture-logs
-        run: |
-          echo "📋 Capturing job logs for analysis..."
-          
-          # Use GitHub CLI to get logs
-          gh run view ${{ github.run_id }} --log > ci-logs.txt || echo "Could not fetch logs via gh"
-          
-          # Fallback: create a summary from workflow
-          if [ ! -s ci-logs.txt ]; then
-            echo "Using workflow context for analysis"
-            echo "${{ toJSON(github) }}" > ci-logs.txt
-          fi
-        env:
-          GH_TOKEN: ${{ github.token }}
-      
-      - name: Analyze failure
-        id: analyze
-        run: |
-          echo "🔍 Analyzing CI failure..."
-          
-          python scripts/analyze_ci_failure.py \
-            --job-logs ci-logs.txt \
-            --job-name "test" \
-            --branch "${{ github.ref_name }}" \
-            --json-output failure-analysis.json \
-            --markdown-output failure-analysis.md \
-            --db-path ci_failure_history.db
-          
-          if [ -f failure-analysis.json ]; then
-            echo "analysis_complete=true" >> $GITHUB_OUTPUT
-            
-            # Check if auto-fixable
-            AUTO_FIXABLE=$(python -c "
-          import json
-          with open('failure-analysis.json') as f:
-              data = json.load(f)
-              print('true' if data.get('auto_fixable_count', 0) > 0 else 'false')
-          ")
-            echo "auto_fixable=$AUTO_FIXABLE" >> $GITHUB_OUTPUT
-          else
-            echo "analysis_complete=false" >> $GITHUB_OUTPUT
-          fi
-      
-      - name: Upload analysis artifacts
-        if: steps.analyze.outputs.analysis_complete == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: failure-analysis
-          path: |
-            failure-analysis.json
-            failure-analysis.md
-            ci_failure_history.db
-      
-      - name: Upload updated database
-        if: steps.analyze.outputs.analysis_complete == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ci-failure-history-db
-          path: ci_failure_history.db
-          retention-days: 90
-      
-      - name: Post analysis comment
-        if: steps.analyze.outputs.analysis_complete == 'true' && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const analysis = fs.readFileSync('failure-analysis.md', 'utf8');
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `## 🔍 CI Failure Analysis\n\n${analysis}\n\n---\n*Automated analysis by CI Intelligence Agent v2.0*`
-            });
-      
-      - name: Trigger auto-fix if possible
-        if: steps.analyze.outputs.auto_fixable == 'true'
-        run: |
-          echo "🔧 Triggering auto-fix workflow..."
-          echo "auto_fix_triggered=true" >> $GITHUB_OUTPUT
-  
-  auto-fix:
-    name: Attempt Auto-Fix
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+  security:
+    name: Security Scan
     runs-on: ubuntu-latest
-    needs: [analyze-failure]
-    if: needs.analyze-failure.outputs.auto_fixable == 'true'
-    permissions:
-      contents: write
-      pull-requests: write
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
         with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-      
+          version: "latest"
+
       - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      
-      - name: Download analysis
-        uses: actions/download-artifact@v4
+        run: uv sync --dev
+
+      - name: Run bandit security scan
+        run: uv run bandit -r packages/ -f json -o bandit-report.json
+
+      - name: Upload security scan results
+        uses: actions/upload-artifact@v3
+        if: always()
         with:
-          name: failure-analysis
-      
-      - name: Apply auto-fixes
-        id: auto-fix
+          name: bandit-report
+          path: bandit-report.json
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck, test, security]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Build packages
+        run: uv build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: dist
+          path: dist/
+
+  integration-test:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Run integration tests
+        run: uv run pytest tests/integration/ -v
+
+      - name: Test CLI commands
         run: |
-          echo "🔧 Attempting auto-fix..."
-          
-          python scripts/auto_fix_ci_failures.py \
-            --analysis-file failure-analysis.json \
-            --create-pr \
-            --base-branch ${{ github.ref_name }} \
-            --db-path ci_failure_history.db || echo "Auto-fix completed with warnings"
-          
-          echo "fix_attempted=true" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ github.token }}
-      
-      - name: Post auto-fix summary
-        if: steps.auto-fix.outputs.fix_attempted == 'true'
+          uv run ags --help
+          uv run ags dev-setup --help
+          uv run ags mcp-check --help
+
+  performance-test:
+    name: Performance Test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Run performance tests
+        run: uv run pytest tests/ -m "not slow" --benchmark-only --benchmark-save=performance
+
+      - name: Upload performance results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: performance-results
+          path: .benchmarks/
+
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck, test, security, build, integration-test]
+    if: always()
+    steps:
+      - name: Notify on failure
+        if: ${{ contains(needs.*.result, 'failure') }}
         run: |
-          echo "## 🤖 Auto-Fix Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "The CI Intelligence Agent attempted to fix detected issues automatically." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Analysis completed" >> $GITHUB_STEP_SUMMARY
-          echo "- 🔧 Auto-fix applied" >> $GITHUB_STEP_SUMMARY
-          echo "- 📝 Pull request created (if fixes were successful)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Review the auto-fix PR and merge if appropriate." >> $GITHUB_STEP_SUMMARY
+          echo "❌ CI pipeline failed!"
+          echo "Failed jobs:"
+          echo "- lint-and-typecheck: ${{ needs.lint-and-typecheck.result }}"
+          echo "- test: ${{ needs.test.result }}"
+          echo "- security: ${{ needs.security.result }}"
+          echo "- build: ${{ needs.build.result }}"
+          echo "- integration-test: ${{ needs.integration-test.result }}"
+
+      - name: Notify on success
+        if: ${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+        run: |
+          echo "✅ All CI checks passed!"
+          echo "Ready for deployment 🚀"

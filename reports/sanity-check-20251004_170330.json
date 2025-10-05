@@ -1,0 +1,47 @@
+{
+  "timestamp": "2025-10-04T17:03:30.667150",
+  "total_checks": 6,
+  "successful": 1,
+  "failed": 5,
+  "warnings": 0,
+  "total_duration_seconds": 1.51,
+  "overall_status": "FAIL",
+  "checks": [
+    {
+      "name": "Environment Variables",
+      "status": "success",
+      "message": "All required variables present",
+      "duration": 0.0
+    },
+    {
+      "name": "API Connectivity",
+      "status": "failure",
+      "message": "Connection failed: 401 Client Error: Unauthorized for url: https://api.notion.com/v1/search",
+      "duration": 0.0
+    },
+    {
+      "name": "Database Access - CI Reports Database",
+      "status": "failure",
+      "message": "Access failed: 401 Client Error: Unauthorized for url: https://api.notion.com/v1/databases/2822dea9679a80f8bf45edf92dc2e199?v=2822dea9679a80e6a0de000cd1b90d7a",
+      "duration": 0.0
+    },
+    {
+      "name": "Database Access - Roadmap Database",
+      "status": "failure",
+      "message": "Access failed: 401 Client Error: Unauthorized for url: https://api.notion.com/v1/databases/2822dea9679a8018a10dee5be52ff210?v=2822dea9679a80bda959000c93238ec9",
+      "duration": 0.0
+    },
+    {
+      "name": "Database Access - AI Studio Milestones Database",
+      "status": "failure",
+      "message": "Access failed: 401 Client Error: Unauthorized for url: https://api.notion.com/v1/databases/27d2dea9679a8080865ff0e5600c3a47?v=27d2dea9679a8017a082000c9b58fa98",
+      "duration": 0.0
+    },
+    {
+      "name": "Schema Validation",
+      "status": "failure",
+      "message": "Schema validation failed with 3 error(s)",
+      "duration": 0.0
+    }
+  ]
+}

@@ -1,0 +1,612 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "created_date": "2024-12-19",
+    "description": "MAGSASA-CARD Control Center - Complete Notion workspace structure",
+    "project": "MAGSASA-CARD-ERP",
+    "author": "AI Studio"
+  },
+  "control_center": {
+    "title": "🚀 MAGSASA-CARD Control Center",
+    "description": "Central command center for MAGSASA-CARD ERP system monitoring, CI intelligence, and project roadmap tracking",
+    "parent_page_id": "CONTROL_CENTER_PAGE_ID"
+  },
+  "databases": {
+    "ci_intelligence_reports": {
+      "title": "CI Intelligence Reports",
+      "description": "Weekly CI intelligence reports with failure analysis and auto-fix metrics",
+      "icon": "📊",
+      "properties": {
+        "Name": {
+          "type": "title",
+          "description": "Weekly report filename"
+        },
+        "Week Of": {
+          "type": "date",
+          "description": "Report generation date"
+        },
+        "Analysis Period": {
+          "type": "number",
+          "format": "number",
+          "description": "Days analyzed"
+        },
+        "Total Failures": {
+          "type": "number",
+          "format": "number",
+          "description": "Total failures in period"
+        },
+        "Auto-Fix Success Rate": {
+          "type": "number",
+          "format": "percent",
+          "description": "Percentage of successful auto-fixes"
+        },
+        "Avg MTTR (minutes)": {
+          "type": "number",
+          "format": "number",
+          "description": "Mean Time to Recovery"
+        },
+        "Total Runs": {
+          "type": "number",
+          "format": "number",
+          "description": "Total CI runs in period",
+          "required": false
+        },
+        "Failed Runs": {
+          "type": "number",
+          "format": "number",
+          "description": "Failed CI runs in period",
+          "required": false
+        },
+        "Top Failures": {
+          "type": "rich_text",
+          "description": "Most common failure type"
+        },
+        "Recommendations": {
+          "type": "rich_text",
+          "description": "Actionable recommendations"
+        },
+        "Status": {
+          "type": "select",
+          "options": [
+            {"name": "Active", "color": "green"},
+            {"name": "Archived", "color": "gray"},
+            {"name": "Under Review", "color": "yellow"}
+          ],
+          "description": "Report status"
+        },
+        "Type": {
+          "type": "select",
+          "options": [
+            {"name": "Weekly", "color": "blue"},
+            {"name": "Monthly", "color": "purple"},
+            {"name": "Quarterly", "color": "orange"},
+            {"name": "Ad-hoc", "color": "red"}
+          ],
+          "description": "Report type"
+        },
+        "GitHub Link": {
+          "type": "url",
+          "description": "Link to GitHub workflow"
+        },
+        "Created": {
+          "type": "created_time",
+          "description": "Creation timestamp"
+        },
+        "Last Modified": {
+          "type": "last_edited_time",
+          "description": "Last modification timestamp"
+        }
+      },
+      "sample_data": [
+        {
+          "Name": "Weekly CI Report - Week 50, 2024",
+          "Week Of": "2024-12-16",
+          "Analysis Period": 7,
+          "Total Failures": 12,
+          "Auto-Fix Success Rate": 0.85,
+          "Avg MTTR (minutes)": 23.5,
+          "Total Runs": 156,
+          "Failed Runs": 12,
+          "Top Failures": "Docker build timeout (40%), Test failures (35%), Lint errors (25%)",
+          "Recommendations": "1. Increase Docker build timeout to 30 minutes\n2. Add retry logic for flaky tests\n3. Implement pre-commit hooks for linting",
+          "Status": "Active",
+          "Type": "Weekly",
+          "GitHub Link": "https://github.com/example/repo/actions/runs/123456789"
+        }
+      ]
+    },
+    "engineering_roadmap": {
+      "title": "Engineering Roadmap",
+      "description": "Engineering milestones with CI health metrics and progress tracking",
+      "icon": "🗺️",
+      "properties": {
+        "Name": {
+          "type": "title",
+          "description": "Milestone name"
+        },
+        "Stage Name": {
+          "type": "rich_text",
+          "description": "Stage identifier",
+          "required": false
+        },
+        "Status": {
+          "type": "select",
+          "options": [
+            {"name": "Planned", "color": "gray"},
+            {"name": "In Progress", "color": "blue"},
+            {"name": "Blocked", "color": "red"},
+            {"name": "Completed", "color": "green"},
+            {"name": "On Hold", "color": "yellow"}
+          ],
+          "description": "Current status"
+        },
+        "Target Date": {
+          "type": "date",
+          "description": "Planned delivery date"
+        },
+        "Progress": {
+          "type": "number",
+          "format": "percent",
+          "description": "Completion percentage"
+        },
+        "Next Action": {
+          "type": "rich_text",
+          "description": "Next steps to take"
+        },
+        "Risk Level": {
+          "type": "select",
+          "options": [
+            {"name": "Low", "color": "green"},
+            {"name": "Medium", "color": "yellow"},
+            {"name": "High", "color": "red"},
+            {"name": "Critical", "color": "red"}
+          ],
+          "description": "Risk assessment"
+        },
+        "Drift (days)": {
+          "type": "number",
+          "format": "number",
+          "description": "Days behind schedule",
+          "required": false
+        },
+        "Latest CI Health": {
+          "type": "relation",
+          "related_database": "ci_intelligence_reports",
+          "description": "Links to latest CI report"
+        },
+        "Related PR": {
+          "type": "url",
+          "description": "Link to primary PR"
+        },
+        "Workflow Pass Rate": {
+          "type": "number",
+          "format": "percent",
+          "description": "Percentage of workflows passing"
+        },
+        "Auto-Fix Success": {
+          "type": "number",
+          "format": "percent",
+          "description": "Percentage of successful auto-fixes"
+        },
+        "MTTR": {
+          "type": "number",
+          "format": "number",
+          "description": "Mean Time to Recovery"
+        },
+        "Trend": {
+          "type": "select",
+          "options": [
+            {"name": "Improving", "color": "green"},
+            {"name": "Stable", "color": "blue"},
+            {"name": "Degrading", "color": "red"}
+          ],
+          "description": "CI health trend"
+        },
+        "Notes": {
+          "type": "rich_text",
+          "description": "Additional notes and recommendations"
+        },
+        "Created": {
+          "type": "created_time",
+          "description": "Creation timestamp"
+        },
+        "Last Modified": {
+          "type": "last_edited_time",
+          "description": "Last modification timestamp"
+        }
+      },
+      "sample_data": [
+        {
+          "Name": "Stage 7.3 - Notion Intelligence Sync",
+          "Stage Name": "Stage 7.3.2",
+          "Status": "Completed",
+          "Target Date": "2024-12-15",
+          "Progress": 1.0,
+          "Next Action": "Monitor sync performance and optimize if needed",
+          "Risk Level": "Low",
+          "Drift (days)": 0,
+          "Related PR": "https://github.com/example/repo/pull/123",
+          "Workflow Pass Rate": 0.92,
+          "Auto-Fix Success": 0.85,
+          "MTTR": 23.5,
+          "Trend": "Improving",
+          "Notes": "Successfully implemented Notion integration with automated CI sync. All milestones completed on time."
+        },
+        {
+          "Name": "Stage 7.4 - Advanced Analytics Dashboard",
+          "Stage Name": "Stage 7.4",
+          "Status": "In Progress",
+          "Target Date": "2024-12-30",
+          "Progress": 0.65,
+          "Next Action": "Implement real-time metrics visualization",
+          "Risk Level": "Medium",
+          "Drift (days)": 2,
+          "Related PR": "https://github.com/example/repo/pull/124",
+          "Workflow Pass Rate": 0.88,
+          "Auto-Fix Success": 0.78,
+          "MTTR": 28.3,
+          "Trend": "Stable",
+          "Notes": "Dashboard UI completed. Working on real-time data integration. Slight delay due to API rate limits."
+        }
+      ]
+    },
+    "ai_studio_milestones": {
+      "title": "AI Studio Milestones",
+      "description": "Cross-project milestone tracking for AI Studio ecosystem",
+      "icon": "🎯",
+      "properties": {
+        "Stage Name": {
+          "type": "title",
+          "description": "Milestone identifier"
+        },
+        "Target Date": {
+          "type": "date",
+          "description": "Planned completion date"
+        },
+        "Status": {
+          "type": "select",
+          "options": [
+            {"name": "Planning", "color": "gray"},
+            {"name": "In Progress", "color": "blue"},
+            {"name": "Testing", "color": "yellow"},
+            {"name": "Completed", "color": "green"},
+            {"name": "Blocked", "color": "red"}
+          ],
+          "description": "Current status"
+        },
+        "Description": {
+          "type": "rich_text",
+          "description": "Milestone description",
+          "required": false
+        },
+        "Progress": {
+          "type": "number",
+          "format": "percent",
+          "description": "Completion percentage",
+          "required": false
+        },
+        "Project": {
+          "type": "select",
+          "options": [
+            {"name": "MAGSASA-CARD", "color": "blue"},
+            {"name": "KWENTO+", "color": "green"},
+            {"name": "AI Studio", "color": "purple"},
+            {"name": "Cross-Project", "color": "orange"}
+          ],
+          "description": "Associated project"
+        },
+        "Priority": {
+          "type": "select",
+          "options": [
+            {"name": "Critical", "color": "red"},
+            {"name": "High", "color": "orange"},
+            {"name": "Medium", "color": "yellow"},
+            {"name": "Low", "color": "green"}
+          ],
+          "description": "Priority level"
+        },
+        "Dependencies": {
+          "type": "multi_select",
+          "options": [
+            {"name": "Stage 7.3", "color": "blue"},
+            {"name": "Stage 7.4", "color": "green"},
+            {"name": "Infrastructure", "color": "gray"},
+            {"name": "External API", "color": "yellow"}
+          ],
+          "description": "Milestone dependencies"
+        },
+        "Created": {
+          "type": "created_time",
+          "description": "Creation timestamp"
+        },
+        "Last Modified": {
+          "type": "last_edited_time",
+          "description": "Last modification timestamp"
+        }
+      },
+      "sample_data": [
+        {
+          "Stage Name": "Q4 2024 - Notion Integration Complete",
+          "Target Date": "2024-12-31",
+          "Status": "Completed",
+          "Description": "Complete Notion integration across all AI Studio projects with automated sync capabilities",
+          "Progress": 1.0,
+          "Project": "Cross-Project",
+          "Priority": "High",
+          "Dependencies": ["Stage 7.3", "Infrastructure"]
+        },
+        {
+          "Stage Name": "Q1 2025 - Advanced Analytics",
+          "Target Date": "2025-03-31",
+          "Status": "Planning",
+          "Description": "Implement advanced analytics and predictive capabilities across the platform",
+          "Progress": 0.15,
+          "Project": "Cross-Project",
+          "Priority": "Medium",
+          "Dependencies": ["Stage 7.4", "External API"]
+        }
+      ]
+    },
+    "kpi_dashboard": {
+      "title": "KPI Dashboard",
+      "description": "Key Performance Indicators and metrics tracking",
+      "icon": "📈",
+      "properties": {
+        "Metric Name": {
+          "type": "title",
+          "description": "KPI identifier"
+        },
+        "Category": {
+          "type": "select",
+          "options": [
+            {"name": "CI/CD", "color": "blue"},
+            {"name": "Performance", "color": "green"},
+            {"name": "Quality", "color": "purple"},
+            {"name": "Delivery", "color": "orange"},
+            {"name": "Team", "color": "yellow"}
+          ],
+          "description": "Metric category"
+        },
+        "Current Value": {
+          "type": "number",
+          "format": "number",
+          "description": "Current metric value"
+        },
+        "Target Value": {
+          "type": "number",
+          "format": "number",
+          "description": "Target metric value"
+        },
+        "Unit": {
+          "type": "select",
+          "options": [
+            {"name": "%", "color": "blue"},
+            {"name": "minutes", "color": "green"},
+            {"name": "hours", "color": "yellow"},
+            {"name": "days", "color": "orange"},
+            {"name": "count", "color": "purple"},
+            {"name": "score", "color": "red"}
+          ],
+          "description": "Measurement unit"
+        },
+        "Trend": {
+          "type": "select",
+          "options": [
+            {"name": "Improving", "color": "green"},
+            {"name": "Stable", "color": "blue"},
+            {"name": "Declining", "color": "red"}
+          ],
+          "description": "Performance trend"
+        },
+        "Status": {
+          "type": "select",
+          "options": [
+            {"name": "On Track", "color": "green"},
+            {"name": "At Risk", "color": "yellow"},
+            {"name": "Off Track", "color": "red"},
+            {"name": "Exceeded", "color": "green"}
+          ],
+          "description": "Status vs target"
+        },
+        "Last Updated": {
+          "type": "date",
+          "description": "Last measurement date"
+        },
+        "Notes": {
+          "type": "rich_text",
+          "description": "Additional context and analysis",
+          "required": false
+        },
+        "Created": {
+          "type": "created_time",
+          "description": "Creation timestamp"
+        },
+        "Last Modified": {
+          "type": "last_edited_time",
+          "description": "Last modification timestamp"
+        }
+      },
+      "sample_data": [
+        {
+          "Metric Name": "CI Pass Rate",
+          "Category": "CI/CD",
+          "Current Value": 92,
+          "Target Value": 90,
+          "Unit": "%",
+          "Trend": "Improving",
+          "Status": "Exceeded",
+          "Last Updated": "2024-12-19",
+          "Notes": "Exceeding target due to improved auto-fix mechanisms and better test stability"
+        },
+        {
+          "Metric Name": "Mean Time to Recovery",
+          "Category": "CI/CD",
+          "Current Value": 23.5,
+          "Target Value": 30,
+          "Unit": "minutes",
+          "Trend": "Improving",
+          "Status": "On Track",
+          "Last Updated": "2024-12-19",
+          "Notes": "MTTR improved significantly with automated remediation and better monitoring"
+        },
+        {
+          "Metric Name": "Milestone Completion Rate",
+          "Category": "Delivery",
+          "Current Value": 85,
+          "Target Value": 80,
+          "Unit": "%",
+          "Trend": "Stable",
+          "Status": "Exceeded",
+          "Last Updated": "2024-12-19",
+          "Notes": "Consistently meeting delivery targets with good project management practices"
+        }
+      ]
+    }
+  },
+  "pages": {
+    "dashboard_overview": {
+      "title": "📊 Dashboard Overview",
+      "description": "Executive summary and key metrics at a glance",
+      "content": [
+        {
+          "type": "heading_1",
+          "text": "🚀 MAGSASA-CARD Control Center"
+        },
+        {
+          "type": "paragraph",
+          "text": "Welcome to the MAGSASA-CARD Control Center - your central command for monitoring CI intelligence, engineering roadmap progress, and key performance indicators."
+        },
+        {
+          "type": "heading_2",
+          "text": "📈 Key Metrics"
+        },
+        {
+          "type": "bulleted_list_item",
+          "text": "CI Pass Rate: 92% (Target: 90%) ✅"
+        },
+        {
+          "type": "bulleted_list_item",
+          "text": "Mean Time to Recovery: 23.5 minutes (Target: 30 min) ✅"
+        },
+        {
+          "type": "bulleted_list_item",
+          "text": "Milestone Completion Rate: 85% (Target: 80%) ✅"
+        },
+        {
+          "type": "heading_2",
+          "text": "🎯 Current Focus"
+        },
+        {
+          "type": "paragraph",
+          "text": "Stage 7.4 - Advanced Analytics Dashboard is currently in progress (65% complete). Next action: Implement real-time metrics visualization."
+        }
+      ]
+    },
+    "quick_start_guide": {
+      "title": "🚀 Quick Start Guide",
+      "description": "Getting started with the MAGSASA-CARD Control Center",
+      "content": [
+        {
+          "type": "heading_1",
+          "text": "Quick Start Guide"
+        },
+        {
+          "type": "heading_2",
+          "text": "📋 Daily Workflow"
+        },
+        {
+          "type": "numbered_list_item",
+          "text": "Check the Dashboard Overview for current status"
+        },
+        {
+          "type": "numbered_list_item",
+          "text": "Review CI Intelligence Reports for any issues"
+        },
+        {
+          "type": "numbered_list_item",
+          "text": "Update Engineering Roadmap progress"
+        },
+        {
+          "type": "numbered_list_item",
+          "text": "Monitor KPI Dashboard for trends"
+        },
+        {
+          "type": "heading_2",
+          "text": "🔧 Automation"
+        },
+        {
+          "type": "paragraph",
+          "text": "Most data is automatically synced from CI/CD systems. Manual updates are only needed for milestone progress and notes."
+        }
+      ]
+    }
+  },
+  "views": {
+    "kanban_by_stage": {
+      "database": "engineering_roadmap",
+      "type": "kanban",
+      "title": "Kanban by Stage",
+      "group_by": "Status",
+      "sort": [
+        {
+          "property": "Target Date",
+          "direction": "ascending"
+        }
+      ]
+    },
+    "timeline_view": {
+      "database": "engineering_roadmap",
+      "type": "timeline",
+      "title": "Timeline View",
+      "group_by": "Status",
+      "date_range": {
+        "start": "Target Date",
+        "end": null
+      }
+    },
+    "kpi_trends": {
+      "database": "kpi_dashboard",
+      "type": "table",
+      "title": "KPI Trends",
+      "sort": [
+        {
+          "property": "Category",
+          "direction": "ascending"
+        },
+        {
+          "property": "Current Value",
+          "direction": "descending"
+        }
+      ],
+      "filter": {
+        "property": "Status",
+        "select": {
+          "does_not_equal": "Archived"
+        }
+      }
+    },
+    "weekly_reports": {
+      "database": "ci_intelligence_reports",
+      "type": "table",
+      "title": "Weekly Reports",
+      "sort": [
+        {
+          "property": "Week Of",
+          "direction": "descending"
+        }
+      ],
+      "filter": {
+        "property": "Type",
+        "select": {
+          "equals": "Weekly"
+        }
+      }
+    }
+  },
+  "environment_variables": {
+    "MAGSASA_CI_DB_ID": "ci_intelligence_reports",
+    "MAGSASA_ROADMAP_DB_ID": "engineering_roadmap",
+    "AI_STUDIO_MILESTONES_DB_ID": "ai_studio_milestones",
+    "CONTROL_CENTER_PAGE_ID": "control_center_page"
+  }
+}

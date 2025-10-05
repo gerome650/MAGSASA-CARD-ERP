@@ -1,0 +1,209 @@
+name: "Weekly Notion Sync (Stage 7.3.1)"
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"  # Every Monday at 09:00 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run in dry-run mode (no writes to Notion)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      sync_target:
+        description: "Which streams to sync"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - "all"
+          - "ci"
+          - "roadmap"
+          - "milestones"
+          - "kpis"
+
+jobs:
+  weekly-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for accurate metrics
+      
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Configure environment variables
+        run: |
+          echo "NOTION_API_KEY=${{ secrets.NOTION_API_KEY }}" >> $GITHUB_ENV
+          echo "MAGSASA_CI_DB_ID=${{ secrets.MAGSASA_CI_DB_ID }}" >> $GITHUB_ENV
+          echo "MAGSASA_ROADMAP_DB_ID=${{ secrets.MAGSASA_ROADMAP_DB_ID }}" >> $GITHUB_ENV
+          echo "AI_STUDIO_MILESTONES_DB_ID=${{ secrets.AI_STUDIO_MILESTONES_DB_ID }}" >> $GITHUB_ENV
+          
+          # Optional secrets with fallbacks
+          if [ -n "${{ secrets.CONTROL_CENTER_PAGE_ID }}" ]; then
+            echo "CONTROL_CENTER_PAGE_ID=${{ secrets.CONTROL_CENTER_PAGE_ID }}" >> $GITHUB_ENV
+          fi
+          
+          if [ -n "${{ secrets.GITHUB_TOKEN }}" ]; then
+            echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
+          fi
+          
+          # Set workflow context
+          echo "GITHUB_REPOSITORY=${{ github.repository }}" >> $GITHUB_ENV
+          echo "GITHUB_RUN_ID=${{ github.run_id }}" >> $GITHUB_ENV
+          echo "GITHUB_RUN_NUMBER=${{ github.run_number }}" >> $GITHUB_ENV
+      
+      - name: Run Notion Sanity Check
+        id: sanity_check
+        run: |
+          echo "🔍 Running comprehensive Notion sanity check..."
+          python scripts/notion_cli.py sanity-check || {
+            echo "::error::Sanity check failed. Notion integration is not ready."
+            exit 1
+          }
+          echo "✅ Sanity check passed - Notion integration is ready"
+      
+      - name: Run Weekly Notion Sync
+        id: sync
+        env:
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          SYNC_TARGET: ${{ github.event.inputs.sync_target || 'all' }}
+        run: |
+          echo "🚀 Starting weekly Notion sync..."
+          echo "   Target: ${SYNC_TARGET}"
+          echo "   Dry-run: ${DRY_RUN}"
+          
+          SYNC_FLAGS="--log-json"
+          
+          # Add sync target flag
+          if [ "${SYNC_TARGET}" = "all" ]; then
+            SYNC_FLAGS="${SYNC_FLAGS} --all"
+          else
+            SYNC_FLAGS="${SYNC_FLAGS} --${SYNC_TARGET}"
+          fi
+          
+          # Add dry-run flag if enabled
+          if [ "${DRY_RUN}" = "true" ]; then
+            SYNC_FLAGS="${SYNC_FLAGS} --dry-run"
+            echo "⚠️ Running in DRY-RUN mode - no changes will be written to Notion"
+          fi
+          
+          python scripts/notion_weekly_sync.py ${SYNC_FLAGS}
+          
+          SYNC_EXIT_CODE=$?
+          
+          if [ ${SYNC_EXIT_CODE} -eq 0 ]; then
+            echo "✅ Weekly Notion sync completed successfully"
+            echo "sync_status=success" >> $GITHUB_OUTPUT
+          else
+            echo "::error::Weekly Notion sync failed with exit code ${SYNC_EXIT_CODE}"
+            echo "sync_status=failure" >> $GITHUB_OUTPUT
+            exit ${SYNC_EXIT_CODE}
+          fi
+      
+      - name: Upload sync logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: notion-weekly-sync-logs-${{ github.run_number }}
+          path: |
+            reports/notion-weekly-sync-*.json
+            reports/notion-weekly-sync-*.log
+          retention-days: 30
+          if-no-files-found: warn
+      
+      - name: Create issue on failure
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const timestamp = new Date().toISOString();
+            
+            const title = `🚨 Weekly Notion Sync Failed - ${timestamp.split('T')[0]}`;
+            const body = `## Weekly Notion Sync Failure
+            
+            The automated weekly Notion sync (Stage 7.3.1) has failed.
+            
+            ### Details
+            - **Workflow Run**: [#${context.runNumber}](${runUrl})
+            - **Time**: ${timestamp}
+            - **Branch**: ${context.ref}
+            - **Commit**: ${context.sha.substring(0, 7)}
+            
+            ### Possible Causes
+            - Notion API key expired or invalid
+            - Database IDs changed or inaccessible
+            - Schema drift detected
+            - Network connectivity issues
+            - Rate limiting from Notion API
+            
+            ### Recovery Steps
+            1. Check the [workflow logs](${runUrl}) for detailed error messages
+            2. Download and review sync log artifacts
+            3. Verify Notion secrets are correctly set in repository settings
+            4. Run comprehensive sanity check: \`python scripts/notion_cli.py sanity-check\`
+            5. Validate schemas only: \`python scripts/notion_cli.py validate\`
+            6. Re-run manually: Go to [Actions](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/workflows/notion-weekly-sync.yml) and click "Run workflow"
+            
+            ### Debugging
+            \`\`\`bash
+            # Comprehensive sanity check
+            python scripts/notion_cli.py sanity-check
+            
+            # Dry-run sync test
+            python scripts/notion_cli.py sync --all --dry-run
+            
+            # Validate schemas only
+            python scripts/notion_cli.py validate
+            
+            # Test specific stream
+            python scripts/notion_cli.py sync --ci --dry-run
+            \`\`\`
+            
+            ---
+            *This issue was automatically created by the Weekly Notion Sync workflow.*
+            `;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ["ci", "notion-sync", "stage-7.3.1", "automated"]
+            });
+            
+            console.log("✅ Created issue for failed sync");
+      
+      - name: Post success comment (if manual run)
+        if: success() && github.event_name == 'workflow_dispatch'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const dryRun = '${{ github.event.inputs.dry_run }}' === 'true';
+            const target = '${{ github.event.inputs.sync_target }}';
+            
+            console.log(`✅ Manual sync completed successfully`);
+            console.log(`   Target: ${target}`);
+            console.log(`   Dry-run: ${dryRun}`);
+            console.log(`   Logs: ${runUrl}`);
+
+

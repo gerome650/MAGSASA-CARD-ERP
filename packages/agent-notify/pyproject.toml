@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agsense-agent-notify"
+version = "0.1.0"
+description = "AgSense Notification Agent - Notifications and alerts"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "AgSense Team", email = "team@agsense.com"},
+]
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.5.0",
+    "structlog>=23.2.0",
+    "agsense-core",
+]

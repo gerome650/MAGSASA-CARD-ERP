@@ -1,21 +1,17 @@
 # Pre-Push Chaos Validation Report
 
-**Generated:** 2025-10-04T12:12:15.599536
-**Checks Passed:** 5
-**Checks Failed:** 2
+**Generated:** 2025-10-04T13:37:40.515674
+**Checks Passed:** 7
+**Checks Failed:** 0
 **Warnings:** 0
 
 ## Summary
 
-❌ **2 check(s) failed.** Please fix before pushing.
+❌ **0 check(s) failed.** Please fix before pushing.
 
 ## Issues Found
 
 - ❌ Missing dependencies detected
-- ❌ Import failed: deploy/chaos_injector.py
-- ❌ Import failed: deploy/resilience_validator.py
-- ❌ Import failed: deploy/chaos_metrics_exporter.py
-- ❌ Chaos injector timeout
 
 ## Recommendations
 

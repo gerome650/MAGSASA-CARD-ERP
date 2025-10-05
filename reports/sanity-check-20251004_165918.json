@@ -1,0 +1,47 @@
+{
+  "timestamp": "2025-10-04T16:59:18.628085",
+  "total_checks": 6,
+  "successful": 0,
+  "failed": 6,
+  "warnings": 0,
+  "total_duration_seconds": 0.0,
+  "overall_status": "FAIL",
+  "checks": [
+    {
+      "name": "Environment Variables",
+      "status": "failure",
+      "message": "Missing required variables: NOTION_API_KEY, MAGSASA_CI_DB_ID, MAGSASA_ROADMAP_DB_ID, AI_STUDIO_MILESTONES_DB_ID",
+      "duration": 0.0
+    },
+    {
+      "name": "API Connectivity",
+      "status": "failure",
+      "message": "Connection failed: \u274c NOTION_API_KEY is not set. Please update your .env file or set the environment variable.\nYou can copy env.template to .env and fill in your API key.",
+      "duration": 0.0
+    },
+    {
+      "name": "Database Access - CI Reports Database",
+      "status": "failure",
+      "message": "Database ID not set in MAGSASA_CI_DB_ID",
+      "duration": 0.0
+    },
+    {
+      "name": "Database Access - Roadmap Database",
+      "status": "failure",
+      "message": "Database ID not set in MAGSASA_ROADMAP_DB_ID",
+      "duration": 0.0
+    },
+    {
+      "name": "Database Access - AI Studio Milestones Database",
+      "status": "failure",
+      "message": "Database ID not set in AI_STUDIO_MILESTONES_DB_ID",
+      "duration": 0.0
+    },
+    {
+      "name": "Schema Validation",
+      "status": "failure",
+      "message": "Validation failed: \u274c NOTION_API_KEY is not set. Please update your .env file or set the environment variable.\nYou can copy env.template to .env and fill in your API key.",
+      "duration": 0.0
+    }
+  ]
+}

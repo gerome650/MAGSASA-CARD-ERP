@@ -1,0 +1,419 @@
+name: Notion Intelligence Sync + Roadmap Automation
+
+on:
+  # Trigger on weekly CI completion
+  workflow_run:
+    workflows: ["CI Intelligence Weekly Report"]
+    types: [completed]
+  
+  # Trigger on merge to main
+  push:
+    branches: [ main ]
+  
+  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      milestone:
+        description: 'Milestone name for roadmap sync'
+        required: false
+        default: ''
+      sync_ci_report:
+        description: 'Sync CI report to Notion'
+        required: false
+        type: boolean
+        default: true
+      include_roadmap:
+        description: 'Include roadmap milestone updates'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  sync-to-notion:
+    name: Sync CI Intelligence to Notion
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install requests
+      
+      - name: Download CI history database
+        id: download-db
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-failure-history-db
+          path: .
+      
+      - name: Restore database from previous runs
+        if: steps.download-db.outcome == 'failure'
+        run: |
+          # Try to fetch from ci-reports branch
+          git fetch origin ci-reports:ci-reports || true
+          if git show-ref --verify --quiet refs/heads/ci-reports; then
+            git checkout ci-reports -- ci_failure_history.db || echo "No existing database found"
+            git checkout main
+          fi
+          
+          # Initialize database if it doesn't exist
+          if [ ! -f ci_failure_history.db ]; then
+            echo "📊 Initializing new CI history database..."
+            python3 << EOF
+          import sqlite3
+          from pathlib import Path
+          # Create basic database structure
+          conn = sqlite3.connect('ci_failure_history.db')
+          cursor = conn.cursor()
+          
+          # Create tables (simplified structure)
+          cursor.execute('''
+            CREATE TABLE IF NOT EXISTS failures (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              timestamp TEXT,
+              category TEXT,
+              error_signature TEXT,
+              confidence REAL
+            )
+          ''')
+          
+          cursor.execute('''
+            CREATE TABLE IF NOT EXISTS fix_attempts (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              failure_id INTEGER,
+              timestamp TEXT,
+              fix_strategy TEXT,
+              success INTEGER,
+              resolution_time_minutes REAL,
+              FOREIGN KEY (failure_id) REFERENCES failures (id)
+            )
+          ''')
+          
+          cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ci_runs (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              timestamp TEXT,
+              status TEXT,
+              workflow_name TEXT
+            )
+          ''')
+          
+          conn.commit()
+          conn.close()
+          print("✅ Database initialized")
+          EOF
+          fi
+      
+      - name: Set milestone name
+        id: set-milestone
+        run: |
+          MILESTONE="${{ github.event.inputs.milestone }}"
+          
+          # Auto-detect milestone from branch if not provided
+          if [ -z "$MILESTONE" ]; then
+            BRANCH=$(git branch --show-current)
+            if echo "$BRANCH" | grep -q "stage"; then
+              # Extract stage number from branch name
+              STAGE_NUM=$(echo "$BRANCH" | sed -n 's/.*stage-\([0-9]\+\)-\([0-9]\+\).*/\1.\2/p')
+              if [ -n "$STAGE_NUM" ]; then
+                MILESTONE="Stage $STAGE_NUM"
+              fi
+            fi
+          fi
+          
+          # Default milestone
+          if [ -z "$MILESTONE" ]; then
+            MILESTONE="Stage 7.3"
+          fi
+          
+          echo "milestone=$MILESTONE" >> $GITHUB_OUTPUT
+          echo "📋 Milestone: $MILESTONE"
+      
+      - name: Generate CI report if needed
+        id: generate-report
+        if: ${{ github.event.inputs.sync_ci_report != 'false' || github.event_name == 'schedule' || github.event_name == 'workflow_run' }}
+        run: |
+          echo "🧠 Generating CI Intelligence Report..."
+          
+          mkdir -p reports
+          
+          # Check if report already exists (from weekly workflow)
+          if [ -f reports/CI_WEEKLY_INTELLIGENCE.md ]; then
+            echo "✅ Using existing CI report"
+            echo "report_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "📊 Generating new CI report..."
+            python scripts/generate_ci_intelligence_report.py \
+              --days 7 \
+              --output reports/CI_WEEKLY_INTELLIGENCE.md \
+              --db-path ci_failure_history.db || echo "⚠️ Report generation failed"
+            
+            if [ -f reports/CI_WEEKLY_INTELLIGENCE.md ]; then
+              echo "report_exists=true" >> $GITHUB_OUTPUT
+            else
+              echo "report_exists=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+      
+      - name: Sync CI report to Notion
+        id: sync-ci-report
+        if: ${{ steps.generate-report.outputs.report_exists == 'true' && (github.event.inputs.sync_ci_report != 'false' || github.event_name == 'schedule' || github.event_name == 'workflow_run') }}
+        env:
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          NOTION_CI_REPORTS_DB_ID: ${{ secrets.NOTION_CI_REPORTS_DB_ID }}
+          NOTION_ROADMAP_DB_ID: ${{ secrets.NOTION_ROADMAP_DB_ID }}
+        run: |
+          echo "📤 Syncing CI report to Notion..."
+          
+          python scripts/sync_ci_report_to_notion.py \
+            --sync-notion \
+            --report reports/CI_WEEKLY_INTELLIGENCE.md \
+            --ci-db-path ci_failure_history.db
+          
+          echo "ci_report_synced=true" >> $GITHUB_OUTPUT
+      
+      - name: Sync roadmap milestone
+        id: sync-roadmap
+        if: ${{ github.event.inputs.include_roadmap != 'false' }}
+        env:
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          NOTION_CI_REPORTS_DB_ID: ${{ secrets.NOTION_CI_REPORTS_DB_ID }}
+          NOTION_ROADMAP_DB_ID: ${{ secrets.NOTION_ROADMAP_DB_ID }}
+        run: |
+          echo "🗺️ Syncing roadmap milestone to Notion..."
+          
+          # Build sync command
+          SYNC_CMD="python scripts/sync_ci_report_to_notion.py --include-roadmap --milestone '${{ steps.set-milestone.outputs.milestone }}' --ci-db-path ci_failure_history.db"
+          
+          # Include CI report sync if it was successful
+          if [ "${{ steps.sync-ci-report.outputs.ci_report_synced }}" == "true" ]; then
+            SYNC_CMD="$SYNC_CMD --sync-notion --report reports/CI_WEEKLY_INTELLIGENCE.md"
+          fi
+          
+          eval $SYNC_CMD
+          
+          echo "roadmap_synced=true" >> $GITHUB_OUTPUT
+      
+      - name: Get roadmap status
+        id: roadmap-status
+        env:
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          NOTION_CI_REPORTS_DB_ID: ${{ secrets.NOTION_CI_REPORTS_DB_ID }}
+          NOTION_ROADMAP_DB_ID: ${{ secrets.NOTION_ROADMAP_DB_ID }}
+        run: |
+          echo "📊 Fetching roadmap status..."
+          
+          ROADMAP_STATUS=$(python scripts/sync_ci_report_to_notion.py --roadmap-status --ci-db-path ci_failure_history.db)
+          echo "roadmap_status<<EOF" >> $GITHUB_OUTPUT
+          echo "$ROADMAP_STATUS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
+      - name: Update PR with roadmap status
+        if: github.event_name == 'pull_request' || github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "📝 Updating PR with roadmap status..."
+          
+          # Extract milestone progress from roadmap status
+          CURRENT_MILESTONE="${{ steps.set-milestone.outputs.milestone }}"
+          
+          # Create roadmap status summary
+          cat > roadmap_summary.md << 'EOF'
+          ## 🗺️ Roadmap Status Update
+          
+          **Milestone:** ${{ steps.set-milestone.outputs.milestone }}
+          **Sync Status:** ✅ Completed
+          **Last Updated:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          
+          ### 📊 Current Roadmap Status
+          EOF
+          
+          # Add roadmap status if available
+          if [ -n "${{ steps.roadmap-status.outputs.roadmap_status }}" ]; then
+            echo "" >> roadmap_summary.md
+            echo '```' >> roadmap_summary.md
+            echo "${{ steps.roadmap-status.outputs.roadmap_status }}" >> roadmap_summary.md
+            echo '```' >> roadmap_summary.md
+          fi
+          
+          cat >> roadmap_summary.md << EOF
+          
+          ### 🔗 Links
+          - [View Full Roadmap in Notion](https://notion.so/${{ secrets.NOTION_ROADMAP_DB_ID }})
+          - [CI Intelligence Reports](https://notion.so/${{ secrets.NOTION_CI_REPORTS_DB_ID }})
+          - [Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          
+          *Automatically updated by CI Intelligence Agent*
+          EOF
+          
+          # Try to find associated PR
+          if [ "${{ github.event_name }}" == "workflow_run" ]; then
+            # For workflow_run events, try to find PR from the original workflow
+            echo "ℹ️ Workflow run event - roadmap status updated in Notion"
+          else
+            # For push events, try to find open PRs
+            PR_NUM=$(gh pr list --state open --head ${{ github.ref_name }} --json number --jq '.[0].number' || echo "")
+            
+            if [ -n "$PR_NUM" ]; then
+              echo "📝 Adding roadmap status to PR #$PR_NUM"
+              gh pr comment "$PR_NUM" --body-file roadmap_summary.md
+            else
+              echo "ℹ️ No open PR found for current branch"
+            fi
+          fi
+      
+      - name: Create GitHub issue for milestone update
+        if: ${{ steps.sync-roadmap.outputs.roadmap_synced == 'true' && github.event_name == 'push' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "📝 Creating GitHub issue for milestone update..."
+          
+          # Check if issue already exists for this milestone
+          EXISTING_ISSUE=$(gh issue list \
+            --label "roadmap,automation" \
+            --state open \
+            --search "${{ steps.set-milestone.outputs.milestone }}" \
+            --json number,title \
+            --jq '.[0].number' || echo "")
+          
+          if [ -n "$EXISTING_ISSUE" ]; then
+            echo "📝 Updating existing issue #$EXISTING_ISSUE"
+            
+            cat > issue_body.md << EOF
+          ## 🗺️ Milestone Update: ${{ steps.set-milestone.outputs.milestone }}
+          
+          **Status:** ✅ Roadmap updated automatically
+          **Last Updated:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **Trigger:** Push to main branch
+          
+          ### 📊 Roadmap Status
+          EOF
+          
+          if [ -n "${{ steps.roadmap-status.outputs.roadmap_status }}" ]; then
+            echo "" >> issue_body.md
+            echo '```' >> issue_body.md
+            echo "${{ steps.roadmap-status.outputs.roadmap_status }}" >> issue_body.md
+            echo '```' >> issue_body.md
+          fi
+          
+          cat >> issue_body.md << EOF
+          
+          ### 🔗 Links
+          - [View in Notion](https://notion.so/${{ secrets.NOTION_ROADMAP_DB_ID }})
+          - [CI Reports](https://notion.so/${{ secrets.NOTION_CI_REPORTS_DB_ID }})
+          - [Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          
+          *Automatically updated by CI Intelligence Agent*
+          EOF
+          
+          gh issue edit "$EXISTING_ISSUE" --body-file issue_body.md
+          else
+            echo "📝 Creating new issue"
+            
+            cat > issue_body.md << EOF
+          ## 🗺️ Milestone Update: ${{ steps.set-milestone.outputs.milestone }}
+          
+          **Status:** ✅ Roadmap updated automatically
+          **Last Updated:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **Trigger:** Push to main branch
+          
+          ### 📊 Roadmap Status
+          EOF
+          
+          if [ -n "${{ steps.roadmap-status.outputs.roadmap_status }}" ]; then
+            echo "" >> issue_body.md
+            echo '```' >> issue_body.md
+            echo "${{ steps.roadmap-status.outputs.roadmap_status }}" >> issue_body.md
+            echo '```' >> issue_body.md
+          fi
+          
+          cat >> issue_body.md << EOF
+          
+          ### 🔗 Links
+          - [View in Notion](https://notion.so/${{ secrets.NOTION_ROADMAP_DB_ID }})
+          - [CI Reports](https://notion.so/${{ secrets.NOTION_CI_REPORTS_DB_ID }})
+          - [Workflow Run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          
+          ### 🎯 Next Steps
+          - Review milestone progress and metrics
+          - Update target dates if needed
+          - Add any blockers or notes in Notion
+          
+          *Automatically updated by CI Intelligence Agent*
+          EOF
+          
+          gh issue create \
+            --title "🗺️ Milestone Update: ${{ steps.set-milestone.outputs.milestone }}" \
+            --body-file issue_body.md \
+            --label "roadmap,automation,milestone-update"
+          fi
+      
+      - name: Post summary
+        if: always()
+        run: |
+          echo "## 🧠 Notion Intelligence Sync Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### 📋 Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "- **Milestone:** ${{ steps.set-milestone.outputs.milestone }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Event:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### ✅ Results" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.generate-report.outputs.report_exists }}" == "true" ]; then
+            echo "- 📊 **CI Report:** Generated/Updated" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ⚠️ **CI Report:** Not available" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ steps.sync-ci-report.outputs.ci_report_synced }}" == "true" ]; then
+            echo "- 📤 **Notion CI Sync:** ✅ Success" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- 📤 **Notion CI Sync:** ❌ Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ steps.sync-roadmap.outputs.roadmap_synced }}" == "true" ]; then
+            echo "- 🗺️ **Roadmap Sync:** ✅ Success" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- 🗺️ **Roadmap Sync:** ❌ Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -n "${{ steps.roadmap-status.outputs.roadmap_status }}" ]; then
+            echo "### 📊 Current Roadmap Status" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "${{ steps.roadmap-status.outputs.roadmap_status }}" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f roadmap_summary.md issue_body.md
+          git checkout main || true
+
