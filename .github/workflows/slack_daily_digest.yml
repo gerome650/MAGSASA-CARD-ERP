@@ -1,0 +1,30 @@
+name: 📬 Slack Daily Digest
+
+on:
+  schedule:
+    - cron: "0 14 * * *"   # Runs daily at 2 PM UTC / 10 PM PHT
+  workflow_dispatch:       # Allows manual trigger from GitHub UI
+
+jobs:
+  slack-digest:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: ✅ Checkout repository
+        uses: actions/checkout@v3
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: 📦 Install dependencies
+        run: pip install --upgrade pip certifi
+
+      - name: 📊 Run Slack Daily Digest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: python3 scripts/slack_daily_digest.py
