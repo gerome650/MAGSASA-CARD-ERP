@@ -1,0 +1,181 @@
+name: CI Matrix (with Dependency Consistency)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    name: "🧪 Tests & Coverage (Python ${{ matrix.python-version }})"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies (Poetry)
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install poetry
+          poetry install
+
+      - name: Hygiene
+        run: make hygiene
+
+      - name: Safety gate
+        run: make safety-check
+
+      - name: Coverage
+        run: |
+          # Prefer coverage target used by your repo; fallback below is harmless if target exists
+          if make -n coverage-ci >/dev/null 2>&1; then
+            make coverage-ci
+          else
+            poetry run pytest --maxfail=1 --disable-warnings -q --cov=src --cov-report=xml
+          fi
+
+  poetry-build:
+    runs-on: ubuntu-latest
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    name: "📦 Poetry Build (Python ${{ matrix.python-version }})"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Poetry & deps
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install poetry
+          poetry install
+
+      - name: Build package
+        run: poetry build
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: [test, poetry-build]
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    name: "🐳 Docker Build & Smoke (Python ${{ matrix.python-version }})"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        run: |
+          # If your Dockerfile supports an ARG PYTHON_VERSION, we pass it here.
+          docker build \
+            --build-arg PYTHON_VERSION=${{ matrix.python-version }} \
+            -t app:test-${{ matrix.python-version }} .
+
+      - name: Smoke test
+        run: |
+          docker run --rm app:test-${{ matrix.python-version }} \
+            python -c "import sys; print('container ok:', sys.version)"
+
+  dep-consistency:
+    runs-on: ubuntu-latest
+    name: "🔐 Dependency Consistency Check"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Quick dependency consistency check
+        run: |
+          set -e
+          echo "🔎 Checking dependency consistency..."
+          # 1) poetry.lock vs pyproject.toml
+          if command -v poetry >/dev/null 2>&1; then
+            poetry lock --check || (echo "poetry.lock is out-of-sync with pyproject.toml" && exit 1)
+          else
+            pipx install poetry >/dev/null 2>&1 || python -m pip install poetry
+            poetry lock --check || (echo "poetry.lock is out-of-sync with pyproject.toml" && exit 1)
+          fi
+          # 2) Docker base alignment with Makefile version
+          PY_REQ=$(grep -E '^PYTHON_REQUIRED_VERSION\s*\?=' Makefile | awk '{print $3}')
+          if [ -n "$PY_REQ" ] && [ -f Dockerfile ]; then
+            if ! grep -E "FROM\s+python:${PY_REQ}(\b|-)" Dockerfile >/dev/null; then
+              echo "Dockerfile base Python tag not aligned with PYTHON_REQUIRED_VERSION=$PY_REQ"
+              exit 1
+            fi
+          fi
+          echo "✅ Dependency consistency OK"
+
+  upgrade-readiness:
+    runs-on: ubuntu-latest
+    needs: [test, poetry-build, docker-build, dep-consistency]
+    if: github.event_name == 'pull_request'
+    name: "📣 Post Upgrade Readiness Score"
+    steps:
+      - name: Compute readiness score
+        id: score
+        shell: bash
+        run: |
+          # Each matrix job is considered a single job here; success means all matrix entries passed.
+          tests_ok="${{ needs.test.result }}"
+          poetry_ok="${{ needs.poetry-build.result }}"
+          docker_ok="${{ needs.docker-build.result }}"
+          dep_ok="${{ needs.dep-consistency.result }}"
+
+          score=0
+          total=4
+
+          [[ "$tests_ok" == "success" ]] && ((score++))
+          [[ "$poetry_ok" == "success" ]] && ((score++))
+          [[ "$docker_ok" == "success" ]] && ((score++))
+          [[ "$dep_ok" == "success" ]] && ((score++))
+
+          test_line=$([[ "$tests_ok"  == "success" ]] && echo "✅ Tests & Coverage (3.11, 3.12)" || echo "❌ Tests & Coverage (3.11, 3.12)")
+          poetry_line=$([[ "$poetry_ok" == "success" ]] && echo "✅ Poetry Build (3.11, 3.12)"    || echo "❌ Poetry Build (3.11, 3.12)")
+          docker_line=$([[ "$docker_ok" == "success" ]] && echo "✅ Docker Build (3.11, 3.12)"    || echo "❌ Docker Build (3.11, 3.12)")
+          dep_line=$([[ "$dep_ok" == "success" ]] && echo "✅ Dependency Consistency" || echo "❌ Dependency Consistency")
+
+          # Build summary step by step
+          echo "summary=**Upgrade Readiness:** $([[ $score -eq $total ]] && echo "✅" || echo "⚠️") ${score}/${total} checks passed" >> $GITHUB_OUTPUT
+          echo "summary<<EOF" >> $GITHUB_OUTPUT
+          echo "**Upgrade Readiness:** $([[ $score -eq $total ]] && echo "✅" || echo "⚠️") ${score}/${total} checks passed" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "${test_line}" >> $GITHUB_OUTPUT
+          echo "${poetry_line}" >> $GITHUB_OUTPUT
+          echo "${docker_line}" >> $GITHUB_OUTPUT
+          echo "${dep_line}" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "<details>" >> $GITHUB_OUTPUT
+          echo "<summary>Details</summary>" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "- **Tests & Coverage**: Runs hygiene, safety, and coverage across Python 3.11 & 3.12" >> $GITHUB_OUTPUT
+          echo "- **Poetry Build**: Validates packaging across Python 3.11 & 3.12" >> $GITHUB_OUTPUT
+          echo "- **Docker Build**: Builds and smoke-tests image with ARG \`PYTHON_VERSION\` (3.11 & 3.12)" >> $GITHUB_OUTPUT
+          echo "- **Dependency Consistency**: Validates poetry.lock sync and Dockerfile Python version alignment" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "</details>" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Post sticky PR comment (Upgrade Readiness)
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: upgrade-readiness
+          recreate: true
+          message: ${{ steps.score.outputs.summary }}

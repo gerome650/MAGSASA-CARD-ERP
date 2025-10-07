@@ -21,13 +21,13 @@ import json
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
 # Optional dependencies
 try:
     from fastapi.testclient import TestClient
+
     HAS_FASTAPI = True
 except ImportError:
     HAS_FASTAPI = False
@@ -47,7 +47,7 @@ from observability.ai_agent.incident_analyzer import (
     RootCause,
     RootCauseType,
 )
-from observability.ai_agent.incident_reporter import IncidentReporter, ReportChannel
+from observability.ai_agent.incident_reporter import IncidentReporter
 from observability.ai_agent.insight_engine import (
     ImpactAnalysis,
     IncidentInsight,
@@ -55,7 +55,6 @@ from observability.ai_agent.insight_engine import (
     InsightEngine,
 )
 from observability.ai_agent.integrations.pagerduty_notifier import (
-    PagerDutyEvent,
     PagerDutyNotifier,
 )
 from observability.ai_agent.postmortem_generator import PostmortemGenerator
@@ -65,7 +64,6 @@ from observability.ai_agent.remediation_advisor import (
     RemediationPriority,
     RemediationType,
 )
-
 
 # ============================================================================
 # FIXTURES - Create reusable test data
@@ -128,7 +126,9 @@ def sample_log_signatures(sample_timestamp):
             severity="error",
             service="notification-service",
             log_level="ERROR",
-            sample_messages=["Required configuration parameter 'SMTP_API_KEY' not found"],
+            sample_messages=[
+                "Required configuration parameter 'SMTP_API_KEY' not found"
+            ],
         ),
     ]
 
@@ -634,7 +634,9 @@ class TestRemediationAdvisor:
         assert advisor.action_templates is not None
         assert advisor.runbook_library is not None
 
-    def test_generate_remediation_plan(self, sample_incident_context, sample_root_causes):
+    def test_generate_remediation_plan(
+        self, sample_incident_context, sample_root_causes
+    ):
         """Test generation of complete remediation plan"""
         engine = InsightEngine()
         insight = engine.generate_insight(sample_incident_context, sample_root_causes)
@@ -705,9 +707,7 @@ class TestRemediationAdvisor:
         actions = advisor.generate_remediation_plan(insight)
 
         # Should include rollback action
-        assert any(
-            action.action_type == RemediationType.ROLLBACK for action in actions
-        )
+        assert any(action.action_type == RemediationType.ROLLBACK for action in actions)
 
     def test_database_remediation(self, sample_incident_context, sample_root_causes):
         """Test remediation for database issues"""
@@ -719,7 +719,10 @@ class TestRemediationAdvisor:
 
         # Should include database-related actions
         action_types = [action.action_type for action in actions]
-        assert RemediationType.QUERY_OPTIMIZATION in action_types or RemediationType.INFRA_MITIGATION in action_types
+        assert (
+            RemediationType.QUERY_OPTIMIZATION in action_types
+            or RemediationType.INFRA_MITIGATION in action_types
+        )
 
     def test_generic_remediation_for_unknown_cause(self):
         """Test generic remediation when root cause is unknown"""
@@ -928,7 +931,9 @@ class TestPagerDutyNotifier:
         assert notifier.integration_keys["incidents"] == "test-integration-key"
         assert notifier.api_token == "test-api-token"
 
-    @pytest.mark.skip(reason="Complex async mocking - to be implemented with pytest-aiohttp")
+    @pytest.mark.skip(
+        reason="Complex async mocking - to be implemented with pytest-aiohttp"
+    )
     @pytest.mark.asyncio
     async def test_send_incident_alert_success(
         self, sample_incident_context, sample_root_causes
@@ -936,7 +941,9 @@ class TestPagerDutyNotifier:
         """Test successful incident alert sending"""
         pass
 
-    @pytest.mark.skip(reason="Complex async mocking - to be implemented with pytest-aiohttp")
+    @pytest.mark.skip(
+        reason="Complex async mocking - to be implemented with pytest-aiohttp"
+    )
     @pytest.mark.asyncio
     async def test_send_incident_alert_failure(
         self, sample_incident_context, sample_root_causes
@@ -944,25 +951,33 @@ class TestPagerDutyNotifier:
         """Test failed incident alert sending"""
         pass
 
-    @pytest.mark.skip(reason="Complex async mocking - to be implemented with pytest-aiohttp")
+    @pytest.mark.skip(
+        reason="Complex async mocking - to be implemented with pytest-aiohttp"
+    )
     @pytest.mark.asyncio
     async def test_acknowledge_incident(self):
         """Test incident acknowledgment"""
         pass
 
-    @pytest.mark.skip(reason="Complex async mocking - to be implemented with pytest-aiohttp")
+    @pytest.mark.skip(
+        reason="Complex async mocking - to be implemented with pytest-aiohttp"
+    )
     @pytest.mark.asyncio
     async def test_resolve_incident(self):
         """Test incident resolution"""
         pass
 
-    @pytest.mark.skip(reason="Complex async mocking - to be implemented with pytest-aiohttp")
+    @pytest.mark.skip(
+        reason="Complex async mocking - to be implemented with pytest-aiohttp"
+    )
     @pytest.mark.asyncio
     async def test_get_incident_details(self):
         """Test retrieving incident details"""
         pass
 
-    @pytest.mark.skip(reason="Complex async mocking - to be implemented with pytest-aiohttp")
+    @pytest.mark.skip(
+        reason="Complex async mocking - to be implemented with pytest-aiohttp"
+    )
     @pytest.mark.asyncio
     async def test_send_custom_alert(self):
         """Test sending custom alert"""
@@ -979,7 +994,7 @@ class TestOpenTelemetryTracer:
 
     def test_init_tracing_default_config(self):
         """Test tracer initialization with default config"""
-        from observability.tracing.otel_tracer import init_tracing, get_tracer
+        from observability.tracing.otel_tracer import get_tracer, init_tracing
 
         # Initialize with defaults
         init_tracing(app=None, service_name="test-service", console_export=False)
@@ -1237,4 +1252,3 @@ class TestObservabilityWorkflow:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])
-

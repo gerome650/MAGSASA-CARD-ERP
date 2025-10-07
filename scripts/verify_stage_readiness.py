@@ -150,7 +150,7 @@ class StageReadinessVerifier:
             check_result["passed"] = False
             check_result["issues"].append("Uncommitted changes detected")
             self.error("Uncommitted changes detected:")
-            for _line in stdout.strip().split("\n"):
+            for line in stdout.strip().split("\n"):
                 self.error(f"  {line}")
         else:
             self.success("Clean working tree")
@@ -195,7 +195,7 @@ class StageReadinessVerifier:
 
         # Check Stage 6.7 files
         self.log("Stage 6.7 – Observability Checks", Colors.MAGENTA)
-        for _file_path in self.stage_6_7_files:
+        for file_path in self.stage_6_7_files:
             full_path = self.repo_root / file_path
             if full_path.exists():
                 self.success(f"{file_path} found")
@@ -206,7 +206,7 @@ class StageReadinessVerifier:
 
         # Check Stage 6.8 files
         self.log("Stage 6.8 – Runtime Intelligence Checks", Colors.MAGENTA)
-        for _file_path in self.stage_6_8_files:
+        for file_path in self.stage_6_8_files:
             full_path = self.repo_root / file_path
             if full_path.exists():
                 self.success(f"{file_path} found")
@@ -217,7 +217,7 @@ class StageReadinessVerifier:
 
         # Check Stage 6.8.1 files
         self.log("Stage 6.8.1 – AI Agent Checks", Colors.MAGENTA)
-        for _file_path in self.stage_6_8_1_files:
+        for file_path in self.stage_6_8_1_files:
             full_path = self.repo_root / file_path
             if full_path.exists():
                 self.success(f"{file_path} found")
@@ -228,7 +228,7 @@ class StageReadinessVerifier:
 
         # Check CI files
         self.log("CI Workflow Checks", Colors.MAGENTA)
-        for _file_path in self.ci_files:
+        for file_path in self.ci_files:
             full_path = self.repo_root / file_path
             if full_path.exists():
                 self.success(f"{file_path} found")
@@ -249,7 +249,7 @@ class StageReadinessVerifier:
             with open(req_file) as f:
                 req_content = f.read()
 
-            for _dep in self.required_dependencies:
+            for dep in self.required_dependencies:
                 if dep in req_content:
                     check_result["found_deps"].append(dep)
                     self.success(f"{dep} found in requirements.txt")
@@ -266,7 +266,7 @@ class StageReadinessVerifier:
                 obs_content = f.read()
 
             ml_deps = ["numpy", "scipy", "statsmodels"]
-            for _dep in ml_deps:
+            for dep in ml_deps:
                 if dep in obs_content:
                     self.success(f"{dep} found in observability requirements")
                 else:
@@ -341,7 +341,7 @@ class StageReadinessVerifier:
             return check_result
 
         # Check each workflow file
-        for _workflow_file in workflows_dir.glob("*.yml"):
+        for workflow_file in workflows_dir.glob("*.yml"):
             self.info(f"Validating {workflow_file.name}...")
             try:
                 with open(workflow_file) as f:
@@ -384,9 +384,7 @@ class StageReadinessVerifier:
 
         len(self.results["checks"])
         sum(
-            1
-            for _check in self.results["checks"].values()
-            if check.get("passed", False)
+            1 for check in self.results["checks"].values() if check.get("passed", False)
         )
 
         # Count issues
@@ -396,7 +394,7 @@ class StageReadinessVerifier:
             elif check_result.get("issues") and len(check_result["issues"]) > 0:
                 critical_issues = [
                     issue
-                    for _issue in check_result["issues"]
+                    for issue in check_result["issues"]
                     if "missing" in issue.lower() or "failed" in issue.lower()
                 ]
                 if critical_issues:
@@ -435,14 +433,14 @@ class StageReadinessVerifier:
 
             # List critical issues
             print(f"\n{Colors.RED}{Colors.BOLD}Critical Issues:{Colors.END}")
-            for _check_name, check_result in self.results["checks"].items():
+            for check_name, check_result in self.results["checks"].items():
                 if not check_result.get("passed", False) and check_result.get("issues"):
                     critical_issues = [
                         issue
-                        for _issue in check_result["issues"]
+                        for issue in check_result["issues"]
                         if "missing" in issue.lower() or "failed" in issue.lower()
                     ]
-                    for _issue in critical_issues:
+                    for issue in critical_issues:
                         print(f"  {Colors.RED}❌ {check_name}: {issue}{Colors.END}")
 
     def run_verification(self) -> bool:

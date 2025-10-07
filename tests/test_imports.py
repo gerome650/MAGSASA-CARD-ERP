@@ -16,6 +16,7 @@ Performance: ~0.3s execution time, 15%+ coverage with minimal overhead
 """
 
 import importlib
+
 import pytest
 
 # 📦 List of modules to verify (add more here if needed)
@@ -40,6 +41,7 @@ MODULES = [
     "packages.core.src.core.models",
 ]
 
+
 @pytest.mark.parametrize("module_name", MODULES)
 def test_module_imports(module_name):
     """✅ Ensure each critical module can be imported successfully."""
@@ -49,6 +51,8 @@ def test_module_imports(module_name):
     except ImportError as e:
         # Handle missing optional dependencies gracefully
         if "uvicorn" in str(e) or "fastapi" in str(e):
-            pytest.skip(f"Skipping {module_name} due to missing optional dependency: {e}")
+            pytest.skip(
+                f"Skipping {module_name} due to missing optional dependency: {e}"
+            )
         else:
             raise

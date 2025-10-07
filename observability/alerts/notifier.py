@@ -13,7 +13,6 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -127,7 +126,8 @@ class SlackNotifier:
                 }
             )
 
-# Add current/baseline values if available and if context.current_value or context.baseline_value:
+            # Add current/baseline values if available
+            if context.current_value or context.baseline_value:
                 if context.current_value:
                     value_text.append(f"*Current:* {context.current_value}")
                 if context.baseline_value:
@@ -420,7 +420,7 @@ class SmartAlertRouter:
                     alert["startsAt"].replace("Z", "+00:00")
                 )
             except Exception:
-        timestamp = datetime.now()
+                timestamp = datetime.now()
 
         return AlertContext(
             service=labels.get("service", "unknown"),
@@ -458,7 +458,11 @@ class SmartAlertRouter:
                 return True
 
         # Suppress non-critical alerts on weekends (example)
-if context.severity in [AlertSeverity.WARNING, AlertSeverity.INFO] and if datetime.now().weekday() >= 5:  # Saturday = 5, Sunday = 6:
+        if (
+            context.severity in [AlertSeverity.WARNING, AlertSeverity.INFO]
+            and datetime.now().weekday() >= 5
+        ):  # Saturday = 5, Sunday = 6
+            return True
 
         # Check for duplicate alerts (simple deduplication)
         # In production, you'd implement proper deduplication logic here
@@ -477,7 +481,8 @@ if context.severity in [AlertSeverity.WARNING, AlertSeverity.INFO] and if dateti
         """
         context = self.extract_context(alert)
 
-# Check if alert should be suppressed and if self.should_suppress_alert(context, alert):
+        # Check if alert should be suppressed
+        if self.should_suppress_alert(context, alert):
             return {"suppressed": True}
 
         # Get routing channels for this severity

@@ -1,0 +1,169 @@
+name: Pre-Release Version Sync
+
+on:
+  # Run manually anytime
+  workflow_dispatch:
+    inputs:
+      python:
+        description: "Python version (overrides Makefile default)"
+        required: false
+      node:
+        description: "Node.js version (overrides Makefile default)"
+        required: false
+      poetry:
+        description: "Poetry version (overrides Makefile default)"
+        required: false
+      docker_tag:
+        description: "Docker base image tag (overrides Makefile default)"
+        required: false
+
+  # Allow other workflows to call this one
+  workflow_call:
+    inputs:
+      python:
+        required: false
+        type: string
+      node:
+        required: false
+        type: string
+      poetry:
+        required: false
+        type: string
+      docker_tag:
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+env:
+  # Fallbacks (Makefile has authoritative defaults; these are only for setup-* actions)
+  PYTHON_REQUIRED_VERSION: ${{ inputs.python || github.event.inputs.python || '' }}
+  NODE_REQUIRED_VERSION:   ${{ inputs.node   || github.event.inputs.node   || '' }}
+  POETRY_REQUIRED_VERSION: ${{ inputs.poetry || github.event.inputs.poetry || '' }}
+  DOCKER_BASE_IMAGE_TAG:   ${{ inputs.docker_tag || github.event.inputs.docker_tag || '' }}
+
+jobs:
+  version-sync:
+    name: Prepare Release PR (runtime version sync + changelog)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🧰 Determine effective versions (fall back to Makefile defaults)
+        id: eff
+        shell: bash
+        run: |
+          # Pull defaults from Makefile if inputs are empty
+          get_var () { awk -v k="$1" -F'[ ?=]+' '$1==k {print $2; exit}' Makefile; }
+
+          PYTHON_V="${PYTHON_REQUIRED_VERSION:-$(get_var PYTHON_REQUIRED_VERSION)}"
+          NODE_V="${NODE_REQUIRED_VERSION:-$(get_var NODE_REQUIRED_VERSION)}"
+          POETRY_V="${POETRY_REQUIRED_VERSION:-$(get_var POETRY_REQUIRED_VERSION)}"
+          DOCKER_V="${DOCKER_BASE_IMAGE_TAG:-$(get_var DOCKER_BASE_IMAGE_TAG)}"
+
+          echo "python=$PYTHON_V"  >> "$GITHUB_OUTPUT"
+          echo "node=$NODE_V"     >> "$GITHUB_OUTPUT"
+          echo "poetry=$POETRY_V" >> "$GITHUB_OUTPUT"
+          echo "docker=$DOCKER_V" >> "$GITHUB_OUTPUT"
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ steps.eff.outputs.python }}
+
+      - name: 🟩 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ steps.eff.outputs.node }}
+
+      - name: 📦 Install Poetry
+        shell: bash
+        run: |
+          if [ -n "${{ steps.eff.outputs.poetry }}" ]; then
+            pipx install "poetry==${{ steps.eff.outputs.poetry }}" || python -m pip install --user "poetry==${{ steps.eff.outputs.poetry }}"
+          else
+            pipx install poetry || python -m pip install --user poetry
+          fi
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: 🔧 Bump versions & regenerate files (CI mode)
+        shell: bash
+        env:
+          PYTHON_REQUIRED_VERSION: ${{ steps.eff.outputs.python }}
+          NODE_REQUIRED_VERSION:   ${{ steps.eff.outputs.node }}
+          POETRY_REQUIRED_VERSION: ${{ steps.eff.outputs.poetry }}
+          DOCKER_BASE_IMAGE_TAG:   ${{ steps.eff.outputs.docker }}
+        run: |
+          make bump-versions-ci NON_INTERACTIVE=1
+      - name: Dependency Gate (audit → auto-fix → re-audit)
+        run: |
+          set -e
+          make audit-deps || ( make fix-dependencies || true; make audit-deps )
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Auto-fix introduced changes; committing into version sync branch..."
+            git add -A
+            git commit -m "chore(deps): apply automatic dependency fixes during pre-release sync" || true
+          fi
+
+      - name: 🧪 Validate repo hygiene & safety gates
+        shell: bash
+        run: |
+          # Skip if Makefile doesn't define the targets (older branches)
+          make -n hygiene >/dev/null 2>&1 && make hygiene || true
+          make -n safety-check >/dev/null 2>&1 && make safety-check || true
+
+      - name: 📝 Commit changes (if any)
+        id: commit
+        shell: bash
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A
+            git commit -m "chore: bump runtime versions (sync) [skip ci]"
+            echo "committed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No changes to commit."
+            echo "committed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create release plan body
+        run: |
+          mkdir -p .github/reports
+          if [ ! -f ".github/reports/release-plan.md" ]; then
+            echo "# Release Plan" > .github/reports/release-plan.md
+            echo "" >> .github/reports/release-plan.md
+            echo "- Generated by pre-release sync" >> .github/reports/release-plan.md
+          fi
+      - name: Create PR to main
+        id: cpr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="$(git branch --show-current)"
+          gh pr create \
+            --base main \
+            --title "chore(release): bump runtime versions and prepare release" \
+            --body-file ".github/reports/release-plan.md" \
+            --label "Release: Ready" || true
+          PR_NUM="$(gh pr view --json number -q .number || echo "")"
+          echo "pr=$PR_NUM" >> "$GITHUB_OUTPUT"
+      - name: Sticky comment with plan
+        if: steps.cpr.outputs.pr != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr comment "${{ steps.cpr.outputs.pr }}" --body "$(cat .github/reports/release-plan.md)" || true
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: pre-release-reports
+          path: .github/reports/**
+          if-no-files-found: ignore

@@ -1,0 +1,189 @@
+{
+  "history": [
+    {
+      "timestamp": "2025-10-01T14:30:00.000000+00:00",
+      "score": 85.0,
+      "breakdown": {
+        "syntax": 100.0,
+        "lint": 90.0,
+        "tests": 85.0,
+        "coverage": 78.0,
+        "security": 100.0
+      },
+      "pr_metadata": {
+        "branch": "feature/dashboard-metrics",
+        "commit": "e4f5g6h",
+        "actor": "bob",
+        "timestamp": "2025-10-01T14:30:00.000000+00:00"
+      },
+      "delta_vs_previous": 2.5
+    },
+    {
+      "timestamp": "2025-10-02T09:20:00.000000+00:00",
+      "score": 88.0,
+      "breakdown": {
+        "syntax": 100.0,
+        "lint": 92.0,
+        "tests": 88.0,
+        "coverage": 82.0,
+        "security": 100.0
+      },
+      "pr_metadata": {
+        "branch": "feature/api-endpoints",
+        "commit": "i7j8k9l",
+        "actor": "carol",
+        "timestamp": "2025-10-02T09:20:00.000000+00:00"
+      },
+      "delta_vs_previous": 3.0
+    },
+    {
+      "timestamp": "2025-10-02T15:45:00.000000+00:00",
+      "score": 91.5,
+      "breakdown": {
+        "syntax": 100.0,
+        "lint": 94.0,
+        "tests": 92.0,
+        "coverage": 85.0,
+        "security": 100.0
+      },
+      "pr_metadata": {
+        "branch": "feature/database-optimization",
+        "commit": "m0n1o2p",
+        "actor": "david",
+        "timestamp": "2025-10-02T15:45:00.000000+00:00"
+      },
+      "delta_vs_previous": 3.5
+    },
+    {
+      "timestamp": "2025-10-03T11:10:00.000000+00:00",
+      "score": 93.0,
+      "breakdown": {
+        "syntax": 100.0,
+        "lint": 96.0,
+        "tests": 94.0,
+        "coverage": 88.0,
+        "security": 100.0
+      },
+      "pr_metadata": {
+        "branch": "feature/security-hardening",
+        "commit": "q3r4s5t",
+        "actor": "eve",
+        "timestamp": "2025-10-03T11:10:00.000000+00:00"
+      },
+      "delta_vs_previous": 1.5
+    },
+    {
+      "timestamp": "2025-10-03T16:25:00.000000+00:00",
+      "score": 89.0,
+      "breakdown": {
+        "syntax": 100.0,
+        "lint": 90.0,
+        "tests": 88.0,
+        "coverage": 82.0,
+        "security": 100.0
+      },
+      "pr_metadata": {
+        "branch": "hotfix/payment-validation",
+        "commit": "u6v7w8x",
+        "actor": "frank",
+        "timestamp": "2025-10-03T16:25:00.000000+00:00"
+      },
+      "delta_vs_previous": -4.0
+    },
+    {
+      "timestamp": "2025-10-04T10:00:00.000000+00:00",
+      "score": 87.5,
+      "breakdown": {
+        "syntax": 100.0,
+        "lint": 88.0,
+        "tests": 86.0,
+        "coverage": 80.0,
+        "security": 100.0
+      },
+      "pr_metadata": {
+        "branch": "feature/logging-improvements",
+        "commit": "y9z0a1b",
+        "actor": "grace",
+        "timestamp": "2025-10-04T10:00:00.000000+00:00"
+      },
+      "delta_vs_previous": -1.5
+    },
+    {
+      "timestamp": "2025-10-04T14:50:00.000000+00:00",
+      "score": 90.5,
+      "breakdown": {
+        "syntax": 100.0,
+        "lint": 92.0,
+        "tests": 90.0,
+        "coverage": 85.0,
+        "security": 100.0
+      },
+      "pr_metadata": {
+        "branch": "feature/monitoring-alerts",
+        "commit": "c2d3e4f",
+        "actor": "henry",
+        "timestamp": "2025-10-04T14:50:00.000000+00:00"
+      },
+      "delta_vs_previous": 3.0
+    },
+    {
+      "timestamp": "2025-10-05T09:30:00.000000+00:00",
+      "score": 88.0,
+      "breakdown": {
+        "syntax": 100.0,
+        "lint": 90.0,
+        "tests": 86.0,
+        "coverage": 82.0,
+        "security": 100.0
+      },
+      "pr_metadata": {
+        "branch": "feature/cache-layer",
+        "commit": "g5h6i7j",
+        "actor": "iris",
+        "timestamp": "2025-10-05T09:30:00.000000+00:00"
+      },
+      "delta_vs_previous": -2.5
+    },
+    {
+      "timestamp": "2025-10-05T23:14:29.693774+00:00",
+      "score": 92.0,
+      "breakdown": {
+        "syntax": 100.0,
+        "lint": 94.0,
+        "tests": 92.0,
+        "coverage": 86.0,
+        "security": 100.0
+      },
+      "pr_metadata": {
+        "branch": "feature/performance-tuning",
+        "commit": "k8l9m0n",
+        "actor": "jack",
+        "timestamp": "2025-10-05T23:14:29.693619+00:00"
+      },
+      "delta_vs_previous": 4.0
+    },
+    {
+      "timestamp": "2025-10-05T23:33:20.554259+00:00",
+      "score": 55.0,
+      "breakdown": {
+        "syntax": 50.0,
+        "lint": 50.0,
+        "tests": 50.0,
+        "coverage": 50.0,
+        "security": 100.0
+      },
+      "pr_metadata": {
+        "branch": "test-branch",
+        "commit": "test123",
+        "actor": "testuser",
+        "timestamp": "2025-10-05T23:33:20.554074+00:00"
+      },
+      "delta_vs_previous": -37.0
+    }
+  ],
+  "streak_below_goal": 1,
+  "last_updated": "2025-10-05T23:33:20.554265+00:00",
+  "team_goal": 90,
+  "early_warning": false,
+  "auto_fail": false
+}

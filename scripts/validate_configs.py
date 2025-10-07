@@ -6,21 +6,32 @@ import yaml
 from jsonschema import Draft202012Validator, validate
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+# Load schemas with context managers
+with open(ROOT / "schemas" / "scenario.schema.json") as f:
+    scenario_schema = json.load(f)
+with open(ROOT / "schemas" / "remediation.rule.schema.json") as f:
+    remediation_schema = json.load(f)
+with open(ROOT / "schemas" / "drplan.schema.json") as f:
+    dr_schema = json.load(f)
+with open(ROOT / "schemas" / "slo.schema.json") as f:
+    slo_schema = json.load(f)
+
 SCHEMAS = {
-    "scenario": json.load(open(ROOT / "schemas" / "scenario.schema.json")),
-    "remediation": json.load(open(ROOT / "schemas" / "remediation.rule.schema.json")),
-    "dr": json.load(open(ROOT / "schemas" / "drplan.schema.json")),
-    "slo": json.load(open(ROOT / "schemas" / "slo.schema.json")),
+    "scenario": scenario_schema,
+    "remediation": remediation_schema,
+    "dr": dr_schema,
+    "slo": slo_schema,
 }
 FAILURES = []
 
 
-def load_yaml_files(_base):
+def load_yaml_files(base):
     p = ROOT / base
     return sorted(p.rglob("*.y*ml")) if p.exists() else []
 
 
-def vfile(_kind, _path):
+def vfile(kind, path):
     with open(path) as f:
         data = yaml.safe_load(f)
     try:
@@ -51,13 +62,13 @@ def vfile(_kind, _path):
 
 
 if __name__ == "__main__":
-    for _p in load_yaml_files("configs/chaos-scenarios"):
+    for p in load_yaml_files("configs/chaos-scenarios"):
         vfile("scenario", p)
-    for _p in load_yaml_files("configs/remediation-rules"):
+    for p in load_yaml_files("configs/remediation-rules"):
         vfile("remediation", p)
-    for _p in load_yaml_files("configs/dr-plans"):
+    for p in load_yaml_files("configs/dr-plans"):
         vfile("dr", p)
-    for _p in load_yaml_files("configs/slo"):
+    for p in load_yaml_files("configs/slo"):
         vfile("slo", p)
     if FAILURES:
         print("Validation failures (\n" + "\n".join(FAILURES) + "\n)")

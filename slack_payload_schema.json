@@ -1,0 +1,302 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Slack Block Kit Payload Schema",
+  "description": "JSON Schema for validating Slack Block Kit messages",
+  "type": "object",
+  "required": ["blocks"],
+  "properties": {
+    "blocks": {
+      "type": "array",
+      "description": "Array of Block Kit blocks",
+      "minItems": 1,
+      "maxItems": 50,
+      "items": {
+        "$ref": "#/definitions/block"
+      }
+    },
+    "color": {
+      "type": "string",
+      "description": "Hex color code for attachment",
+      "pattern": "^#[0-9a-fA-F]{6}$",
+      "examples": ["#56d364", "#ffd33d", "#ff6a69"]
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional metadata for the message",
+      "properties": {
+        "merge_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Merge readiness score percentage"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["ON TRACK", "EARLY WARNING", "AUTO-FAIL", "BELOW GOAL"],
+          "description": "Overall merge status"
+        },
+        "auto_fail": {
+          "type": "boolean",
+          "description": "Whether auto-fail is triggered"
+        },
+        "early_warning": {
+          "type": "boolean",
+          "description": "Whether early warning is active"
+        }
+      }
+    }
+  },
+  "definitions": {
+    "block": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["header", "section", "divider", "context", "actions", "input", "file", "image"],
+          "description": "Type of block"
+        },
+        "text": {
+          "$ref": "#/definitions/text_object",
+          "description": "Text content for the block"
+        },
+        "fields": {
+          "type": "array",
+          "description": "Array of text fields (section blocks only)",
+          "maxItems": 10,
+          "items": {
+            "$ref": "#/definitions/text_object"
+          }
+        },
+        "elements": {
+          "type": "array",
+          "description": "Array of interactive elements",
+          "maxItems": 10,
+          "items": {
+            "$ref": "#/definitions/element"
+          }
+        },
+        "accessory": {
+          "$ref": "#/definitions/element",
+          "description": "Accessory element (section blocks only)"
+        }
+      }
+    },
+    "text_object": {
+      "type": "object",
+      "required": ["type", "text"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["plain_text", "mrkdwn"],
+          "description": "Type of text formatting"
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 3000,
+          "description": "Text content"
+        },
+        "emoji": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to show emoji"
+        },
+        "verbatim": {
+          "type": "boolean",
+          "description": "Whether to skip link parsing (mrkdwn only)"
+        }
+      }
+    },
+    "element": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "button",
+            "static_select",
+            "multi_static_select",
+            "datepicker",
+            "timepicker",
+            "datetimepicker",
+            "checkboxes",
+            "radio_buttons",
+            "plain_text_input",
+            "conversations_select",
+            "channels_select",
+            "users_select",
+            "external_select",
+            "multi_external_select",
+            "overflow",
+            "image"
+          ],
+          "description": "Type of interactive element"
+        },
+        "text": {
+          "$ref": "#/definitions/text_object",
+          "description": "Text content for the element"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL for external links (button elements)"
+        },
+        "value": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Value for the element"
+        },
+        "action_id": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "Unique identifier for the element"
+        },
+        "placeholder": {
+          "$ref": "#/definitions/text_object",
+          "description": "Placeholder text for the element"
+        },
+        "confirm": {
+          "$ref": "#/definitions/confirmation_dialog",
+          "description": "Confirmation dialog for the element"
+        },
+        "options": {
+          "type": "array",
+          "description": "Options for select elements",
+          "items": {
+            "$ref": "#/definitions/option"
+          }
+        },
+        "initial_option": {
+          "$ref": "#/definitions/option",
+          "description": "Initially selected option"
+        },
+        "initial_options": {
+          "type": "array",
+          "description": "Initially selected options (multi-select)",
+          "items": {
+            "$ref": "#/definitions/option"
+          }
+        },
+        "min_query_length": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Minimum query length for external select"
+        },
+        "max_selected_items": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Maximum selected items for multi-select"
+        },
+        "focus_on_load": {
+          "type": "boolean",
+          "description": "Whether to focus element on load"
+        }
+      }
+    },
+    "option": {
+      "type": "object",
+      "required": ["text", "value"],
+      "properties": {
+        "text": {
+          "$ref": "#/definitions/text_object",
+          "description": "Text for the option"
+        },
+        "value": {
+          "type": "string",
+          "maxLength": 75,
+          "description": "Value for the option"
+        },
+        "description": {
+          "$ref": "#/definitions/text_object",
+          "description": "Description for the option"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL for the option (overflow elements)"
+        }
+      }
+    },
+    "confirmation_dialog": {
+      "type": "object",
+      "required": ["title", "text", "confirm", "deny"],
+      "properties": {
+        "title": {
+          "$ref": "#/definitions/text_object",
+          "description": "Title of the confirmation dialog"
+        },
+        "text": {
+          "$ref": "#/definitions/text_object",
+          "description": "Text content of the confirmation dialog"
+        },
+        "confirm": {
+          "$ref": "#/definitions/text_object",
+          "description": "Text for the confirm button"
+        },
+        "deny": {
+          "$ref": "#/definitions/text_object",
+          "description": "Text for the deny button"
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "blocks": [
+        {
+          "type": "header",
+          "text": {
+            "type": "plain_text",
+            "text": "📊 Merge Quality Report",
+            "emoji": true
+          }
+        },
+        {
+          "type": "section",
+          "fields": [
+            {
+              "type": "mrkdwn",
+              "text": "*Merge Score:*\n`85%` ✅"
+            },
+            {
+              "type": "mrkdwn",
+              "text": "*Status:*\nON TRACK"
+            }
+          ]
+        },
+        {
+          "type": "actions",
+          "elements": [
+            {
+              "type": "button",
+              "text": {
+                "type": "plain_text",
+                "text": "View Dashboard",
+                "emoji": true
+              },
+              "url": "https://example.com/dashboard"
+            }
+          ]
+        },
+        {
+          "type": "context",
+          "elements": [
+            {
+              "type": "mrkdwn",
+              "text": "Generated by Merge Quality System"
+            }
+          ]
+        }
+      ],
+      "color": "#56d364",
+      "metadata": {
+        "merge_score": 85,
+        "status": "ON TRACK",
+        "auto_fail": false,
+        "early_warning": false
+      }
+    }
+  ]
+}

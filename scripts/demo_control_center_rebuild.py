@@ -23,7 +23,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 class ControlCenterRebuildDemo:
     """Demonstrates the Control Center rebuild process."""
 
-    def __init__(self, _json_file_path: str):
+    def __init__(self, json_file_path: str):
         """Initialize the demo with JSON schema."""
         self.json_file_path = json_file_path
         self.schema = self._load_schema()
@@ -40,14 +40,14 @@ class ControlCenterRebuildDemo:
         except Exception as e:
             raise ValueError(f"❌ Failed to load schema: {e}") from None
 
-    def demonstrate_database_creation(_self):
+    def demonstrate_database_creation(self):
         """Demonstrate database creation process."""
         print("\n🏗️ DEMONSTRATING DATABASE CREATION")
         print("=" * 60)
 
         databases = self.schema.get("databases", {})
 
-        for _db_key, db_config in databases.items():
+        for db_key, db_config in databases.items():
             print(f"\n📊 Creating database: {db_config['title']}")
             print(f"   Description: {db_config['description']}")
             print(f"   Icon: {db_config.get('icon', '📊')}")
@@ -59,7 +59,7 @@ class ControlCenterRebuildDemo:
             print(f"   ✅ Would create database with ID: {db_id}")
             print(f"   📋 Properties ({len(db_config['properties'])}):")
 
-            for _prop_name, prop_config in db_config["properties"].items():
+            for prop_name, prop_config in db_config["properties"].items():
                 prop_type = prop_config["type"]
                 required = (
                     "Required" if prop_config.get("required", True) else "Optional"
@@ -71,7 +71,7 @@ class ControlCenterRebuildDemo:
 
             if sample_count > 0:
                 print("   📄 Sample items:")
-                for _i, sample in enumerate(db_config["sample_data"][:2], 1):
+                for i, sample in enumerate(db_config["sample_data"][:2], 1):
                     title = (
                         sample.get("Name")
                         or sample.get("Stage Name")
@@ -82,14 +82,14 @@ class ControlCenterRebuildDemo:
                 if sample_count > 2:
                     print(f"      ... and {sample_count - 2} more items")
 
-    def demonstrate_sample_data_creation(_self):
+    def demonstrate_sample_data_creation(self):
         """Demonstrate sample data creation process."""
         print("\n📝 DEMONSTRATING SAMPLE DATA CREATION")
         print("=" * 60)
 
         databases = self.schema.get("databases", {})
 
-        for _db_key, db_config in databases.items():
+        for db_key, db_config in databases.items():
             if db_key not in self.created_databases:
                 continue
 
@@ -99,7 +99,7 @@ class ControlCenterRebuildDemo:
 
             print(f"\n📊 Adding sample data to: {db_config['title']}")
 
-            for _i, sample_item in enumerate(sample_data, 1):
+            for i, sample_item in enumerate(sample_data, 1):
                 title = (
                     sample_item.get("Name")
                     or sample_item.get("Stage Name")
@@ -110,7 +110,7 @@ class ControlCenterRebuildDemo:
 
                 # Show key properties
                 key_props = []
-                for _key in ["Status", "Progress", "Target Date", "Current Value"]:
+                for key in ["Status", "Progress", "Target Date", "Current Value"]:
                     if key in sample_item:
                         value = sample_item[key]
                         key_props.append(f"{key}={value}")
@@ -118,14 +118,14 @@ class ControlCenterRebuildDemo:
                 if key_props:
                     print(f"      Key properties: {', '.join(key_props)}")
 
-    def demonstrate_page_creation(_self):
+    def demonstrate_page_creation(self):
         """Demonstrate page creation process."""
         print("\n📄 DEMONSTRATING PAGE CREATION")
         print("=" * 60)
 
         pages = self.schema.get("pages", {})
 
-        for _page_key, page_config in pages.items():
+        for page_key, page_config in pages.items():
             print(f"\n📄 Creating page: {page_config['title']}")
             print(f"   Description: {page_config.get('description', '')}")
 
@@ -138,7 +138,7 @@ class ControlCenterRebuildDemo:
             content_items = page_config.get("content", [])
             print(f"   📝 Content blocks: {len(content_items)}")
 
-            for _content_item in content_items[:3]:  # Show first 3 content items
+            for content_item in content_items[:3]:  # Show first 3 content items
                 content_type = content_item.get("type", "unknown")
                 text = (
                     content_item.get("text", "")[:50] + "..."
@@ -147,14 +147,14 @@ class ControlCenterRebuildDemo:
                 )
                 print(f"      • {content_type}: {text}")
 
-    def demonstrate_view_creation(_self):
+    def demonstrate_view_creation(self):
         """Demonstrate view creation process."""
         print("\n👁️ DEMONSTRATING VIEW CREATION")
         print("=" * 60)
 
         views = self.schema.get("views", {})
 
-        for __view_key, view_config in views.items():
+        for _view_key, view_config in views.items():
             print(f"\n👁️ Creating view: {view_config['title']}")
             print(f"   Database: {view_config['database']}")
             print(f"   Type: {view_config['type']}")
@@ -170,7 +170,7 @@ class ControlCenterRebuildDemo:
 
             print(f"   ✅ Would create {view_config['type']} view")
 
-    def demonstrate_environment_variables(_self):
+    def demonstrate_environment_variables(self):
         """Demonstrate environment variable generation."""
         print("\n🔧 DEMONSTRATING ENVIRONMENT VARIABLES")
         print("=" * 60)
@@ -178,7 +178,7 @@ class ControlCenterRebuildDemo:
         env_vars = self.schema.get("environment_variables", {})
 
         print("\n📋 Generated Environment Variables:")
-        for _env_var, db_key in env_vars.items():
+        for env_var, db_key in env_vars.items():
             if db_key in self.created_databases:
                 db_id = self.created_databases[db_key]
                 print(f"   {env_var}={db_id}")
@@ -188,19 +188,19 @@ class ControlCenterRebuildDemo:
         print("   # Then run: source .env")
         print("   # Test with: python scripts/test_notion_connection.py")
 
-    def demonstrate_relation_setup(_self):
+    def demonstrate_relation_setup(self):
         """Demonstrate relation property setup."""
         print("\n🔗 DEMONSTRATING RELATION SETUP")
         print("=" * 60)
 
         databases = self.schema.get("databases", {})
 
-        for _db_key, db_config in databases.items():
+        for db_key, db_config in databases.items():
             if db_key not in self.created_databases:
                 continue
 
             relations = []
-            for _prop_name, prop_config in db_config["properties"].items():
+            for prop_name, prop_config in db_config["properties"].items():
                 if prop_config["type"] == "relation":
                     related_db = prop_config.get("related_database")
                     if related_db:
@@ -208,14 +208,14 @@ class ControlCenterRebuildDemo:
 
             if relations:
                 print(f"\n📊 {db_config['title']} relations:")
-                for _prop_name, related_db in relations:
+                for prop_name, related_db in relations:
                     if related_db in self.created_databases:
                         related_id = self.created_databases[related_db]
                         print(f"   • {prop_name} → {related_db} ({related_id})")
                     else:
                         print(f"   • {prop_name} → {related_db} (not created yet)")
 
-    def generate_demo_summary(_self):
+    def generate_demo_summary(self):
         """Generate comprehensive demo summary."""
         print("\n📊 GENERATING DEMO SUMMARY")
         print("=" * 60)
@@ -227,7 +227,7 @@ class ControlCenterRebuildDemo:
             "pages_created": len(self.created_pages),
             "sample_data_items": sum(
                 len(db_config.get("sample_data", []))
-                for _db_config in self.schema.get("databases", {}).values()
+                for db_config in self.schema.get("databases", {}).values()
             ),
             "databases": {},
             "environment_variables": {},
@@ -243,7 +243,7 @@ class ControlCenterRebuildDemo:
         }
 
         # Database summary
-        for _db_key, db_id in self.created_databases.items():
+        for db_key, db_id in self.created_databases.items():
             db_config = self.schema["databases"][db_key]
             summary["databases"][db_key] = {
                 "title": db_config["title"],
@@ -254,7 +254,7 @@ class ControlCenterRebuildDemo:
 
         # Environment variables
         env_vars = self.schema.get("environment_variables", {})
-        for _env_var, db_key in env_vars.items():
+        for env_var, db_key in env_vars.items():
             if db_key in self.created_databases:
                 summary["environment_variables"][env_var] = self.created_databases[
                     db_key
@@ -262,7 +262,7 @@ class ControlCenterRebuildDemo:
 
         # Views
         views = self.schema.get("views", {})
-        for _view_key, view_config in views.items():
+        for view_key, view_config in views.items():
             summary["views"][view_key] = {
                 "title": view_config["title"],
                 "type": view_config["type"],
@@ -271,7 +271,7 @@ class ControlCenterRebuildDemo:
 
         return summary
 
-    def print_demo_summary(self, _summary: dict[str, _Any]):
+    def print_demo_summary(self, summary: dict[str, Any]):
         """Print formatted demo summary."""
         print("\n" + "=" * 80)
         print("🎉 MAGSASA-CARD CONTROL CENTER REBUILD DEMO COMPLETE!")
@@ -286,7 +286,7 @@ class ControlCenterRebuildDemo:
 
         print("\n🗄️ DATABASE OVERVIEW:")
         print("-" * 50)
-        for __db_key, db_info in summary["databases"].items():
+        for _db_key, db_info in summary["databases"].items():
             print(f"📊 {db_info['title']}")
             print(f"   Properties: {db_info['properties_count']}")
             print(f"   Sample data: {db_info['sample_data_count']} items")
@@ -294,27 +294,27 @@ class ControlCenterRebuildDemo:
 
         print("👁️ VIEW OVERVIEW:")
         print("-" * 50)
-        for __view_key, view_info in summary["views"].items():
+        for _view_key, view_info in summary["views"].items():
             print(f"👁️ {view_info['title']} ({view_info['type']})")
             print(f"   Database: {view_info['database']}")
             print()
 
         print("🔧 ENVIRONMENT VARIABLES:")
         print("-" * 50)
-        for _env_var, db_id in summary["environment_variables"].items():
+        for env_var, db_id in summary["environment_variables"].items():
             print(f"{env_var}={db_id}")
         print()
 
         print("🚀 NEXT STEPS TO ACTUALLY REBUILD:")
         print("-" * 50)
-        for _i, step in enumerate(summary["next_steps"], 1):
+        for i, step in enumerate(summary["next_steps"], 1):
             print(f"{i}. {step}")
 
         print("\n" + "=" * 80)
         print("✅ Demo complete! The Control Center is ready to be rebuilt.")
         print("=" * 80)
 
-    def run_demo(_self):
+    def run_demo(self):
         """Run the complete demo."""
         print("🚀 MAGSASA-CARD Control Center Rebuild Demo")
         print("=" * 60)
@@ -357,7 +357,7 @@ class ControlCenterRebuildDemo:
             raise  # Re-raise the exception with full traceback
 
 
-def main(_):
+def main():
     """Main entry point."""
     json_file = Path(__file__).parent.parent / "MAGSASA-CARD_Control_Center.json"
 

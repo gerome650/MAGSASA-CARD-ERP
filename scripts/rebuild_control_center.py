@@ -45,7 +45,7 @@ from utils.notion_client import (
 class ControlCenterRebuilder:
     """Rebuilds the MAGSASA-CARD Control Center from JSON schema."""
 
-    def __init__(self, _json_file_path: str):
+    def __init__(self, json_file_path: str):
         """Initialize the rebuilder with JSON schema."""
         self.json_file_path = json_file_path
         self.notion_client = NotionClient()
@@ -94,7 +94,7 @@ class ControlCenterRebuilder:
         elif prop_type == "select":
             options = prop_config.get("options", [])
             notion_options = []
-            for _option in options:
+            for option in options:
                 notion_options.append(
                     {"name": option["name"], "color": option.get("color", "default")}
                 )
@@ -103,7 +103,7 @@ class ControlCenterRebuilder:
         elif prop_type == "multi_select":
             options = prop_config.get("options", [])
             notion_options = []
-            for _option in options:
+            for option in options:
                 notion_options.append(
                     {"name": option["name"], "color": option.get("color", "default")}
                 )
@@ -134,13 +134,13 @@ class ControlCenterRebuilder:
         databases = self.schema.get("databases", {})
         created_dbs = {}
 
-        for _db_key, db_config in databases.items():
+        for db_key, db_config in databases.items():
             try:
                 print(f"\n📊 Creating database: {db_config['title']}")
 
                 # Convert properties
                 notion_properties = {}
-                for _prop_name, prop_config in db_config["properties"].items():
+                for prop_name, prop_config in db_config["properties"].items():
                     notion_properties[prop_name] = self._convert_property_type(
                         prop_name, prop_config
                     )
@@ -170,19 +170,19 @@ class ControlCenterRebuilder:
 
         return created_dbs
 
-    def _update_relation_properties(_self):
+    def _update_relation_properties(self):
         """Update relation properties to point to correct database IDs."""
         print("\n🔗 Updating relation properties...")
 
         databases = self.schema.get("databases", {})
-        for _db_key, db_config in databases.items():
+        for db_key, db_config in databases.items():
             if db_key not in self.created_databases:
                 continue
 
             db_id = self.created_databases[db_key]
 
             # Check if any properties need relation updates
-            for _prop_name, prop_config in db_config["properties"].items():
+            for prop_name, prop_config in db_config["properties"].items():
                 if prop_config["type"] == "relation":
                     related_db = prop_config.get("related_database")
                     if related_db and related_db in self.created_databases:
@@ -216,7 +216,7 @@ class ControlCenterRebuilder:
         databases = self.schema.get("databases", {})
         added_pages = {}
 
-        for _db_key, db_config in databases.items():
+        for db_key, db_config in databases.items():
             if db_key not in self.created_databases:
                 continue
 
@@ -229,7 +229,7 @@ class ControlCenterRebuilder:
 
             print(f"\n📊 Adding sample data to {db_config['title']}...")
 
-            for _sample_item in sample_data:
+            for sample_item in sample_data:
                 try:
                     # Convert sample data to Notion properties
                     properties = self._convert_sample_data_to_properties(
@@ -262,7 +262,7 @@ class ControlCenterRebuilder:
         """Convert sample data to Notion properties format."""
         properties = {}
 
-        for _prop_name, value in sample_item.items():
+        for prop_name, value in sample_item.items():
             if prop_name not in property_configs:
                 continue
 
@@ -281,7 +281,7 @@ class ControlCenterRebuilder:
             elif prop_type == "date" and isinstance(value, str):
                 properties[prop_name] = create_date_property(str(value))
 
-            elif prop_type == "number" and isinstance(value, (int, float)):
+            elif prop_type == "number" and isinstance(value, int | float):
                 properties[prop_name] = create_number_property(value)
 
             elif prop_type == "url":
@@ -289,7 +289,7 @@ class ControlCenterRebuilder:
 
             elif prop_type == "multi_select" and isinstance(value, list):
                 properties[prop_name] = {
-                    "multi_select": [{"name": str(item)} for _item in value]
+                    "multi_select": [{"name": str(item)} for item in value]
                 }
 
         return properties
@@ -301,13 +301,13 @@ class ControlCenterRebuilder:
         pages = self.schema.get("pages", {})
         created_pages = {}
 
-        for _page_key, page_config in pages.items():
+        for page_key, page_config in pages.items():
             try:
                 print(f"\n📄 Creating page: {page_config['title']}")
 
                 # Create page content
                 content_blocks = []
-                for _content_item in page_config.get("content", []):
+                for content_item in page_config.get("content", []):
                     block = self._create_content_block(content_item)
                     if block:
                         content_blocks.append(block)
@@ -346,27 +346,18 @@ class ControlCenterRebuilder:
         content_type = content_item.get("type")
         text = content_item.get("text", "")
 
-        if content_type == "heading_1":
+        block_types = {
+            "heading_1": "heading_1",
+            "heading_2": "heading_2",
+            "paragraph": "paragraph",
+        }
+
+        if content_type in block_types:
+            block_type = block_types[content_type]
             return {
                 "object": "block",
-                "type": "heading_1",
-                "heading_1": {
-                    "rich_text": [{"type": "text", "text": {"content": text}}]
-                },
-            }
-        elif content_type == "heading_2":
-            return {
-                "object": "block",
-                "type": "heading_2",
-                "heading_2": {
-                    "rich_text": [{"type": "text", "text": {"content": text}}]
-                },
-            }
-        elif content_type == "paragraph":
-            return {
-                "object": "block",
-                "type": "paragraph",
-                "paragraph": {
+                "type": block_type,
+                block_type: {
                     "rich_text": [{"type": "text", "text": {"content": text}}]
                 },
             }
@@ -380,7 +371,7 @@ class ControlCenterRebuilder:
         views = self.schema.get("views", {})
         created_views = {}
 
-        for _view_key, view_config in views.items():
+        for view_key, view_config in views.items():
             try:
                 db_key = view_config["database"]
                 if db_key not in self.created_databases:
@@ -420,7 +411,7 @@ class ControlCenterRebuilder:
             "databases_created": len(self.created_databases),
             "pages_created": len(self.created_pages),
             "sample_data_added": sum(
-                len(pages) for _pages in getattr(self, "added_pages", {}).values()
+                len(pages) for pages in getattr(self, "added_pages", {}).values()
             ),
             "databases": {},
             "environment_variables": {},
@@ -428,7 +419,7 @@ class ControlCenterRebuilder:
         }
 
         # Database summary
-        for _db_key, db_id in self.created_databases.items():
+        for db_key, db_id in self.created_databases.items():
             db_config = self.schema["databases"][db_key]
             summary["databases"][db_key] = {
                 "title": db_config["title"],
@@ -440,7 +431,7 @@ class ControlCenterRebuilder:
 
         # Environment variables
         env_vars = self.schema.get("environment_variables", {})
-        for _env_var, db_key in env_vars.items():
+        for env_var, db_key in env_vars.items():
             if db_key in self.created_databases:
                 summary["environment_variables"][env_var] = self.created_databases[
                     db_key
@@ -457,7 +448,7 @@ class ControlCenterRebuilder:
 
         return summary
 
-    def print_summary(self, _summary: dict[str, _Any]):
+    def print_summary(self, summary: dict[str, Any]):
         """Print formatted summary report."""
         print("\n" + "=" * 80)
         print("🎉 MAGSASA-CARD CONTROL CENTER REBUILD COMPLETE!")
@@ -471,7 +462,7 @@ class ControlCenterRebuilder:
 
         print("\n🗄️ DATABASE SUMMARY:")
         print("-" * 50)
-        for __db_key, db_info in summary["databases"].items():
+        for _db_key, db_info in summary["databases"].items():
             print(f"📊 {db_info['title']}")
             print(f"   ID: {db_info['id']}")
             print(f"   Properties: {db_info['properties_count']}")
@@ -481,20 +472,20 @@ class ControlCenterRebuilder:
 
         print("🔧 ENVIRONMENT VARIABLES:")
         print("-" * 50)
-        for _env_var, db_id in summary["environment_variables"].items():
+        for env_var, db_id in summary["environment_variables"].items():
             print(f"{env_var}={db_id}")
         print()
 
         print("🚀 NEXT STEPS:")
         print("-" * 50)
-        for _i, step in enumerate(summary["next_steps"], 1):
+        for i, step in enumerate(summary["next_steps"], 1):
             print(f"{i}. {step}")
 
         print("\n" + "=" * 80)
         print("✅ Control Center is now fully deployed and ready for use!")
         print("=" * 80)
 
-    def rebuild_all(_self):
+    def rebuild_all(self):
         """Rebuild the complete Control Center."""
         print("🚀 Starting MAGSASA-CARD Control Center rebuild...")
 

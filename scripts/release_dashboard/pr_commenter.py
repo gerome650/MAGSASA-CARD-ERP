@@ -14,8 +14,10 @@ from urllib.parse import quote
 try:
     from github import Auth, Github
     from github.GithubException import GithubException
-except ImportError:
-    raise ImportError("PyGithub library not found. Install with: pip install PyGithub")
+except ImportError as e:
+    raise ImportError(
+        "PyGithub library not found. Install with: pip install PyGithub"
+    ) from e
 
 
 class PRCommenter:
@@ -54,7 +56,7 @@ class PRCommenter:
         try:
             self.github = Github(auth=Auth.Token(self.token))
         except Exception as e:
-            raise ValueError(f"Failed to initialize GitHub client: {e}")
+            raise ValueError(f"Failed to initialize GitHub client: {e}") from e
 
         # Auto-detect repository and PR info if not provided
         if not owner or not repo:
@@ -75,13 +77,15 @@ class PRCommenter:
                 print(f"✓ Connected to PR #{pr_number} in {owner}/{repo}")
         except GithubException as e:
             if e.status == 401:
-                raise ValueError("Invalid GitHub token. Please check your credentials.")
+                raise ValueError(
+                    "Invalid GitHub token. Please check your credentials."
+                ) from e
             elif e.status == 404:
                 raise ValueError(
                     f"Repository '{owner}/{repo}' or PR #{pr_number} not found or no access."
-                )
+                ) from e
             else:
-                raise ValueError(f"Failed to access PR: {e}")
+                raise ValueError(f"Failed to access PR: {e}") from e
 
     def _detect_repo_info(self) -> tuple[str, str]:
         """Detect repository owner and name from git remote or GitHub context."""
@@ -110,10 +114,10 @@ class PRCommenter:
                 return owner, repo
             else:
                 raise ValueError("Could not detect GitHub repository from git remote")
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
             raise ValueError(
                 "Failed to detect repository. Not in a git repository or no remote configured."
-            )
+            ) from e
 
     def _detect_pr_number(self) -> int | None:
         """Detect PR number from GitHub Actions context or git branch."""
@@ -193,7 +197,7 @@ class PRCommenter:
             return "• ✅ No failing workflows detected"
 
         items = []
-        for i, workflow in enumerate(failing_workflows[:max_items]):
+        for _i, workflow in enumerate(failing_workflows[:max_items]):
             name = workflow.get("name", "Unknown Workflow")
             count = workflow.get("count", 0)
             url = workflow.get("url", "#")
@@ -211,6 +215,7 @@ class PRCommenter:
         score_data: dict[str, Any],
         failing_workflows: list[dict[str, Any]],
         dashboard_branch: str = "main",
+        pr_author: str | None = None,
     ) -> str:
         """
         Generate the complete PR comment body.
@@ -219,12 +224,24 @@ class PRCommenter:
             score_data: Readiness scoring data
             failing_workflows: List of failing workflows
             dashboard_branch: Branch containing the dashboard file
+            pr_author: PR author username (from PR_AUTHOR env var or auto-detected)
 
         Returns:
             Complete markdown comment body
         """
         score = score_data.get("total_score", 0)
         emoji, status_text, color = self.get_status_emoji_and_text(score)
+
+        # Get PR author from env var if not provided
+        if not pr_author:
+            pr_author = os.getenv("PR_AUTHOR", "")
+
+        # If we still don't have it, try to get from PR object
+        if not pr_author and hasattr(self, "pr"):
+            try:
+                pr_author = self.pr.user.login
+            except Exception:
+                pr_author = ""
 
         # Generate badge URL
         badge_url = self.generate_badge_url(score)
@@ -235,8 +252,25 @@ class PRCommenter:
         # Generate timestamp
         timestamp = datetime.utcnow().isoformat() + "Z"
 
+        # Build comment body with author mention if available
+        author_mention = f"@{pr_author}" if pr_author else "PR author"
+
+        # Add personalized greeting based on status
+        if score >= 95:
+            greeting = (
+                f"🎉 **Great work {author_mention}!** Your PR is ready to ship.\n\n"
+            )
+        elif score >= 90:
+            greeting = f"👍 **Good progress {author_mention}!** Almost there.\n\n"
+        elif score >= 80:
+            greeting = f"⚠️ **{author_mention}** — Some issues need attention.\n\n"
+        else:
+            greeting = (
+                f"🚨 **{author_mention}** — Critical issues blocking this PR.\n\n"
+            )
+
         # Build comment body
-        body = f"""🧭 **Release Readiness: {score:.1f}% {emoji}**
+        body = f"""{greeting}🧭 **Release Readiness: {score:.1f}% {emoji}**
 
 **Status:** {status_text}
 
@@ -321,7 +355,7 @@ class PRCommenter:
         except GithubException as e:
             error_msg = f"Failed to post/update PR comment: {e}"
             if strict:
-                raise RuntimeError(error_msg)
+                raise RuntimeError(error_msg) from e
             else:
                 if self.verbose:
                     print(f"⚠ Warning: {error_msg}")
@@ -329,7 +363,7 @@ class PRCommenter:
         except Exception as e:
             error_msg = f"Unexpected error posting PR comment: {e}"
             if strict:
-                raise RuntimeError(error_msg)
+                raise RuntimeError(error_msg) from e
             else:
                 if self.verbose:
                     print(f"⚠ Warning: {error_msg}")
@@ -341,6 +375,7 @@ class PRCommenter:
         failing_workflows: list[dict[str, Any]],
         dashboard_branch: str = "main",
         strict: bool = False,
+        pr_author: str | None = None,
     ) -> bool:
         """
         Convenience method to post a complete readiness comment.
@@ -350,19 +385,20 @@ class PRCommenter:
             failing_workflows: List of failing workflows
             dashboard_branch: Branch containing the dashboard file
             strict: If True, raise exceptions on failure
+            pr_author: PR author username (from PR_AUTHOR env var or auto-detected)
 
         Returns:
             True if successful, False otherwise (unless strict=True)
         """
         try:
             body = self.generate_comment_body(
-                score_data, failing_workflows, dashboard_branch
+                score_data, failing_workflows, dashboard_branch, pr_author
             )
             return self.upsert_pr_comment(body, strict=strict)
         except Exception as e:
             error_msg = f"Failed to generate or post readiness comment: {e}"
             if strict:
-                raise RuntimeError(error_msg)
+                raise RuntimeError(error_msg) from e
             else:
                 if self.verbose:
                     print(f"⚠ Warning: {error_msg}")
