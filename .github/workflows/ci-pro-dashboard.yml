@@ -43,10 +43,12 @@ jobs:
       - name: 📦 Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install poetry || true
-          if [ -f pyproject.toml ]; then
-            poetry install
-          fi
+          # Install uv for workspace dependency management
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          export PATH="$HOME/.local/bin:$PATH"
+          # Sync workspace dependencies
+          uv sync || true
+          # Install CI-specific tools
           pip install pytest pytest-json-report coverage ruff jq lxml
 
       # 5) Lint (Ruff) -> JSON
@@ -58,7 +60,23 @@ jobs:
           errors=$(jq '. | length' lint-report.json 2>/dev/null || echo 0)
           echo "errors=$errors" >> $GITHUB_OUTPUT
 
-      # 6) Run tests + coverage + pytest JSON report
+      # 6) Run Syntax Regression Guard (before main tests)
+      - name: 🛡️ Run Syntax Regression Guard
+        id: syntax_guard
+        continue-on-error: true
+        run: |
+          echo "Running syntax regression tests..."
+          pytest tests/regression/test_syntax_regressions.py \
+            -m regression \
+            --maxfail=1 \
+            --disable-warnings \
+            -q \
+            --tb=short
+          exit_code=$?
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+          exit $exit_code
+
+      # 7) Run tests + coverage + pytest JSON report
       - name: 🧪 Tests + Coverage (JSON & XML)
         id: tests
         run: |
@@ -72,7 +90,15 @@ jobs:
           echo "failed=$failed" >> $GITHUB_OUTPUT
           echo "total=$total" >> $GITHUB_OUTPUT
 
-      # 7) Compute coverage percent from coverage.xml
+      # 8) Generate Syntax Guard Badge
+      - name: 🛠️ Generate Syntax Guard Badge
+        run: |
+          python scripts/generate_syntax_badge.py \
+            --pytest-json pytest-report.json \
+            --out ci-dashboard \
+            --extended
+
+      # 9) Compute coverage percent from coverage.xml
       - name: 📈 Extract Coverage %
         id: coverage
         run: |
@@ -81,7 +107,7 @@ jobs:
           rounded=$(printf "%.1f" "$pct")
           echo "coverage=$rounded" >> $GITHUB_OUTPUT
 
-      # 8) Compute CI duration from job start (fallback to now if commit TS missing)
+      # 10) Compute CI duration from job start (fallback to now if commit TS missing)
       - name: ⏱️ Compute CI Duration
         id: duration
         run: |
@@ -96,14 +122,15 @@ jobs:
           echo "seconds=$dur" >> $GITHUB_OUTPUT
           echo "pretty=${mins}m ${secs}s" >> $GITHUB_OUTPUT
 
-      # 9) Install chart builder deps (none extra, HTML uses CDN)
-      # 10) Generate dashboard data + badges + index.html
+      # 11) Install chart builder deps (none extra, HTML uses CDN)
+      # 12) Generate dashboard data + badges + index.html
       - name: 🧠 Generate Dashboard (JSON + Badges + HTML)
         run: |
           python scripts/generate_dashboard.py \
             --pytest-json pytest-report.json \
             --coverage-xml coverage.xml \
             --ruff-json lint-report.json \
+            --syntax-guard-json ci-dashboard/syntax-guard.json \
             --prev-site "_site/ci-dashboard" \
             --out "ci-dashboard" \
             --repo "${{ github.repository }}" \
@@ -114,14 +141,14 @@ jobs:
             --duration-seconds "${{ steps.duration.outputs.seconds }}" \
             --duration-pretty "${{ steps.duration.outputs.pretty }}"
 
-      # 11) Upload as artifact (optional)
+      # 13) Upload as artifact (optional)
       - name: 📤 Upload dashboard artifact
         uses: actions/upload-artifact@v4
         with:
           name: ci-dashboard
           path: ci-dashboard
 
-      # 12) Publish to gh-pages under /ci-dashboard
+      # 14) Publish to gh-pages under /ci-dashboard
       - name: 📡 Publish GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
@@ -130,9 +157,9 @@ jobs:
           publish_dir: ci-dashboard
           destination_dir: ci-dashboard
 
-      # 13) Slack summary (always)
+      # 15) Slack summary (always, but only if webhook is configured)
       - name: 📣 Slack Summary
-        if: always()
+        if: env.SLACK_WEBHOOK_URL != '' && always()
         uses: slackapi/slack-github-action@v1.24.0
         with:
           payload: |
@@ -145,6 +172,7 @@ jobs:
                     { "type": "mrkdwn", "text": "*Commit:*\n<https://github.com/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>" },
                     { "type": "mrkdwn", "text": "*Tests:*\n${{ steps.tests.outputs.passed }}/${{ steps.tests.outputs.total }} passed" },
                     { "type": "mrkdwn", "text": "*Lint Issues:*\n${{ steps.lint.outputs.errors }}" },
+                    { "type": "mrkdwn", "text": "*Syntax Guard:*\n${{ steps.syntax_guard.outputs.exit_code == '0' && '✅ PASS' || '❌ FAIL' }}" },
                     { "type": "mrkdwn", "text": "*Coverage:*\n${{ steps.coverage.outputs.coverage }}%" },
                     { "type": "mrkdwn", "text": "*Duration:*\n${{ steps.duration.outputs.pretty }}" }
                   ]

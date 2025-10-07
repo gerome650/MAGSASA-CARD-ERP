@@ -1,0 +1,292 @@
+name: 📊 Slack Daily CI Digest
+
+on:
+  schedule:
+    # Run daily at 9 AM UTC (5 AM EST / 2 AM PST)
+    - cron: '0 9 * * *'
+  workflow_dispatch:  # Allow manual triggers
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  daily-digest:
+    name: 📊 Generate and Send Daily CI Digest
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      # 1) Checkout repository
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2) Setup Python
+      - name: 🐍 Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # 3) Install dependencies
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests jq
+
+      # 4) Fetch recent workflow runs
+      - name: 📊 Fetch Recent Workflow Runs (Last 24h)
+        id: fetch_runs
+        run: |
+          # Fetch workflow runs from last 24 hours
+          SINCE=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -v-24H +%Y-%m-%dT%H:%M:%SZ)
+          
+          # Use GitHub API to fetch runs
+          gh api repos/${{ github.repository }}/actions/runs \
+            --jq '.workflow_runs[] | select(.created_at >= "'$SINCE'") | {id: .id, name: .name, status: .status, conclusion: .conclusion, duration: .run_duration_ms}' \
+            > workflow_runs.jsonl || echo '{}' > workflow_runs.jsonl
+          
+          # Count runs
+          run_count=$(wc -l < workflow_runs.jsonl)
+          echo "run_count=$run_count" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # 5) Calculate digest metrics
+      - name: 🧮 Calculate Digest Metrics
+        id: metrics
+        run: |
+          # Count successes and failures
+          success_count=$(grep -c '"conclusion":"success"' workflow_runs.jsonl 2>/dev/null || echo 0)
+          failure_count=$(grep -c '"conclusion":"failure"' workflow_runs.jsonl 2>/dev/null || echo 0)
+          total_count=$(wc -l < workflow_runs.jsonl)
+          
+          # Calculate success rate
+          if [ "$total_count" -gt 0 ]; then
+            success_rate=$(echo "scale=1; ($success_count * 100) / $total_count" | bc)
+          else
+            success_rate=100
+          fi
+          
+          echo "success_count=$success_count" >> $GITHUB_OUTPUT
+          echo "failure_count=$failure_count" >> $GITHUB_OUTPUT
+          echo "total_count=$total_count" >> $GITHUB_OUTPUT
+          echo "success_rate=$success_rate" >> $GITHUB_OUTPUT
+
+      # 6) Load merge quality state
+      - name: 📈 Load Merge Quality State
+        id: merge_state
+        run: |
+          if [ -f "merge_quality_state.json" ]; then
+            rolling_avg=$(jq '.history | map(.score) | add / length' merge_quality_state.json)
+            streak=$(jq '.streak_below_goal' merge_quality_state.json)
+            last_score=$(jq '.history[-1].score' merge_quality_state.json)
+            
+            echo "rolling_avg=$rolling_avg" >> $GITHUB_OUTPUT
+            echo "streak=$streak" >> $GITHUB_OUTPUT
+            echo "last_score=$last_score" >> $GITHUB_OUTPUT
+          else
+            echo "rolling_avg=0" >> $GITHUB_OUTPUT
+            echo "streak=0" >> $GITHUB_OUTPUT
+            echo "last_score=0" >> $GITHUB_OUTPUT
+          fi
+
+      # 7) Generate sparkline
+      - name: ✨ Generate Trend Sparkline
+        id: sparkline
+        run: |
+          if [ -f "merge_quality_state.json" ]; then
+            # Extract scores and generate sparkline
+            sparkline=$(python -c "
+import json
+with open('merge_quality_state.json') as f:
+    data = json.load(f)
+    scores = [entry['score'] for entry in data.get('history', [])]
+    
+if not scores:
+    print('—')
+else:
+    min_score = min(scores)
+    max_score = max(scores)
+    spark_chars = '▁▂▃▄▅▆▇█'
+    
+    if max_score == min_score:
+        print('▁' * len(scores))
+    else:
+        sparkline = ''
+        for score in scores:
+            normalized = (score - min_score) / (max_score - min_score)
+            char_index = int(normalized * (len(spark_chars) - 1))
+            sparkline += spark_chars[char_index]
+        print(sparkline)
+")
+            echo "sparkline=$sparkline" >> $GITHUB_OUTPUT
+          else
+            echo "sparkline=—" >> $GITHUB_OUTPUT
+          fi
+
+      # 8) Build Slack digest message
+      - name: 📱 Build Daily Digest Message
+        run: |
+          # Determine status emoji
+          SUCCESS_RATE="${{ steps.metrics.outputs.success_rate }}"
+          if (( $(echo "$SUCCESS_RATE >= 90" | bc -l) )); then
+            STATUS_EMOJI="✅"
+            STATUS_TEXT="Excellent"
+            COLOR="#56d364"
+          elif (( $(echo "$SUCCESS_RATE >= 75" | bc -l) )); then
+            STATUS_EMOJI="🟡"
+            STATUS_TEXT="Good"
+            COLOR="#ffd33d"
+          else
+            STATUS_EMOJI="🔴"
+            STATUS_TEXT="Needs Attention"
+            COLOR="#ff6a69"
+          fi
+          
+          # Build Slack message
+          cat > daily_digest.json << EOF
+          {
+            "blocks": [
+              {
+                "type": "header",
+                "text": {
+                  "type": "plain_text",
+                  "text": "📊 Daily CI/CD Health Report",
+                  "emoji": true
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*CI Success Rate:*\n\`${SUCCESS_RATE}%\` $STATUS_EMOJI"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Status:*\n$STATUS_TEXT"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Total Runs (24h):*\n${{ steps.metrics.outputs.total_count }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Failures:*\n${{ steps.metrics.outputs.failure_count }}"
+                  }
+                ]
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*📈 Merge Quality Trend:*\n\`${{ steps.sparkline.outputs.sparkline }}\`"
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Rolling Average:*\n\`${{ steps.merge_state.outputs.rolling_avg }}%\`"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Last PR Score:*\n\`${{ steps.merge_state.outputs.last_score }}%\`"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Streak Below Goal:*\n${{ steps.merge_state.outputs.streak }}"
+                  },
+                  {
+                    "type": "mrkdwn",
+                    "text": "*Team Goal:*\n\`90%+\`"
+                  }
+                ]
+              },
+              {
+                "type": "divider"
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*🔗 Quick Links*"
+                },
+                "accessory": {
+                  "type": "button",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "View Dashboard",
+                    "emoji": true
+                  },
+                  "url": "https://gerome650.github.io/MAGSASA-CARD-ERP/ci-dashboard/",
+                  "action_id": "view_dashboard"
+                }
+              },
+              {
+                "type": "context",
+                "elements": [
+                  {
+                    "type": "mrkdwn",
+                    "text": "📅 $(date -u +%Y-%m-%d) | Generated by CI/CD Health Monitor"
+                  }
+                ]
+              }
+            ],
+            "color": "$COLOR"
+          }
+          EOF
+
+      # 9) Validate digest message
+      - name: ✅ Validate Digest Message
+        run: |
+          python scripts/validate_slack_payload.py daily_digest.json --suggest-fixes || true
+
+      # 10) Send to Slack
+      - name: 📤 Send Daily Digest to Slack
+        if: env.SLACK_WEBHOOK_URL != ''
+        run: |
+          curl -X POST \
+            -H 'Content-Type: application/json' \
+            -d @daily_digest.json \
+            "${{ secrets.SLACK_WEBHOOK_URL }}"
+          
+          echo "✅ Daily digest sent to Slack"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      # 11) Upload artifacts
+      - name: 📤 Upload Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: daily-digest-artifacts
+          path: |
+            daily_digest.json
+            workflow_runs.jsonl
+
+      # 12) Summary
+      - name: 📝 Job Summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## 📊 Daily CI/CD Digest
+          
+          ### Metrics (Last 24 Hours)
+          - **Total Runs:** ${{ steps.metrics.outputs.total_count }}
+          - **Success Count:** ${{ steps.metrics.outputs.success_count }}
+          - **Failure Count:** ${{ steps.metrics.outputs.failure_count }}
+          - **Success Rate:** ${{ steps.metrics.outputs.success_rate }}%
+          
+          ### Merge Quality
+          - **Rolling Average:** ${{ steps.merge_state.outputs.rolling_avg }}%
+          - **Last PR Score:** ${{ steps.merge_state.outputs.last_score }}%
+          - **Streak Below Goal:** ${{ steps.merge_state.outputs.streak }}
+          - **Trend:** \`${{ steps.sparkline.outputs.sparkline }}\`
+          
+          ---
+          *Digest sent to Slack channel*
+          EOF
+

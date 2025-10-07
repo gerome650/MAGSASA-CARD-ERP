@@ -21,7 +21,13 @@ _tracer_provider: TracerProvider | None = None
 _is_initialized = False
 
 
-def init_tracing(app: Flask | None = None, service_name: str = "magsasa-card-erp", service_version: str = "1.0.0", otlp_endpoint: str | None = None, console_export: bool = True):
+def init_tracing(
+    app: Flask | None = None,
+    service_name: str = "magsasa-card-erp",
+    service_version: str = "1.0.0",
+    otlp_endpoint: str | None = None,
+    console_export: bool = True,
+):
     """
     Initialize OpenTelemetry tracing for the application.
 

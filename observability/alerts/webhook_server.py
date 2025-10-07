@@ -68,7 +68,9 @@ def should_suppress_alert(alert_data: dict[str, Any]) -> bool:
     with suppression_lock:
         current_time = time.time()
 
-# Check if alert is already suppressed and if suppression_key in alert_suppression:
+        # Check if alert is already suppressed
+        if suppression_key in alert_suppression:
+            suppress_until = alert_suppression[suppression_key]
             if current_time < suppress_until:
                 return True
 
@@ -380,7 +382,8 @@ def start_webhook_server(host="0.0.0.0", port=5001, debug=False):
 if __name__ == "__main__":
     # Initialize components
     try:
-# Initialize annotation manager if not already done and if annotation_manager is None:
+        # Initialize annotation manager if not already done
+        if annotation_manager is None:
             api_key = os.getenv("GRAFANA_API_KEY", "your-api-key")
 
             if api_key != "your-api-key":

@@ -8,16 +8,16 @@ Builds a CI dashboard bundle:
  - Emits index.html (static, Chart.js via CDN)
 """
 from __future__ import annotations
+
 import argparse
 import json
 import os
-import time
 from datetime import datetime, timezone
 from xml.etree import ElementTree as ET
 
 
 def read_file(path: str) -> str:
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return f.read()
 
 
@@ -63,6 +63,32 @@ def parse_ruff_json(ruff_json_path: str) -> dict:
         return {"issues": 0}
 
 
+def parse_syntax_guard_json(syntax_guard_path: str) -> dict:
+    """Parse syntax-guard.json badge file if it exists."""
+    if not os.path.isfile(syntax_guard_path):
+        return {
+            "passed": None,
+            "total_files": 0,
+            "failed_files": [],
+            "status": "N/A",
+        }
+    try:
+        data = json.loads(read_file(syntax_guard_path))
+        return {
+            "passed": data.get("passed", False),
+            "total_files": data.get("total_files_checked", 0),
+            "failed_files": data.get("failed_files", []),
+            "status": "PASS" if data.get("passed") else "FAIL",
+        }
+    except Exception:
+        return {
+            "passed": False,
+            "total_files": 0,
+            "failed_files": [],
+            "status": "ERROR",
+        }
+
+
 def load_prev_history(prev_site_dir: str) -> list[dict]:
     path = os.path.join(prev_site_dir or "", "data", "history.json")
     if path and os.path.isfile(path):
@@ -87,6 +113,7 @@ def main():
     ap.add_argument("--pytest-json", required=True)
     ap.add_argument("--coverage-xml", required=True)
     ap.add_argument("--ruff-json", required=True)
+    ap.add_argument("--syntax-guard-json", default="")  # Optional syntax-guard.json
     ap.add_argument("--prev-site", default="")  # _site/ci-dashboard
     ap.add_argument("--out", required=True)  # ci-dashboard
     ap.add_argument("--repo", required=True)
@@ -102,6 +129,9 @@ def main():
     pytest_summary = parse_pytest_json(args.pytest_json)
     cov = parse_coverage_xml(args.coverage_xml)
     ruff = parse_ruff_json(args.ruff_json)
+    syntax_guard = parse_syntax_guard_json(
+        args.syntax_guard_json or os.path.join(args.out, "syntax-guard.json")
+    )
     duration_seconds = int(args.duration_seconds)
     duration_pretty = args.duration_pretty
 
@@ -126,6 +156,7 @@ def main():
         "run_url": args.run_url,
         "tests": pytest_summary,
         "lint": ruff,
+        "syntax_guard": syntax_guard,
         "coverage_percent": cov["coverage_percent"],
         "coverage_delta": cov_delta,
         "pass_rate": pass_rate,
@@ -166,6 +197,10 @@ def main():
             "pass_rate": pass_rate,
             "ci_duration_seconds": duration_seconds,
             "lint_issues": ruff["issues"],
+            "syntax_guard_passed": (
+                syntax_guard["passed"] if syntax_guard["passed"] is not None else True
+            ),
+            "syntax_guard_files": syntax_guard["total_files"],
             "tests_total": total,
             "tests_passed": pytest_summary["passed"],
             "tests_failed": pytest_summary["failed"],
@@ -239,7 +274,7 @@ INDEX_HTML = r"""
     header .sub { color:var(--muted); font-size:14px; }
     .wrap { padding:20px; display:grid; grid-template-columns: repeat(12, 1fr); gap:16px; }
     .card { background:var(--card); border:1px solid #222b49; border-radius:14px; padding:16px; }
-    .kpi { grid-column: span 3; }
+    .kpi { grid-column: span 2; }
     .kpi h3 { margin:0 0 8px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
     .kpi .val { font-size:22px; font-weight:700; }
     .row { grid-column: span 12; display:grid; grid-template-columns: repeat(12, 1fr); gap:16px; }
@@ -248,7 +283,8 @@ INDEX_HTML = r"""
     a.btn { background:#1a284e; border:1px solid #294d9b; color:#cfe0ff; text-decoration:none; padding:8px 10px; border-radius:9px; font-size:13px; }
     .badge { font-size:12px; padding:3px 6px; border-radius:8px; border:1px solid #2b375d; background:#11182b; color:var(--muted); }
     footer { padding:16px 20px; color:var(--muted); border-top:1px solid #1e2740; }
-    @media (max-width: 900px){ .kpi { grid-column: span 6; } .col-6 { grid-column: span 12; } }
+    @media (max-width: 900px){ .kpi { grid-column: span 4; } .col-6 { grid-column: span 12; } }
+    @media (max-width: 600px){ .kpi { grid-column: span 6; } }
   </style>
 </head>
 <body>
@@ -264,6 +300,7 @@ INDEX_HTML = r"""
     <div class="card kpi"><h3>Coverage</h3><div class="val" id="kpiCoverage">—</div><div class="muted" id="kpiCoverageDelta">—</div></div>
     <div class="card kpi"><h3>Pass Rate</h3><div class="val" id="kpiPassRate">—</div><div class="muted" id="kpiTests">—</div></div>
     <div class="card kpi"><h3>Lint Issues</h3><div class="val" id="kpiLint">—</div><div class="muted">Ruff total</div></div>
+    <div class="card kpi"><h3>Syntax Guard</h3><div class="val" id="kpiSyntax">—</div><div class="muted" id="kpiSyntaxFiles">—</div></div>
     <div class="card kpi"><h3>CI Duration</h3><div class="val" id="kpiDuration">—</div><div class="muted" id="kpiCommit">—</div></div>
 
     <!-- Charts -->
@@ -287,6 +324,16 @@ INDEX_HTML = r"""
         <canvas id="lintChart" height="140"></canvas>
       </div>
     </div>
+    <div class="row">
+      <div class="card col-6">
+        <h3 class="muted">Syntax Guard Trend</h3>
+        <canvas id="syntaxChart" height="140"></canvas>
+      </div>
+      <div class="card col-6" id="syntaxDetails">
+        <h3 class="muted">Syntax Guard Details</h3>
+        <div id="syntaxInfo"></div>
+      </div>
+    </div>
 
     <!-- Meta -->
     <div class="row">
@@ -301,6 +348,7 @@ INDEX_HTML = r"""
           <img class="badge" src="https://img.shields.io/endpoint?url=https://gerome650.github.io/MAGSASA-CARD-ERP/ci-dashboard/badges/coverage-trend-badge.json" alt="coverage trend">
           <img class="badge" src="https://img.shields.io/endpoint?url=https://gerome650.github.io/MAGSASA-CARD-ERP/ci-dashboard/badges/test-results-badge.json" alt="tests">
           <img class="badge" src="https://img.shields.io/endpoint?url=https://gerome650.github.io/MAGSASA-CARD-ERP/ci-dashboard/badges/lint-status-badge.json" alt="lint">
+          <img class="badge" src="https://img.shields.io/endpoint?url=https://gerome650.github.io/MAGSASA-CARD-ERP/ci-dashboard/syntax-guard.json" alt="syntax guard">
           <img class="badge" src="https://img.shields.io/endpoint?url=https://gerome650.github.io/MAGSASA-CARD-ERP/ci-dashboard/badges/ci-duration-badge.json" alt="duration">
         </div>
       </div>
@@ -323,6 +371,13 @@ INDEX_HTML = r"""
       document.getElementById('kpiPassRate').textContent = latest.pass_rate.toFixed(1) + '%';
       document.getElementById('kpiTests').textContent = `${latest.tests.passed}/${latest.tests.passed+latest.tests.failed} passed`;
       document.getElementById('kpiLint').textContent = latest.lint.issues;
+
+      // Syntax Guard KPI
+      const syntaxGuard = latest.syntax_guard || {status: 'N/A', total_files: 0};
+      const syntaxStatus = syntaxGuard.passed ? '✅ PASS' : (syntaxGuard.passed === false ? '❌ FAIL' : 'N/A');
+      document.getElementById('kpiSyntax').textContent = syntaxStatus;
+      document.getElementById('kpiSyntaxFiles').textContent = `${syntaxGuard.total_files} files`;
+
       document.getElementById('kpiDuration').textContent = latest.ci_duration_pretty;
       document.getElementById('kpiCommit').textContent = latest.commit.substring(0,7) + ' · ' + latest.branch;
 
@@ -333,12 +388,25 @@ INDEX_HTML = r"""
         <div class="muted">Actor: ${latest.actor}</div>
       `;
 
+      // Syntax Guard Details
+      const failedFiles = syntaxGuard.failed_files || [];
+      let syntaxInfoHtml = `<div class="muted">Files monitored: ${syntaxGuard.total_files}</div>`;
+      syntaxInfoHtml += `<div class="muted">Status: <strong>${syntaxStatus}</strong></div>`;
+      if (failedFiles.length > 0) {
+        syntaxInfoHtml += `<div style="margin-top:12px;"><strong style="color:var(--bad)">Failed Files:</strong></div>`;
+        syntaxInfoHtml += `<ul style="margin:8px 0; padding-left:20px; color:var(--muted);">`;
+        failedFiles.forEach(f => syntaxInfoHtml += `<li>${f}</li>`);
+        syntaxInfoHtml += `</ul>`;
+      }
+      document.getElementById('syntaxInfo').innerHTML = syntaxInfoHtml;
+
       // Charts
       const labels = history.map(h => (new Date(h.timestamp)).toLocaleDateString());
       const cov = history.map(h => h.coverage_percent);
       const pass = history.map(h => h.pass_rate);
       const dur = history.map(h => h.ci_duration_seconds);
       const lint = history.map(h => h.lint_issues);
+      const syntax = history.map(h => (h.syntax_guard_passed === false ? 0 : 1));
 
       const common = {borderWidth:2, tension:.3, pointRadius:0};
 
@@ -361,6 +429,11 @@ INDEX_HTML = r"""
         type:'line',
         data:{ labels, datasets:[{label:'Lint Issues', data: lint, ...common}] },
         options:{ plugins:{legend:{display:false}}, scales:{x:{ticks:{color:'#9fb0ff'}},y:{ticks:{color:'#9fb0ff'}}} }
+      });
+      new Chart(document.getElementById('syntaxChart'), {
+        type:'line',
+        data:{ labels, datasets:[{label:'Pass (1) / Fail (0)', data: syntax, ...common, borderColor:'#56d364', backgroundColor:'#56d364'}] },
+        options:{ plugins:{legend:{display:false}}, scales:{x:{ticks:{color:'#9fb0ff'}},y:{min:0, max:1, ticks:{color:'#9fb0ff', stepSize:1}}} }
       });
     })();
   </script>

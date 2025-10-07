@@ -1,0 +1,49 @@
+{
+  "merge_score": 55.0,
+  "delta_vs_last": -37.0,
+  "rolling_average": 86.0,
+  "trend": [
+    85.0,
+    88.0,
+    91.5,
+    93.0,
+    89.0,
+    87.5,
+    90.5,
+    88.0,
+    92.0,
+    55.0
+  ],
+  "severity": {
+    "critical": 0,
+    "warning": 0,
+    "info": 0
+  },
+  "team_goal": 90.0,
+  "streak_below_goal": 1,
+  "early_warning": false,
+  "auto_fail": false,
+  "sparkline": "\u2586\u2587\u2587\u2588\u2587\u2586\u2587\u2587\u2587\u2581",
+  "badges": {
+    "syntax": "\u274c",
+    "lint": "\u274c",
+    "coverage": "\u274c"
+  },
+  "top_slowest_workflows": [
+    {
+      "name": "CI Pro Dashboard",
+      "duration": "8.5 min",
+      "percent": 35
+    },
+    {
+      "name": "Python Tests",
+      "duration": "6.2 min",
+      "percent": 28
+    },
+    {
+      "name": "Lint Check",
+      "duration": "2.1 min",
+      "percent": 15
+    }
+  ]
+}

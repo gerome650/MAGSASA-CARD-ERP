@@ -206,7 +206,7 @@ class CIHealthReporter:
 
         report = f"""# CI Health Report
 
-**Generated:** {timestamp}  
+**Generated:** {timestamp}
 **Repository:** {self.github_repo}
 
 ## 📊 Overall Health

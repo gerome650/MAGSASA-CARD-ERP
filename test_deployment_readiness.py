@@ -39,12 +39,6 @@ import ssl
 from datetime import datetime
 
 # Import key modules for coverage detection
-import src.main
-import src.database
-import observability.ai_agent.incident_analyzer
-import observability.ai_agent.insight_engine
-import observability.ai_agent.postmortem_generator
-import observability.ai_agent.remediation_advisor
 
 
 def test_production_environment():
@@ -280,7 +274,9 @@ def test_production_environment():
             },
         }
 
-        def check_ssl_configuration(domain, port, expected_protocol, ssl_required, test_type):
+        def check_ssl_configuration(
+            domain, _port, expected_protocol, ssl_required, _test_type
+        ):
             """Check SSL configuration for domain"""
             try:
                 if expected_protocol == "HTTPS" and ssl_required:
@@ -445,7 +441,9 @@ def test_production_environment():
             },
         }
 
-        def check_domain_configuration(domain, record_type, expected_value, ttl, test_type):
+        def check_domain_configuration(
+            _domain, record_type, expected_value, ttl, _test_type
+        ):
             """Check domain DNS configuration"""
             try:
                 # Simulate DNS resolution
@@ -601,7 +599,9 @@ def test_production_environment():
             },
         }
 
-        def test_cdn_performance(asset_type, cdn_url, test_files, expected_cache_time, compression_enabled):
+        def test_cdn_performance(
+            _asset_type, _cdn_url, test_files, _expected_cache_time, compression_enabled
+        ):
             """Test CDN performance and configuration"""
             try:
                 cdn_metrics = {
@@ -617,7 +617,7 @@ def test_production_environment():
                 total_response_time = 0
                 successful_files = 0
 
-                for file_name in test_files:
+                for _file_name in test_files:
                     # Simulate CDN request
                     response_time_ms = random.randint(50, 200)  # CDN should be fast
                     cache_hit = random.choice(
@@ -824,7 +824,9 @@ def test_production_environment():
             },
         }
 
-        def test_monitoring_configuration(monitoring_type, metrics, alert_thresholds, retention_days):
+        def test_monitoring_configuration(
+            _monitoring_type, metrics, alert_thresholds, retention_days
+        ):
             """Test monitoring configuration"""
             try:
                 monitoring_results = {
@@ -1051,7 +1053,13 @@ def test_scalability_testing():
             },
         }
 
-        def simulate_user_growth_test(test_type, user_levels, expected_metrics, expected_success_rates, scaling_type):
+        def simulate_user_growth_test(
+            _test_type,
+            user_levels,
+            expected_metrics,
+            expected_success_rates,
+            scaling_type,
+        ):
             """Simulate user growth testing"""
             try:
                 scaling_results = []
@@ -1277,7 +1285,14 @@ def test_disaster_recovery():
             },
         }
 
-        def test_backup_configuration(backup_type, frequency, retention_days, backup_window, compression_enabled, encryption_enabled):
+        def test_backup_configuration(
+            _backup_type,
+            frequency,
+            _retention_days,
+            _backup_window,
+            compression_enabled,
+            encryption_enabled,
+        ):
             """Test backup configuration and performance"""
             try:
                 # Simulate backup testing

@@ -1,0 +1,48 @@
+# Development & Testing Dependencies
+# Install with: pip install -r requirements-dev.txt
+
+# Testing Framework
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+pytest-cov>=4.1.0
+pytest-xdist>=3.5.0  # Parallel test execution
+pytest-timeout>=2.2.0
+
+# Linting & Formatting
+ruff>=0.3.0
+black>=24.0.0
+mypy>=1.8.0
+
+# Type Checking
+types-PyYAML
+types-requests
+
+# Async & HTTP
+aiohttp>=3.9.0
+anyio>=4.0.0
+httpx>=0.26.0  # Modern async HTTP client
+
+# Configuration & Data
+pyyaml>=6.0
+python-dotenv>=1.0.0
+toml>=0.10.2
+
+# Monitoring & Observability
+psutil>=5.9.0  # Process monitoring
+
+# Git & CI
+pre-commit>=3.6.0  # Optional but recommended
+
+# Documentation
+markdown>=3.5.0
+
+# Database (for tests)
+sqlalchemy>=2.0.0
+alembic>=1.13.0
+
+# Utilities
+requests>=2.31.0
+click>=8.1.0
+rich>=13.7.0  # Better terminal output
+
+

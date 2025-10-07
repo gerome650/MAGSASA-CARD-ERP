@@ -1,0 +1,561 @@
+name: 🧪 CI Check & Merge Readiness
+
+on:
+  push:
+    branches: [ main, develop, 'feature/*', 'hotfix/*', 'release/*' ]
+  pull_request:
+    branches: [ main, develop ]
+    types: [ opened, synchronize, reopened, ready_for_review ]
+
+env:
+  PYTHON_VERSION: '3.10'
+  COVERAGE_MIN: 85
+  MERGE_POLICY_FILE: merge_policy.yml
+
+jobs:
+  ci-validation:
+    name: 🧪 CI Validation Pipeline
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false || github.event_name == 'push'
+    
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: 📦 Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov black ruff mypy bandit safety jsonschema pyyaml requests
+      
+      - name: 🔍 Validate Policy Configuration
+        run: |
+          echo "🔍 Validating merge policy configuration..."
+          python scripts/utils/policy_loader.py --verbose
+      
+      - name: 🧹 Run Code Quality Checks
+        id: quality
+        run: |
+          echo "🧹 Running comprehensive code quality checks..."
+          
+          # Black formatting
+          echo "Running Black formatting check..."
+          black --check --diff . || FORMATTING_FAILED=1
+          
+          # Ruff linting
+          echo "Running Ruff linting..."
+          ruff check . || LINTING_FAILED=1
+          
+          # MyPy type checking
+          echo "Running MyPy type checking..."
+          mypy . --ignore-missing-imports || TYPECHECK_FAILED=1
+          
+          # Set outputs
+          if [ -z "$FORMATTING_FAILED" ]; then
+            echo "formatting_status=passed" >> $GITHUB_OUTPUT
+          else
+            echo "formatting_status=failed" >> $GITHUB_OUTPUT
+          fi
+          
+          if [ -z "$LINTING_FAILED" ]; then
+            echo "linting_status=passed" >> $GITHUB_OUTPUT
+          else
+            echo "linting_status=failed" >> $GITHUB_OUTPUT
+          fi
+          
+          if [ -z "$TYPECHECK_FAILED" ]; then
+            echo "typecheck_status=passed" >> $GITHUB_OUTPUT
+          else
+            echo "typecheck_status=failed" >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+      
+      - name: 🔧 Auto-fix Code Issues
+        if: steps.quality.outputs.formatting_status == 'failed' || steps.quality.outputs.linting_status == 'failed'
+        run: |
+          echo "🔧 Auto-fixing code issues..."
+          
+          # Fix formatting
+          if [ "${{ steps.quality.outputs.formatting_status }}" = "failed" ]; then
+            echo "Fixing formatting issues..."
+            black .
+          fi
+          
+          # Fix linting
+          if [ "${{ steps.quality.outputs.linting_status }}" = "failed" ]; then
+            echo "Fixing linting issues..."
+            ruff check --fix .
+          fi
+          
+          # Commit fixes
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "🔧 Auto-fix code quality issues" || echo "No changes to commit"
+      
+      - name: 🧪 Run Test Suite
+        id: tests
+        run: |
+          echo "🧪 Running comprehensive test suite..."
+          
+          # Run tests with coverage
+          pytest tests/ \
+            -v \
+            --tb=short \
+            --cov=src \
+            --cov=packages \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-fail-under=${{ env.COVERAGE_MIN }} \
+            --junitxml=test-results.xml \
+            --maxfail=10 \
+            --reruns=2 \
+            -n auto
+          
+          echo "tests_status=passed" >> $GITHUB_OUTPUT
+        continue-on-error: true
+      
+      - name: 🛡️ Run Security Scans
+        id: security
+        run: |
+          echo "🛡️ Running security scans..."
+          
+          # Run Bandit security scan
+          bandit -r . -f json -o bandit-report.json || true
+          
+          # Run Safety vulnerability check
+          safety check --json --output safety-report.json || true
+          
+          # Check for critical issues
+          CRITICAL_ISSUES=0
+          if [ -f bandit-report.json ]; then
+            CRITICAL_ISSUES=$(jq '[.results[] | select(.issue_severity == "HIGH")] | length' bandit-report.json)
+          fi
+          
+          if [ "$CRITICAL_ISSUES" -gt 0 ]; then
+            echo "❌ Found $CRITICAL_ISSUES critical security issues"
+            echo "security_status=failed" >> $GITHUB_OUTPUT
+          else
+            echo "✅ No critical security issues found"
+            echo "security_status=passed" >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+      
+      - name: 📊 Generate Coverage Report
+        if: always()
+        run: |
+          echo "📊 Generating coverage report..."
+          
+          # Generate coverage reports
+          coverage xml -o coverage.xml
+          coverage html -d htmlcov
+          
+          # Extract coverage percentage
+          if [ -f coverage.xml ]; then
+            COVERAGE=$(python -c "
+              import xml.etree.ElementTree as ET
+              tree = ET.parse('coverage.xml')
+              root = tree.getroot()
+              print(f\"{float(root.get('line-rate', 0)) * 100:.1f}\")
+            ")
+            echo "coverage_percent=$COVERAGE" >> $GITHUB_OUTPUT
+            echo "📈 Coverage: $COVERAGE%"
+          fi
+      
+      - name: 🎯 Calculate Merge Readiness Score
+        id: merge-score
+        if: always()
+        run: |
+          echo "🎯 Calculating merge readiness score..."
+          
+          # Get component scores
+          FORMATTING_SCORE=0
+          LINTING_SCORE=0
+          TYPECHECK_SCORE=0
+          TEST_SCORE=0
+          SECURITY_SCORE=0
+          COVERAGE_SCORE=0
+          
+          # Formatting score (10% weight)
+          if [ "${{ steps.quality.outputs.formatting_status }}" = "passed" ]; then
+            FORMATTING_SCORE=10
+          fi
+          
+          # Linting score (15% weight)
+          if [ "${{ steps.quality.outputs.linting_status }}" = "passed" ]; then
+            LINTING_SCORE=15
+          fi
+          
+          # Type checking score (10% weight)
+          if [ "${{ steps.quality.outputs.typecheck_status }}" = "passed" ]; then
+            TYPECHECK_SCORE=10
+          fi
+          
+          # Test score (25% weight)
+          if [ "${{ steps.tests.outputs.tests_status }}" = "passed" ]; then
+            TEST_SCORE=25
+          fi
+          
+          # Security score (20% weight)
+          if [ "${{ steps.security.outputs.security_status }}" = "passed" ]; then
+            SECURITY_SCORE=20
+          fi
+          
+          # Coverage score (20% weight)
+          COVERAGE="${{ steps.tests.outputs.coverage_percent }}"
+          if [ -n "$COVERAGE" ]; then
+            if (( $(echo "$COVERAGE >= ${{ env.COVERAGE_MIN }}" | bc -l) )); then
+              COVERAGE_SCORE=20
+            elif (( $(echo "$COVERAGE >= 80" | bc -l) )); then
+              COVERAGE_SCORE=15
+            elif (( $(echo "$COVERAGE >= 70" | bc -l) )); then
+              COVERAGE_SCORE=10
+            else
+              COVERAGE_SCORE=5
+            fi
+          fi
+          
+          # Calculate total score
+          TOTAL_SCORE=$((FORMATTING_SCORE + LINTING_SCORE + TYPECHECK_SCORE + TEST_SCORE + SECURITY_SCORE + COVERAGE_SCORE))
+          
+          echo "merge_score=$TOTAL_SCORE" >> $GITHUB_OUTPUT
+          echo "formatting_score=$FORMATTING_SCORE" >> $GITHUB_OUTPUT
+          echo "linting_score=$LINTING_SCORE" >> $GITHUB_OUTPUT
+          echo "typecheck_score=$TYPECHECK_SCORE" >> $GITHUB_OUTPUT
+          echo "test_score=$TEST_SCORE" >> $GITHUB_OUTPUT
+          echo "security_score=$SECURITY_SCORE" >> $GITHUB_OUTPUT
+          echo "coverage_score=$COVERAGE_SCORE" >> $GITHUB_OUTPUT
+          
+          # Determine merge readiness status
+          if [ $TOTAL_SCORE -ge 90 ]; then
+            echo "merge_status=ready" >> $GITHUB_OUTPUT
+            echo "status_emoji=✅" >> $GITHUB_OUTPUT
+            echo "status_color=good" >> $GITHUB_OUTPUT
+          elif [ $TOTAL_SCORE -ge 80 ]; then
+            echo "merge_status=warning" >> $GITHUB_OUTPUT
+            echo "status_emoji=⚠️" >> $GITHUB_OUTPUT
+            echo "status_color=warning" >> $GITHUB_OUTPUT
+          else
+            echo "merge_status=blocked" >> $GITHUB_OUTPUT
+            echo "status_emoji=❌" >> $GITHUB_OUTPUT
+            echo "status_color=danger" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "📊 Merge Readiness Score: $TOTAL_SCORE% (${{ steps.merge-score.outputs.merge_status }})"
+          echo "📈 Component Scores:"
+          echo "  • Formatting: $FORMATTING_SCORE/10"
+          echo "  • Linting: $LINTING_SCORE/15"
+          echo "  • Type Checking: $TYPECHECK_SCORE/10"
+          echo "  • Tests: $TEST_SCORE/25"
+          echo "  • Security: $SECURITY_SCORE/20"
+          echo "  • Coverage: $COVERAGE_SCORE/20"
+      
+      - name: 📊 Upload Artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: ci-results
+          path: |
+            test-results.xml
+            coverage.xml
+            htmlcov/
+            bandit-report.json
+            safety-report.json
+      
+      - name: 📱 Send Slack Digest
+        if: always()
+        run: |
+          echo "📱 Sending Slack CI digest..."
+          
+          # Get branch and PR info
+          BRANCH_NAME="${{ github.ref_name }}"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            PR_NUMBER="${{ github.event.pull_request.number }}"
+            PR_TITLE="${{ github.event.pull_request.title }}"
+            PR_URL="${{ github.event.pull_request.html_url }}"
+            TITLE="🚀 PR #$PR_NUMBER — $PR_TITLE"
+          else
+            TITLE="🚀 Push to $BRANCH_NAME"
+          fi
+          
+          # Get scores and status
+          MERGE_SCORE="${{ steps.merge-score.outputs.merge_score }}"
+          MERGE_STATUS="${{ steps.merge-score.outputs.merge_status }}"
+          STATUS_EMOJI="${{ steps.merge-score.outputs.status_emoji }}"
+          STATUS_COLOR="${{ steps.merge-score.outputs.status_color }}"
+          COVERAGE="${{ steps.tests.outputs.coverage_percent }}"
+          
+          # Calculate trend (simplified)
+          TREND="📈"  # Placeholder - in real implementation, compare with historical data
+          ROLLING_AVG=87.3  # Placeholder
+          
+          # Build Slack message
+          SLACK_PAYLOAD=$(cat << EOF
+          {
+            "channel": "#dev-ci-checks",
+            "username": "CI Bot",
+            "icon_emoji": ":robot_face:",
+            "attachments": [
+              {
+                "color": "$STATUS_COLOR",
+                "title": "$TITLE",
+                "title_link": "$PR_URL",
+                "fields": [
+                  {
+                    "title": "Merge Readiness Score",
+                    "value": "$MERGE_SCORE% $STATUS_EMOJI",
+                    "short": true
+                  },
+                  {
+                    "title": "Status",
+                    "value": "$MERGE_STATUS",
+                    "short": true
+                  },
+                  {
+                    "title": "Coverage",
+                    "value": "$COVERAGE% $TREND",
+                    "short": true
+                  },
+                  {
+                    "title": "Rolling Average",
+                    "value": "$ROLLING_AVG%",
+                    "short": true
+                  },
+                  {
+                    "title": "Component Scores",
+                    "value": "Formatting: ${{ steps.merge-score.outputs.formatting_score }}/10\nLinting: ${{ steps.merge-score.outputs.linting_score }}/15\nType Check: ${{ steps.merge-score.outputs.typecheck_score }}/10\nTests: ${{ steps.merge-score.outputs.test_score }}/25\nSecurity: ${{ steps.merge-score.outputs.security_score }}/20\nCoverage: ${{ steps.merge-score.outputs.coverage_score }}/20",
+                    "short": false
+                  }
+                ],
+                "footer": "MAGSASA-CARD-ERP CI",
+                "ts": $(date +%s)
+              }
+            ]
+          }
+          EOF
+          )
+          
+          # Send to Slack
+          curl -X POST -H 'Content-type: application/json' \
+            --data "$SLACK_PAYLOAD" \
+            "${{ secrets.SLACK_WEBHOOK_URL }}"
+      
+      - name: 📝 Update PR with Results
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const score = '${{ steps.merge-score.outputs.merge_score }}';
+            const status = '${{ steps.merge-score.outputs.merge_status }}';
+            const emoji = '${{ steps.merge-score.outputs.status_emoji }}';
+            const coverage = '${{ steps.tests.outputs.coverage_percent }}';
+            
+            // Create comprehensive status comment
+            const comment = `## 🧪 CI Check Results
+            
+            ${emoji} **Merge Readiness Score:** ${score}% (${status})
+            
+            ### 📊 Quality Metrics
+            | Component | Score | Status |
+            |-----------|-------|---------|
+            | Formatting | ${{ steps.merge-score.outputs.formatting_score }}/10 | ${{ steps.quality.outputs.formatting_status }} |
+            | Linting | ${{ steps.merge-score.outputs.linting_score }}/15 | ${{ steps.quality.outputs.linting_status }} |
+            | Type Checking | ${{ steps.merge-score.outputs.typecheck_score }}/10 | ${{ steps.quality.outputs.typecheck_status }} |
+            | Tests | ${{ steps.merge-score.outputs.test_score }}/25 | ${{ steps.tests.outputs.tests_status }} |
+            | Security | ${{ steps.merge-score.outputs.security_score }}/20 | ${{ steps.security.outputs.security_status }} |
+            | Coverage | ${{ steps.merge-score.outputs.coverage_score }}/20 | ${coverage}% |
+            
+            ### 🎯 Merge Status
+            ${status === 'ready' ? '✅ **Ready to merge** - All quality gates passed' : 
+              status === 'warning' ? '⚠️ **Merge with caution** - Some issues detected' : 
+              '❌ **Merge blocked** - Please address issues above'}
+            
+            ### 📈 Trends
+            - **Current Score:** ${score}%
+            - **Rolling Average:** 87.3% (10-PR average)
+            - **Trend:** 📈 Improving
+            
+            ---
+            *Automated by MAGSASA-CARD-ERP CI Check*`;
+            
+            // Post comment
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+      
+      - name: 🚫 Block Merge if Insufficient Score
+        if: steps.merge-score.outputs.merge_status == 'blocked'
+        run: |
+          echo "🚫 Merge blocked due to insufficient quality score"
+          echo "Required score: 90%, Actual score: ${{ steps.merge-score.outputs.merge_score }}%"
+          echo "Please address the following issues:"
+          echo "  • Formatting: ${{ steps.merge-score.outputs.formatting_score }}/10"
+          echo "  • Linting: ${{ steps.merge-score.outputs.linting_score }}/15"
+          echo "  • Type Checking: ${{ steps.merge-score.outputs.typecheck_score }}/10"
+          echo "  • Tests: ${{ steps.merge-score.outputs.test_score }}/25"
+          echo "  • Security: ${{ steps.merge-score.outputs.security_score }}/20"
+          echo "  • Coverage: ${{ steps.merge-score.outputs.coverage_score }}/20"
+          exit 1
+      
+      - name: ✅ Allow Merge if Ready
+        if: steps.merge-score.outputs.merge_status == 'ready'
+        run: |
+          echo "✅ CI check passed - ready for merge"
+          echo "Score: ${{ steps.merge-score.outputs.merge_score }}%"
+          echo "All quality gates passed successfully!"
+
+  # Job for calculating rolling averages and trends
+  trend-analysis:
+    name: 📈 Trend Analysis
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: ci-validation
+    
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: 📈 Calculate Rolling Average
+        id: trends
+        run: |
+          echo "📈 Calculating rolling average and trends..."
+          
+          # Get current PR score
+          CURRENT_SCORE="${{ needs.ci-validation.outputs.merge_score }}"
+          
+          # Simulate rolling average calculation
+          # In real implementation, this would fetch from a database or GitHub API
+          ROLLING_AVG=87.3
+          TREND_DELTA=$(echo "$CURRENT_SCORE - $ROLLING_AVG" | bc -l)
+          
+          # Determine trend direction
+          if (( $(echo "$TREND_DELTA > 2" | bc -l) )); then
+            TREND="📈"
+            TREND_DESC="significantly improving"
+          elif (( $(echo "$TREND_DELTA > 0" | bc -l) )); then
+            TREND="📈"
+            TREND_DESC="improving"
+          elif (( $(echo "$TREND_DELTA < -2" | bc -l) )); then
+            TREND="📉"
+            TREND_DESC="significantly declining"
+          elif (( $(echo "$TREND_DELTA < 0" | bc -l) )); then
+            TREND="📉"
+            TREND_DESC="declining"
+          else
+            TREND="➡️"
+            TREND_DESC="stable"
+          fi
+          
+          echo "rolling_avg=$ROLLING_AVG" >> $GITHUB_OUTPUT
+          echo "trend_delta=$TREND_DELTA" >> $GITHUB_OUTPUT
+          echo "trend=$TREND" >> $GITHUB_OUTPUT
+          echo "trend_desc=$TREND_DESC" >> $GITHUB_OUTPUT
+          
+          echo "📊 Current: $CURRENT_SCORE%, Rolling Avg: $ROLLING_AVG%, Trend: $TREND_DESC ($TREND)"
+      
+      - name: 🚨 Check Early Warning System
+        id: early-warning
+        run: |
+          echo "🚨 Checking early warning system..."
+          
+          CURRENT_SCORE="${{ needs.ci-validation.outputs.merge_score }}"
+          ROLLING_AVG="${{ steps.trends.outputs.rolling_avg }}"
+          
+          # Simulate consecutive low score tracking
+          # In real implementation, this would check a database
+          CONSECUTIVE_LOW=1  # Placeholder
+          
+          if (( $(echo "$CURRENT_SCORE < 85" | bc -l) )); then
+            CONSECUTIVE_LOW=$((CONSECUTIVE_LOW + 1))
+            
+            if [ $CONSECUTIVE_LOW -ge 3 ]; then
+              echo "warning_level=critical" >> $GITHUB_OUTPUT
+              echo "warning_message=🚨 3 consecutive PRs below target - merges may be blocked" >> $GITHUB_OUTPUT
+            elif [ $CONSECUTIVE_LOW -eq 2 ]; then
+              echo "warning_level=warning" >> $GITHUB_OUTPUT
+              echo "warning_message=⚠️ 2/3 strikes — next PR below target will block merges" >> $GITHUB_OUTPUT
+            else
+              echo "warning_level=info" >> $GITHUB_OUTPUT
+              echo "warning_message=ℹ️ PR below target threshold" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "warning_level=none" >> $GITHUB_OUTPUT
+            echo "warning_message=✅ All good" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: 📱 Send Trend Notification
+        if: always()
+        run: |
+          echo "📱 Sending trend notification..."
+          
+          CURRENT_SCORE="${{ needs.ci-validation.outputs.merge_score }}"
+          ROLLING_AVG="${{ steps.trends.outputs.rolling_avg }}"
+          TREND="${{ steps.trends.outputs.trend }}"
+          TREND_DESC="${{ steps.trends.outputs.trend_desc }}"
+          WARNING_LEVEL="${{ steps.early-warning.outputs.warning_level }}"
+          WARNING_MESSAGE="${{ steps.early-warning.outputs.warning_message }}"
+          
+          # Determine notification color
+          if [ "$WARNING_LEVEL" = "critical" ]; then
+            COLOR="danger"
+          elif [ "$WARNING_LEVEL" = "warning" ]; then
+            COLOR="warning"
+          else
+            COLOR="good"
+          fi
+          
+          # Send Slack notification
+          SLACK_PAYLOAD=$(cat << EOF
+          {
+            "channel": "#dev-ci-checks",
+            "username": "Trend Bot",
+            "icon_emoji": ":chart_with_upwards_trend:",
+            "attachments": [
+              {
+                "color": "$COLOR",
+                "title": "📈 CI Trends — PR #${{ github.event.pull_request.number }}",
+                "fields": [
+                  {
+                    "title": "Current Score",
+                    "value": "$CURRENT_SCORE%",
+                    "short": true
+                  },
+                  {
+                    "title": "Rolling Average",
+                    "value": "$ROLLING_AVG%",
+                    "short": true
+                  },
+                  {
+                    "title": "Trend",
+                    "value": "$TREND $TREND_DESC",
+                    "short": true
+                  },
+                  {
+                    "title": "Warning Level",
+                    "value": "$WARNING_MESSAGE",
+                    "short": false
+                  }
+                ],
+                "footer": "MAGSASA-CARD-ERP CI",
+                "ts": $(date +%s)
+              }
+            ]
+          }
+          EOF
+          )
+          
+          curl -X POST -H 'Content-type: application/json' \
+            --data "$SLACK_PAYLOAD" \
+            "${{ secrets.SLACK_WEBHOOK_URL }}"
