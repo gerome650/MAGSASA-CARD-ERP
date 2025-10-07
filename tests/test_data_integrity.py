@@ -10,10 +10,8 @@ Tests are organized into logical sections with proper fixtures and assertions.
 
 import os
 import sqlite3
-from typing import Dict
 
 import pytest
-
 
 # ============================================================================
 # FIXTURES: Mock Data Generators
@@ -29,7 +27,7 @@ def db_path() -> str:
 
 
 @pytest.fixture
-def mock_farmer_data() -> Dict[str, any]:
+def mock_farmer_data() -> dict[str, any]:
     """Generate mock farmer data for testing."""
     return {
         "name": "Test Farmer",
@@ -42,7 +40,7 @@ def mock_farmer_data() -> Dict[str, any]:
 
 
 @pytest.fixture
-def mock_financial_metrics() -> Dict[str, Dict]:
+def mock_financial_metrics() -> dict[str, dict]:
     """Generate mock financial metrics for testing."""
     return {
         "total_loans": 5,
@@ -55,7 +53,7 @@ def mock_financial_metrics() -> Dict[str, Dict]:
 
 
 @pytest.fixture
-def mock_kpi_metrics() -> Dict[str, Dict]:
+def mock_kpi_metrics() -> dict[str, dict]:
     """Generate mock KPI metrics for testing."""
     return {
         "approval_rate": {"value": 87.0, "target": 85.0, "unit": "%"},
@@ -66,7 +64,7 @@ def mock_kpi_metrics() -> Dict[str, Dict]:
 
 
 @pytest.fixture
-def mock_export_config() -> Dict[str, any]:
+def mock_export_config() -> dict[str, any]:
     """Generate mock export configuration for testing."""
     return {
         "export_type": "farmer_data",
@@ -84,7 +82,7 @@ def mock_export_config() -> Dict[str, any]:
 class TestDataAccuracy:
     """Test data storage and retrieval accuracy."""
 
-    def test_farmer_data_precision(self, db_path: str, mock_farmer_data: Dict) -> None:
+    def test_farmer_data_precision(self, db_path: str, mock_farmer_data: dict) -> None:
         """Test that farmer data is stored and retrieved with correct precision.
 
         Validates that decimal fields (farm_size) maintain 2-decimal precision.
@@ -92,7 +90,7 @@ class TestDataAccuracy:
         # TODO: Implement actual database connection and insertion
         # For now, test the data structure
         assert "farm_size" in mock_farmer_data
-        assert isinstance(mock_farmer_data["farm_size"], (int, float))
+        assert isinstance(mock_farmer_data["farm_size"], int | float)
         assert round(mock_farmer_data["farm_size"], 2) == 2.75
 
     def test_payment_amount_precision(self, db_path: str) -> None:
@@ -176,7 +174,7 @@ class TestReferentialIntegrity:
 class TestFinancialAccuracy:
     """Test financial calculations and reporting accuracy."""
 
-    def test_loan_portfolio_calculations(self, mock_financial_metrics: Dict) -> None:
+    def test_loan_portfolio_calculations(self, mock_financial_metrics: dict) -> None:
         """Test loan portfolio summary calculations.
 
         Validates: average loan size, collection rate, outstanding percentage.
@@ -222,7 +220,7 @@ class TestFinancialAccuracy:
 class TestKPIPerformance:
     """Test KPI calculations and performance scoring."""
 
-    def test_kpi_performance_scoring(self, mock_kpi_metrics: Dict) -> None:
+    def test_kpi_performance_scoring(self, mock_kpi_metrics: dict) -> None:
         """Test KPI performance score calculation.
 
         Different KPIs have different "better" directions (higher or lower).
@@ -273,7 +271,7 @@ class TestKPIPerformance:
             ), f"Score {score} should be {expected_status}"
 
     @pytest.mark.xfail(reason="KPI targets may need adjustment")
-    def test_all_kpis_meet_targets(self, mock_kpi_metrics: Dict) -> None:
+    def test_all_kpis_meet_targets(self, mock_kpi_metrics: dict) -> None:
         """Test that all KPIs meet their targets.
 
         Expected to fail as not all KPIs always meet targets.
@@ -297,7 +295,7 @@ class TestKPIPerformance:
 class TestExportValidation:
     """Test data export functionality and validation."""
 
-    def test_export_column_structure(self, mock_export_config: Dict) -> None:
+    def test_export_column_structure(self, mock_export_config: dict) -> None:
         """Test that export contains expected columns."""
         config = mock_export_config
 
@@ -316,7 +314,7 @@ class TestExportValidation:
 
         assert actual_columns == expected_columns
 
-    def test_export_row_count_validation(self, mock_export_config: Dict) -> None:
+    def test_export_row_count_validation(self, mock_export_config: dict) -> None:
         """Test that export contains expected number of rows."""
         config = mock_export_config
 
@@ -431,8 +429,8 @@ class TestDataIntegrityIntegration:
 
     def test_overall_data_integrity_score(
         self,
-        mock_financial_metrics: Dict,
-        mock_kpi_metrics: Dict,
+        mock_financial_metrics: dict,
+        mock_kpi_metrics: dict,
     ) -> None:
         """Calculate overall data integrity score.
 

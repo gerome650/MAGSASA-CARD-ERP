@@ -207,7 +207,7 @@ def webhook_pagerduty(_):
     return handle_webhook(request, "pagerduty")
 
 
-def handle_webhook(_request_obj, _endpoint_type: str):
+def handle_webhook(request_obj, endpoint_type: str):
     """
     Handle incoming webhook requests.
 
@@ -236,7 +236,7 @@ def handle_webhook(_request_obj, _endpoint_type: str):
         results = []
         alerts = data.get("alerts", [])
 
-        for _alert in alerts:
+        for alert in alerts:
             alert_result = process_alert(alert)
             results.append(
                 {
@@ -338,7 +338,7 @@ def test_webhook(_):
     )
 
 
-def signal_handler(_signum, _frame):
+def signal_handler(signum, _frame):
     """Handle shutdown signals gracefully"""
     logger.info(f"Received signal {signum}, shutting down gracefully...")
     sys.exit(0)
@@ -389,6 +389,7 @@ if __name__ == "__main__":
             if api_key != "your-api-key":
                 from ..dashboards.annotations import initialize_annotation_manager
 
+                grafana_url = os.getenv("GRAFANA_URL", "http://localhost:3000")
                 initialize_annotation_manager(grafana_url, api_key)
                 logger.info("Annotation manager initialized")
             else:

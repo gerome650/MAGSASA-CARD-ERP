@@ -69,7 +69,7 @@ except ImportError:
 # ============================================================================
 
 
-# Note: mock_agent_config, mock_agent, and sample_alert_payload fixtures 
+# Note: mock_agent_config, mock_agent, and sample_alert_payload fixtures
 # are now centralized in tests/conftest.py
 
 
@@ -313,14 +313,18 @@ class TestWebhookServerAlertmanager:
             from observability.ai_agent.webhook_server import app
 
             client = TestClient(app)
-            response = await client.post("/webhook/alertmanager", json=sample_alert_payload)
+            response = await client.post(
+                "/webhook/alertmanager", json=sample_alert_payload
+            )
 
             assert response.status_code == 200
             payload = response.json()
             assert payload["status"] == "analysis_started"
             assert "incident_id" in payload
             assert payload["incident_id"].startswith("INC-")
-            assert payload["confidence_score"] == 0.0  # Initial response before analysis
+            assert (
+                payload["confidence_score"] == 0.0
+            )  # Initial response before analysis
             assert payload["business_impact"] == "unknown"
 
     @pytest.mark.asyncio
@@ -332,7 +336,9 @@ class TestWebhookServerAlertmanager:
             from observability.ai_agent.webhook_server import app
 
             client = TestClient(app)
-            response = await client.post("/webhook/alertmanager", json=sample_alert_payload)
+            response = await client.post(
+                "/webhook/alertmanager", json=sample_alert_payload
+            )
 
             assert response.status_code == 503
             payload = response.json()
@@ -441,7 +447,9 @@ class TestWebhookServerSlackIntegration:
             from observability.ai_agent.webhook_server import app
 
             client = TestClient(app)
-            response = await client.post("/api/slack/command", data=sample_slack_command)
+            response = await client.post(
+                "/api/slack/command", data=sample_slack_command
+            )
 
             assert response.status_code == 200
             payload = response.json()
@@ -457,7 +465,9 @@ class TestWebhookServerSlackIntegration:
             from observability.ai_agent.webhook_server import app
 
             client = TestClient(app)
-            response = await client.post("/api/slack/command", data={"command": "/test"})
+            response = await client.post(
+                "/api/slack/command", data={"command": "/test"}
+            )
 
             assert response.status_code == 503
 
@@ -1549,7 +1559,9 @@ class TestObservabilityIntegration:
             from observability.ai_agent.webhook_server import app
 
             client = TestClient(app)
-            response = await client.post("/webhook/alertmanager", json=sample_alert_payload)
+            response = await client.post(
+                "/webhook/alertmanager", json=sample_alert_payload
+            )
 
             assert response.status_code == 200
             payload = response.json()

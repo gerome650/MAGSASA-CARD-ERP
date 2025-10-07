@@ -352,12 +352,11 @@ def main():
             enforce_strictly = True
             enforcement_mode = "STRICT MODE (policy default)"
 
-        if args.verbose or not args.json:
-            if not args.json:
-                print(f"🔧 Enforcement Mode: {enforcement_mode}")
-                if in_ci:
-                    print("🏗️  CI Environment Detected: Full enforcement active")
-                print()
+        if (args.verbose or not args.json) and not args.json:
+            print(f"🔧 Enforcement Mode: {enforcement_mode}")
+            if in_ci:
+                print("🏗️  CI Environment Detected: Full enforcement active")
+            print()
 
         # Get coverage data
         if args.verbose:

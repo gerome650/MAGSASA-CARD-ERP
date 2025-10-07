@@ -17,7 +17,7 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from main import AgentConfig, AIIncidentAgent
+from .main import AgentConfig, AIIncidentAgent
 
 # Setup logging
 logging.basicConfig(

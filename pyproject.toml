@@ -177,6 +177,7 @@ markers = [
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
     "flaky: marks tests as flaky (will auto-retry)",
+    "performance: marks tests as performance/load tests (long-running)",
 ]
 
 [tool.coverage.run]

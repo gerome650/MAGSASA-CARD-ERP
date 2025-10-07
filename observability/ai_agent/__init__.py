@@ -10,7 +10,7 @@ Exposed modules are automatically imported to make them available at package lev
 
 📋 Auto-discovered modules in observability/ai_agent/:
 ✅ webhook_server.py - FastAPI app for webhook handling (EXPOSED)
-✅ cli.py - Command-line interface (EXPOSED)  
+✅ cli.py - Command-line interface (EXPOSED)
 ✅ main.py - Main agent orchestration (EXPOSED)
 ✅ data_collector.py - Telemetry aggregation (EXPOSED)
 ✅ incident_analyzer.py - Root cause analysis (EXPOSED)
@@ -36,23 +36,24 @@ __version__ = "1.0.0"
 __author__ = "AI Studio Dev Pipeline"
 
 # Import classes for backward compatibility
+# Import modules for dynamic access and mocking
+from . import (
+    cli,
+    data_collector,
+    incident_analyzer,
+    incident_reporter,
+    insight_engine,
+    main,
+    postmortem_generator,
+    remediation_advisor,
+    webhook_server,
+)
 from .data_collector import IncidentContextCollector
 from .incident_analyzer import IncidentAnalyzer
 from .incident_reporter import IncidentReporter
 from .insight_engine import InsightEngine
 from .postmortem_generator import PostmortemGenerator
 from .remediation_advisor import RemediationAdvisor
-
-# Import modules for dynamic access and mocking
-from . import webhook_server
-from . import cli
-from . import main
-from . import data_collector
-from . import incident_analyzer
-from . import incident_reporter
-from . import insight_engine
-from . import postmortem_generator
-from . import remediation_advisor
 
 __all__ = [
     # Classes (backward compatibility)

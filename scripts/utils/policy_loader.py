@@ -207,7 +207,7 @@ class PolicyLoader:
 
         # Validate coverage section
         coverage = self.policy.get("coverage", {})
-        if not isinstance(coverage.get("minimum"), (int, float)):
+        if not isinstance(coverage.get("minimum"), int | float):
             raise ValueError("Coverage minimum must be a number")
 
         if coverage.get("minimum", 0) < 0 or coverage.get("minimum", 0) > 100:

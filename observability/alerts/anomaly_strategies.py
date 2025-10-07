@@ -17,6 +17,7 @@ from threading import Lock, Thread
 from typing import Any
 
 import numpy as np
+import requests
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -383,7 +384,7 @@ class RuntimeIntelligenceEngine:
         """
         anomalies = []
 
-        for _metric_name, query in self.metrics_queries.items():
+        for metric_name, query in self.metrics_queries.items():
             value = self.fetch_metric_value(query)
             if value is None:
                 continue
@@ -393,14 +394,16 @@ class RuntimeIntelligenceEngine:
                 continue
 
             result = detector.update(value)
-            if result and result.is_anomaly:
-                # Check suppression
-                if not self._is_suppressed(metric_name, result.severity):
-                    anomalies.append(result)
-                    self._suppress_alert(metric_name, result.severity)
-                    logger.warning(
-                        f"Anomaly detected: {metric_name} = {value}, severity: {result.severity}"
-                    )
+            if (
+                result
+                and result.is_anomaly
+                and not self._is_suppressed(metric_name, result.severity)
+            ):
+                anomalies.append(result)
+                self._suppress_alert(metric_name, result.severity)
+                logger.warning(
+                    f"Anomaly detected: {metric_name} = {value}, severity: {result.severity}"
+                )
 
         return anomalies
 
@@ -415,13 +418,13 @@ class RuntimeIntelligenceEngine:
                     return True
             return False
 
-    def _suppress_alert(self, _metric_name: str, _severity: str):
+    def _suppress_alert(self, metric_name: str, severity: str):
         """Mark alert as suppressed"""
         with self.suppression_lock:
             key = f"{metric_name}:{severity}"
             self.alert_suppression[key] = time.time()
 
-    def send_anomaly_alert(self, _anomaly: AnomalyDetectionResult):
+    def send_anomaly_alert(self, anomaly: AnomalyDetectionResult):
         """
         Send anomaly alert to Alertmanager.
 
@@ -470,7 +473,7 @@ class RuntimeIntelligenceEngine:
         except Exception as e:
             logger.error(f"Failed to send anomaly alert: {e}")
 
-    def run_continuous_monitoring(_self):
+    def run_continuous_monitoring(self):
         """Run continuous anomaly monitoring in a separate thread"""
 
         def monitor_loop(_):
@@ -478,7 +481,7 @@ class RuntimeIntelligenceEngine:
             while True:
                 try:
                     anomalies = self.check_anomalies()
-                    for _anomaly in anomalies:
+                    for anomaly in anomalies:
                         self.send_anomaly_alert(anomaly)
 
                     # Sleep for 30 seconds between checks
@@ -500,7 +503,7 @@ class RuntimeIntelligenceEngine:
             Dictionary with detector statistics
         """
         stats = {}
-        for _name, detector in self.detectors.items():
+        for name, detector in self.detectors.items():
             if hasattr(detector, "values"):
                 stats[name] = {
                     "type": type(detector).__name__,
@@ -522,13 +525,13 @@ class RuntimeIntelligenceEngine:
 runtime_intelligence = RuntimeIntelligenceEngine()
 
 
-def start_runtime_intelligence(_):
+def start_runtime_intelligence():
     """Start the runtime intelligence monitoring"""
     runtime_intelligence.run_continuous_monitoring()
     logger.info("Runtime Intelligence started")
 
 
-def get_anomaly_stats(_):
+def get_anomaly_stats():
     """Get current anomaly detection statistics"""
     return runtime_intelligence.get_detector_stats()
 

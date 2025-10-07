@@ -4,12 +4,11 @@ Fixes `ModuleNotFoundError: No module named 'core'`.
 """
 
 import os
-import sys
-import pytest
 import sqlite3
-from datetime import datetime
-from typing import Dict, List, Any
+import sys
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -35,14 +34,12 @@ def test_data():
         "total_scheduled_amount": 225000.0,
         "total_interest_charged": 24500.0,
         "total_interest_collected": 8167.0,
-        
         # Payment metrics
         "scheduled_payments": 60,
         "completed_payments": 20,
         "payment_completion_rate": 33.3,
         "collection_efficiency": 33.3,
         "collection_rate": 33.3,
-        
         # Farmer metrics
         "total_farmers": 5,
         "active_farmers": 5,
@@ -50,11 +47,9 @@ def test_data():
         "average_farm_size": 2.8,
         "total_farm_area": 14.0,
         "farmer_utilization_rate": 100.0,
-        
         # Interest metrics
         "average_interest_rate": 10.0,
         "interest_collection_rate": 33.3,
-        
         # Calculated metrics
         "average_loan_size": 49000.0,
         "average_payment_amount": 3750.0,
@@ -67,8 +62,13 @@ def export_context():
     return {
         "farmer_export": {
             "expected_columns": [
-                "id", "name", "phone", "email", "farm_size", 
-                "location", "crop_type"
+                "id",
+                "name",
+                "phone",
+                "email",
+                "farm_size",
+                "location",
+                "crop_type",
             ],
             "expected_rows": 5,
             "format": "CSV",
@@ -76,8 +76,12 @@ def export_context():
         },
         "payment_export": {
             "expected_columns": [
-                "id", "farmer_id", "amount", "payment_date", 
-                "status", "payment_method"
+                "id",
+                "farmer_id",
+                "amount",
+                "payment_date",
+                "status",
+                "payment_method",
             ],
             "expected_rows": 60,
             "format": "JSON",
@@ -91,8 +95,11 @@ def export_context():
         },
         "loan_export": {
             "expected_columns": [
-                "farmer_name", "loan_amount", "interest_rate", 
-                "term", "status"
+                "farmer_name",
+                "loan_amount",
+                "interest_rate",
+                "term",
+                "status",
             ],
             "expected_rows": 5,
             "format": "XLSX",
@@ -152,9 +159,17 @@ def kpi_metrics():
         },
         "operational_efficiency": {
             "farmers_per_officer": {"value": 45.0, "target": 50.0, "unit": "farmers"},
-            "applications_per_day": {"value": 8.5, "target": 10.0, "unit": "applications"},
+            "applications_per_day": {
+                "value": 8.5,
+                "target": 10.0,
+                "unit": "applications",
+            },
             "site_visits_per_week": {"value": 12.0, "target": 15.0, "unit": "visits"},
-            "documentation_completion_rate": {"value": 98.2, "target": 95.0, "unit": "%"},
+            "documentation_completion_rate": {
+                "value": 98.2,
+                "target": 95.0,
+                "unit": "%",
+            },
         },
         "financial_performance": {
             "portfolio_growth_rate": {"value": 15.3, "target": 12.0, "unit": "%"},
@@ -177,7 +192,7 @@ def database_connection():
     db_path = "src/agsense.db"
     if not os.path.exists(db_path):
         db_path = "agsense.db"
-    
+
     conn = sqlite3.connect(db_path)
     yield conn
     conn.close()
@@ -252,14 +267,22 @@ def realtime_scenarios():
         "farmer_profile_changes": {
             "update_type": "Farmer Profile Changes",
             "trigger_event": "Profile Updated",
-            "affected_components": ["Farmer List", "Loan Applications", "Officer Dashboard"],
+            "affected_components": [
+                "Farmer List",
+                "Loan Applications",
+                "Officer Dashboard",
+            ],
             "update_latency_ms": 180,
             "expected_latency_ms": 300,
         },
         "loan_application_status": {
             "update_type": "Loan Application Status",
             "trigger_event": "Status Changed",
-            "affected_components": ["Application List", "Farmer Dashboard", "Officer Tasks"],
+            "affected_components": [
+                "Application List",
+                "Farmer Dashboard",
+                "Officer Tasks",
+            ],
             "update_latency_ms": 320,
             "expected_latency_ms": 500,
         },
@@ -276,6 +299,7 @@ def realtime_scenarios():
 # ============================================================================
 # OBSERVABILITY FIXTURES - Centralized Mock Agent and Configuration
 # ============================================================================
+
 
 @pytest.fixture
 def mock_agent_config():

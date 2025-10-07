@@ -311,7 +311,7 @@ def main():
                 )
                 sys.exit(1)
 
-        if self.verbose:
+        if generator.verbose:
             logger.info(f"Using coverage: {coverage:.1f}%")
 
         success = True
