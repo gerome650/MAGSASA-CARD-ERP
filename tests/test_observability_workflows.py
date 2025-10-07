@@ -1072,22 +1072,24 @@ class TestWebhookServer:
 
         return TestClient(app)
 
-    def test_health_check(self, test_client):
+    @pytest.mark.asyncio
+    async def test_health_check(self, test_client):
         """Test health check endpoint"""
-        response = test_client.get("/health")
+        response = await test_client.get("/health")
 
         assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "healthy"
-        assert "timestamp" in data
+        payload = response.json()
+        assert payload["status"] == "healthy"
+        assert "timestamp" in payload
 
-    def test_metrics_endpoint(self, test_client):
+    @pytest.mark.asyncio
+    async def test_metrics_endpoint(self, test_client):
         """Test metrics endpoint"""
-        response = test_client.get("/metrics")
+        response = await test_client.get("/metrics")
 
         assert response.status_code == 200
-        data = response.json()
-        assert "incidents_analyzed_total" in data
+        payload = response.json()
+        assert "incidents_analyzed_total" in payload
 
 
 # ============================================================================

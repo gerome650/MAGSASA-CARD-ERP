@@ -69,74 +69,8 @@ except ImportError:
 # ============================================================================
 
 
-@pytest.fixture
-def mock_agent_config():
-    """Mock AgentConfig for webhook server"""
-    config = MagicMock()
-    config.prometheus_url = "http://localhost:9090"
-    config.jaeger_url = "http://localhost:16686"
-    config.loki_url = "http://localhost:3100"
-    config.slack_bot_token = "xoxb-test-token"
-    config.slack_channels = {"incidents": "#incidents"}
-    config.pagerduty_token = "test-pd-token"
-    config.pagerduty_integration_keys = {"incidents": "test-key"}
-    config.reports_dir = "/tmp/reports"
-    config.analysis_window_minutes = 30
-    config.confidence_threshold = 0.3
-    return config
-
-
-@pytest.fixture
-def mock_agent(mock_agent_config):
-    """Mock AIIncidentAgent"""
-    agent = MagicMock()
-    agent.config = mock_agent_config
-    agent.slack_bot = MagicMock()
-
-    # Mock async analyze_incident method
-    async def mock_analyze_incident(*_args, **_kwargs):
-        return {
-            "insight": {
-                "business_impact": "high",
-                "confidence_score": 0.87,
-            },
-            "root_causes": [{"type": "database_issues", "confidence": 0.85}],
-        }
-
-    agent.analyze_incident = AsyncMock(side_effect=mock_analyze_incident)
-    agent.slack_bot.handle_command = AsyncMock(return_value="Command processed")
-    agent.slack_bot.handle_interactive_message = AsyncMock(
-        return_value="Interaction processed"
-    )
-
-    return agent
-
-
-@pytest.fixture
-def sample_alert_payload():
-    """Sample Alertmanager webhook payload"""
-    return {
-        "alerts": [
-            {
-                "status": "firing",
-                "labels": {
-                    "alertname": "HighLatency",
-                    "severity": "critical",
-                    "service": "api-gateway",
-                },
-                "annotations": {
-                    "description": "API latency exceeded threshold",
-                    "summary": "High request latency detected",
-                },
-            }
-        ],
-        "groupLabels": {"alertname": "HighLatency"},
-        "commonLabels": {"severity": "critical"},
-        "commonAnnotations": {"summary": "High latency"},
-        "externalURL": "http://alertmanager:9093",
-        "version": "4",
-        "groupKey": "test-group-key",
-    }
+# Note: mock_agent_config, mock_agent, and sample_alert_payload fixtures 
+# are now centralized in tests/conftest.py
 
 
 @pytest.fixture
@@ -317,54 +251,61 @@ def sample_incident_report():
 class TestWebhookServerEndpoints:
     """Test FastAPI webhook server endpoints"""
 
-    def test_health_check_returns_200_and_correct_payload(self, mock_agent):
-        """✅ Test /health endpoint returns 200 with correct structure"""
+    @pytest.mark.asyncio
+    async def test_health_check_returns_200_and_correct_payload(self, mock_agent):
+        """✅ Test /health endpoint returns 200 with correct structure after webhook refactor."""
+        mock_agent.process.return_value = {"status": "ok", "uptime": 123.45}
+
         with patch("observability.ai_agent.webhook_server.agent", mock_agent):
             from observability.ai_agent.webhook_server import app
 
             client = TestClient(app)
-            response = client.get("/health")
+            response = await client.get("/health")
 
             assert response.status_code == 200
-            data = response.json()
-            assert data["status"] == "healthy"
-            assert "timestamp" in data
-            assert "version" in data
-            assert data["agent_initialized"] is True
+            payload = response.json()
+            assert payload["status"] == "healthy"
+            assert "timestamp" in payload
+            assert "version" in payload
+            assert payload["agent_initialized"] is True
 
-    def test_health_check_when_agent_not_initialized(self):
+    @pytest.mark.asyncio
+    async def test_health_check_when_agent_not_initialized(self):
         """✅ Test /health endpoint when agent is None"""
         with patch("observability.ai_agent.webhook_server.agent", None):
             from observability.ai_agent.webhook_server import app
 
             client = TestClient(app)
-            response = client.get("/health")
+            response = await client.get("/health")
 
             assert response.status_code == 200
-            data = response.json()
-            assert data["agent_initialized"] is False
+            payload = response.json()
+            assert payload["agent_initialized"] is False
+            assert "status" in payload
 
-    def test_metrics_endpoint_returns_prometheus_format(self, mock_agent):
+    @pytest.mark.asyncio
+    async def test_metrics_endpoint_returns_prometheus_format(self, mock_agent):
         """✅ Test /metrics endpoint returns expected Prometheus metrics"""
         with patch("observability.ai_agent.webhook_server.agent", mock_agent):
             from observability.ai_agent.webhook_server import app
 
             client = TestClient(app)
-            response = client.get("/metrics")
+            response = await client.get("/metrics")
 
             assert response.status_code == 200
-            data = response.json()
-            assert "incidents_analyzed_total" in data
-            assert "analysis_duration_seconds" in data
-            assert "confidence_score" in data
-            assert "notifications_sent_total" in data
+            payload = response.json()
+            assert "incidents_analyzed_total" in payload
+            assert "analysis_duration_seconds" in payload
+            assert "confidence_score" in payload
+            assert "notifications_sent_total" in payload
 
 
 @pytest.mark.skipif(not HAS_FASTAPI, reason="FastAPI not installed")
 class TestWebhookServerAlertmanager:
     """Test Alertmanager webhook handling"""
 
-    def test_alertmanager_webhook_triggers_background_task(
+    @pytest.mark.asyncio
+    async def test_alertmanager_webhook_triggers_background_task(
         self, mock_agent, sample_alert_payload
     ):
         """✅ Test /webhook/alertmanager triggers background analysis"""
@@ -372,17 +313,18 @@ class TestWebhookServerAlertmanager:
             from observability.ai_agent.webhook_server import app
 
             client = TestClient(app)
-            response = client.post("/webhook/alertmanager", json=sample_alert_payload)
+            response = await client.post("/webhook/alertmanager", json=sample_alert_payload)
 
             assert response.status_code == 200
-            data = response.json()
-            assert data["status"] == "analysis_started"
-            assert "incident_id" in data
-            assert data["incident_id"].startswith("INC-")
-            assert data["confidence_score"] == 0.0  # Initial response before analysis
-            assert data["business_impact"] == "unknown"
+            payload = response.json()
+            assert payload["status"] == "analysis_started"
+            assert "incident_id" in payload
+            assert payload["incident_id"].startswith("INC-")
+            assert payload["confidence_score"] == 0.0  # Initial response before analysis
+            assert payload["business_impact"] == "unknown"
 
-    def test_alertmanager_webhook_fails_when_agent_not_initialized(
+    @pytest.mark.asyncio
+    async def test_alertmanager_webhook_fails_when_agent_not_initialized(
         self, sample_alert_payload
     ):
         """✅ Test webhook returns 503 when agent is not initialized"""
@@ -390,12 +332,14 @@ class TestWebhookServerAlertmanager:
             from observability.ai_agent.webhook_server import app
 
             client = TestClient(app)
-            response = client.post("/webhook/alertmanager", json=sample_alert_payload)
+            response = await client.post("/webhook/alertmanager", json=sample_alert_payload)
 
             assert response.status_code == 503
-            assert "Agent not initialized" in response.json()["detail"]
+            payload = response.json()
+            assert "Agent not initialized" in payload["detail"]
 
-    def test_alertmanager_webhook_handles_invalid_payload(self, mock_agent):
+    @pytest.mark.asyncio
+    async def test_alertmanager_webhook_handles_invalid_payload(self, mock_agent):
         """✅ Test error handling for invalid webhook payload"""
         with patch("observability.ai_agent.webhook_server.agent", mock_agent):
             from observability.ai_agent.webhook_server import app
@@ -403,7 +347,7 @@ class TestWebhookServerAlertmanager:
             client = TestClient(app)
             # Send payload missing required fields
             invalid_payload = {"alerts": []}
-            response = client.post("/webhook/alertmanager", json=invalid_payload)
+            response = await client.post("/webhook/alertmanager", json=invalid_payload)
 
             # FastAPI validation should catch this
             assert response.status_code == 422  # Unprocessable Entity
@@ -413,7 +357,8 @@ class TestWebhookServerAlertmanager:
 class TestWebhookServerIncidentAPI:
     """Test incident analysis API endpoints"""
 
-    def test_analyze_incident_endpoint_accepts_manual_request(
+    @pytest.mark.asyncio
+    async def test_analyze_incident_endpoint_accepts_manual_request(
         self, mock_agent, sample_incident_request
     ):
         """✅ Test /api/incidents/{id}/analyze endpoint"""
@@ -421,30 +366,32 @@ class TestWebhookServerIncidentAPI:
             from observability.ai_agent.webhook_server import app
 
             client = TestClient(app)
-            response = client.post(
+            response = await client.post(
                 "/api/incidents/INC-TEST-001/analyze", json=sample_incident_request
             )
 
             assert response.status_code == 200
-            data = response.json()
-            assert data["incident_id"] == "INC-TEST-001"
-            assert data["status"] == "analysis_started"
+            payload = response.json()
+            assert payload["incident_id"] == "INC-TEST-001"
+            assert payload["status"] == "analysis_started"
 
-    def test_get_incident_status_endpoint(self, mock_agent):
+    @pytest.mark.asyncio
+    async def test_get_incident_status_endpoint(self, mock_agent):
         """✅ Test /api/incidents/{id}/status endpoint"""
         with patch("observability.ai_agent.webhook_server.agent", mock_agent):
             from observability.ai_agent.webhook_server import app
 
             client = TestClient(app)
-            response = client.get("/api/incidents/INC-TEST-001/status")
+            response = await client.get("/api/incidents/INC-TEST-001/status")
 
             assert response.status_code == 200
-            data = response.json()
-            assert data["incident_id"] == "INC-TEST-001"
-            assert "status" in data
-            assert "timestamp" in data
+            payload = response.json()
+            assert payload["incident_id"] == "INC-TEST-001"
+            assert "status" in payload
+            assert "timestamp" in payload
 
-    def test_get_postmortem_when_file_exists(self, mock_agent):
+    @pytest.mark.asyncio
+    async def test_get_postmortem_when_file_exists(self, mock_agent):
         """✅ Test /api/incidents/{id}/postmortem when report exists"""
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create a test postmortem file
@@ -460,15 +407,16 @@ class TestWebhookServerIncidentAPI:
                 from observability.ai_agent.webhook_server import app
 
                 client = TestClient(app)
-                response = client.get("/api/incidents/INC-TEST-001/postmortem")
+                response = await client.get("/api/incidents/INC-TEST-001/postmortem")
 
                 assert response.status_code == 200
-                data = response.json()
-                assert data["incident_id"] == "INC-TEST-001"
-                assert "content" in data
-                assert "Test Postmortem" in data["content"]
+                payload = response.json()
+                assert payload["incident_id"] == "INC-TEST-001"
+                assert "content" in payload
+                assert "Test Postmortem" in payload["content"]
 
-    def test_get_postmortem_returns_404_when_not_found(self, mock_agent):
+    @pytest.mark.asyncio
+    async def test_get_postmortem_returns_404_when_not_found(self, mock_agent):
         """✅ Test /api/incidents/{id}/postmortem returns 404 when file missing"""
         with tempfile.TemporaryDirectory() as tmpdir:
             mock_agent.config.reports_dir = tmpdir
@@ -477,7 +425,7 @@ class TestWebhookServerIncidentAPI:
                 from observability.ai_agent.webhook_server import app
 
                 client = TestClient(app)
-                response = client.get("/api/incidents/INC-NONEXISTENT/postmortem")
+                response = await client.get("/api/incidents/INC-NONEXISTENT/postmortem")
 
                 assert response.status_code == 404
 
@@ -486,20 +434,22 @@ class TestWebhookServerIncidentAPI:
 class TestWebhookServerSlackIntegration:
     """Test Slack integration endpoints"""
 
-    def test_slack_command_endpoint(self, mock_agent, sample_slack_command):
+    @pytest.mark.asyncio
+    async def test_slack_command_endpoint(self, mock_agent, sample_slack_command):
         """✅ Test /api/slack/command endpoint"""
         with patch("observability.ai_agent.webhook_server.agent", mock_agent):
             from observability.ai_agent.webhook_server import app
 
             client = TestClient(app)
-            response = client.post("/api/slack/command", data=sample_slack_command)
+            response = await client.post("/api/slack/command", data=sample_slack_command)
 
             assert response.status_code == 200
-            data = response.json()
-            assert "text" in data
-            assert data["text"] == "Command processed"
+            payload = response.json()
+            assert "text" in payload
+            assert payload["text"] == "Command processed"
 
-    def test_slack_command_fails_when_slack_not_configured(self, mock_agent):
+    @pytest.mark.asyncio
+    async def test_slack_command_fails_when_slack_not_configured(self, mock_agent):
         """✅ Test Slack command returns 503 when Slack not configured"""
         mock_agent.slack_bot = None
 
@@ -507,11 +457,12 @@ class TestWebhookServerSlackIntegration:
             from observability.ai_agent.webhook_server import app
 
             client = TestClient(app)
-            response = client.post("/api/slack/command", data={"command": "/test"})
+            response = await client.post("/api/slack/command", data={"command": "/test"})
 
             assert response.status_code == 503
 
-    def test_slack_interactive_endpoint(
+    @pytest.mark.asyncio
+    async def test_slack_interactive_endpoint(
         self, mock_agent, sample_slack_interactive_payload
     ):
         """✅ Test /api/slack/interactive endpoint"""
@@ -520,21 +471,22 @@ class TestWebhookServerSlackIntegration:
 
             client = TestClient(app)
             # Slack sends payload as form-encoded JSON
-            response = client.post(
+            response = await client.post(
                 "/api/slack/interactive",
                 data={"payload": json.dumps(sample_slack_interactive_payload)},
             )
 
             assert response.status_code == 200
-            data = response.json()
-            assert "text" in data
+            payload = response.json()
+            assert "text" in payload
 
 
 @pytest.mark.skipif(not HAS_FASTAPI, reason="FastAPI not installed")
 class TestWebhookServerLifecycle:
     """Test startup/shutdown lifecycle events"""
 
-    def test_startup_event_initializes_agent(self):
+    @pytest.mark.asyncio
+    async def test_startup_event_initializes_agent(self):
         """✅ Test startup event initializes agent with config"""
         with (
             patch("observability.ai_agent.webhook_server.AgentConfig"),
@@ -542,16 +494,15 @@ class TestWebhookServerLifecycle:
                 "observability.ai_agent.webhook_server.AIIncidentAgent"
             ) as mock_agent_class,
         ):
-            import asyncio
-
             from observability.ai_agent.webhook_server import startup_event
 
-            asyncio.run(startup_event())
+            await startup_event()
 
             # Agent should be initialized
             mock_agent_class.assert_called_once()
 
-    def test_startup_event_handles_missing_config_file(self):
+    @pytest.mark.asyncio
+    async def test_startup_event_handles_missing_config_file(self):
         """✅ Test startup uses defaults when config.yaml missing"""
         with patch("observability.ai_agent.webhook_server.Path") as mock_path:
             mock_path.return_value.exists.return_value = False
@@ -562,23 +513,20 @@ class TestWebhookServerLifecycle:
                 ) as mock_config,
                 patch("observability.ai_agent.webhook_server.AIIncidentAgent"),
             ):
-                import asyncio
-
                 from observability.ai_agent.webhook_server import startup_event
 
-                asyncio.run(startup_event())
+                await startup_event()
 
                 # Should create default config
                 mock_config.assert_called_once()
 
-    def test_shutdown_event_logs_message(self):
+    @pytest.mark.asyncio
+    async def test_shutdown_event_logs_message(self):
         """✅ Test shutdown event logs properly"""
-        import asyncio
-
         from observability.ai_agent.webhook_server import shutdown_event
 
         # Should not raise any exceptions
-        asyncio.run(shutdown_event())
+        await shutdown_event()
 
 
 @pytest.mark.skipif(not HAS_FASTAPI, reason="FastAPI not installed")
@@ -1601,11 +1549,11 @@ class TestObservabilityIntegration:
             from observability.ai_agent.webhook_server import app
 
             client = TestClient(app)
-            response = client.post("/webhook/alertmanager", json=sample_alert_payload)
+            response = await client.post("/webhook/alertmanager", json=sample_alert_payload)
 
             assert response.status_code == 200
-            data = response.json()
-            incident_id = data["incident_id"]
+            payload = response.json()
+            incident_id = payload["incident_id"]
 
         # Step 2: Simulate PagerDuty notification
         from observability.ai_agent.integrations.pagerduty_notifier import (
