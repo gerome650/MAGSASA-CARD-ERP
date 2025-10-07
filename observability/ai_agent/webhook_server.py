@@ -17,7 +17,7 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from main import AgentConfig, AIIncidentAgent
+from .main import AgentConfig, AIIncidentAgent
 
 # Setup logging
 logging.basicConfig(
@@ -149,7 +149,9 @@ async def metrics():
 
 
 @app.post("/webhook/alertmanager", response_model=AnalysisResponse)
-async def alertmanager_webhook(alert_payload: AlertPayload, background_tasks: BackgroundTasks, request: Request):
+async def alertmanager_webhook(
+    alert_payload: AlertPayload, background_tasks: BackgroundTasks, request: Request
+):
     """
     Handle Alertmanager webhook
 
@@ -186,7 +188,9 @@ async def alertmanager_webhook(alert_payload: AlertPayload, background_tasks: Ba
 
 
 @app.post("/api/incidents/{incident_id}/analyze", response_model=AnalysisResponse)
-async def analyze_incident(incident_id: str, request: IncidentRequest, background_tasks: BackgroundTasks):
+async def analyze_incident(
+    incident_id: str, request: IncidentRequest, background_tasks: BackgroundTasks
+):
     """
     Analyze a specific incident
 
@@ -335,7 +339,12 @@ async def slack_interactive(request: Request):
         )
 
 
-async def analyze_incident_background(incident_id: str, alert_payload: dict[str, Any], resolution_notes: str | None = None, engineer_notes: str | None = None):
+async def analyze_incident_background(
+    incident_id: str,
+    alert_payload: dict[str, Any],
+    resolution_notes: str | None = None,
+    engineer_notes: str | None = None,
+):
     """Run incident analysis in background"""
     try:
         logger.info(f"Starting background analysis for incident {incident_id}")

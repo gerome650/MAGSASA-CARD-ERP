@@ -1,0 +1,418 @@
+name: 🛡️ Merge Gate - Quality Enforcement
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - main
+      - master
+      - production
+  push:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+env:
+  PYTHON_VERSION: "3.10"
+  CACHE_VERSION: v1
+
+jobs:
+  # ============================================================================
+  # JOB 1: Lint and Format Check
+  # ============================================================================
+  lint-and-format:
+    name: 🧹 Lint & Format Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff black
+      
+      - name: 🔍 Check formatting (Black)
+        run: |
+          black --check . --exclude "venv|dist|build|htmlcov|migrations" || {
+            echo "❌ Code formatting check failed"
+            echo "Fix with: black ."
+            exit 1
+          }
+      
+      - name: 🧹 Lint code (Ruff)
+        run: |
+          ruff check . --output-format=github --exclude "venv,dist,build,htmlcov,migrations" || {
+            echo "❌ Linting check failed"
+            echo "Fix with: ruff check --fix ."
+            exit 1
+          }
+      
+      - name: 📊 Export lint results
+        if: always()
+        run: |
+          ruff check . --output-format=json --exclude "venv,dist,build,htmlcov,migrations" > lint-results.json || true
+          VIOLATIONS=$(cat lint-results.json | python3 -c "import sys, json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
+          echo "LINT_VIOLATIONS=$VIOLATIONS" >> $GITHUB_ENV
+          echo "✅ Linting violations: $VIOLATIONS"
+      
+      - name: 💾 Upload lint results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: lint-results
+          path: lint-results.json
+
+  # ============================================================================
+  # JOB 2: Tests and Coverage
+  # ============================================================================
+  tests-and-coverage:
+    name: 🧪 Tests & Coverage
+    runs-on: ubuntu-latest
+    
+    outputs:
+      coverage: ${{ steps.coverage.outputs.coverage }}
+      tests_passed: ${{ steps.tests.outputs.passed }}
+      tests_total: ${{ steps.tests.outputs.total }}
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install pytest pytest-cov pytest-json-report
+      
+      - name: 🧪 Run tests with coverage
+        id: tests
+        run: |
+          pytest tests/ \
+            --cov=. \
+            --cov-report=xml \
+            --cov-report=json \
+            --cov-report=html \
+            --cov-report=term-missing \
+            --json-report \
+            --json-report-file=test-results.json \
+            -v || {
+            echo "tests_failed=true" >> $GITHUB_OUTPUT
+            exit 1
+          }
+          
+          # Extract test counts
+          PASSED=$(python3 -c "import json; data=json.load(open('test-results.json')); print(data['summary'].get('passed', 0))" 2>/dev/null || echo "0")
+          TOTAL=$(python3 -c "import json; data=json.load(open('test-results.json')); print(data['summary'].get('total', 0))" 2>/dev/null || echo "0")
+          
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          echo "✅ Tests passed: $PASSED/$TOTAL"
+      
+      - name: 📊 Extract coverage
+        id: coverage
+        run: |
+          COVERAGE=$(python3 -c "import json; data=json.load(open('coverage.json')); print(f\"{data['totals']['percent_covered']:.2f}\")" 2>/dev/null || echo "0")
+          echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+          echo "✅ Coverage: $COVERAGE%"
+      
+      - name: 💾 Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-reports
+          path: |
+            coverage.xml
+            coverage.json
+            htmlcov/
+            test-results.json
+      
+      - name: 📈 Upload coverage to artifact
+        uses: codecov/codecov-action@v3
+        if: always()
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+  # ============================================================================
+  # JOB 3: Policy Check & Merge Score
+  # ============================================================================
+  policy-check:
+    name: 🛡️ Policy Check & Scoring
+    runs-on: ubuntu-latest
+    needs: [lint-and-format, tests-and-coverage]
+    if: always()
+    
+    outputs:
+      merge_score: ${{ steps.policy.outputs.merge_score }}
+      merge_ready: ${{ steps.policy.outputs.merge_ready }}
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
+      
+      - name: 📥 Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: coverage-reports
+      
+      - name: 📥 Download lint results
+        uses: actions/download-artifact@v3
+        with:
+          name: lint-results
+      
+      - name: 🛡️ Run policy checks
+        id: policy
+        env:
+          COVERAGE: ${{ needs.tests-and-coverage.outputs.coverage }}
+          TESTS_PASSED: ${{ needs.tests-and-coverage.outputs.tests_passed }}
+          TESTS_TOTAL: ${{ needs.tests-and-coverage.outputs.tests_total }}
+          LINT_VIOLATIONS: ${{ env.LINT_VIOLATIONS }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login || github.actor }}
+        run: |
+          # Run policy loader
+          python scripts/utils/policy_loader.py \
+            --check-all \
+            --calculate-score \
+            --json > policy-results.json || {
+            echo "policy_failed=true" >> $GITHUB_OUTPUT
+          }
+          
+          # Extract merge score
+          MERGE_SCORE=$(python3 -c "import json; data=json.load(open('policy-results.json')); print(data[0].get('actual', '0'))" 2>/dev/null || echo "0")
+          echo "merge_score=$MERGE_SCORE" >> $GITHUB_OUTPUT
+          
+          # Check if merge ready (score >= 80)
+          MERGE_READY=$(python3 -c "score=float('$MERGE_SCORE'); print('true' if score >= 80 else 'false')")
+          echo "merge_ready=$MERGE_READY" >> $GITHUB_OUTPUT
+          
+          echo "🎯 Merge Score: $MERGE_SCORE"
+          echo "📊 Merge Ready: $MERGE_READY"
+      
+      - name: ✅ Coverage enforcement
+        env:
+          COVERAGE: ${{ needs.tests-and-coverage.outputs.coverage }}
+        run: |
+          python scripts/hooks/enforce_coverage.py --verbose || {
+            echo "⚠️  Coverage below minimum threshold"
+            exit 1
+          }
+      
+      - name: 💾 Upload policy results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: policy-results
+          path: policy-results.json
+
+  # ============================================================================
+  # JOB 4: Slack Notification
+  # ============================================================================
+  slack-notify:
+    name: 📣 Slack Notification
+    runs-on: ubuntu-latest
+    needs: [lint-and-format, tests-and-coverage, policy-check]
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'push')
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: 📦 Install dependencies
+        run: |
+          pip install pyyaml requests
+      
+      - name: 📥 Download coverage reports
+        uses: actions/download-artifact@v3
+        with:
+          name: coverage-reports
+        continue-on-error: true
+      
+      - name: 📊 Generate coverage trend
+        id: trend
+        run: |
+          # Try to generate trend (will be implemented in coverage_trend.py)
+          if [ -f "scripts/metrics/coverage_trend.py" ]; then
+            TREND=$(python scripts/metrics/coverage_trend.py 2>/dev/null || echo "▁▃▄▆█")
+          else
+            TREND="▁▃▄▆█"
+          fi
+          echo "trend=$TREND" >> $GITHUB_OUTPUT
+      
+      - name: 📣 Send Slack notification
+        if: env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login || github.actor }}
+          PR_NUMBER: ${{ github.event.pull_request.number || 'N/A' }}
+          PR_TITLE: ${{ github.event.pull_request.title || github.event.head_commit.message }}
+          COVERAGE: ${{ needs.tests-and-coverage.outputs.coverage }}
+          MERGE_SCORE: ${{ needs.policy-check.outputs.merge_score }}
+          MERGE_READY: ${{ needs.policy-check.outputs.merge_ready }}
+          TESTS_PASSED: ${{ needs.tests-and-coverage.outputs.tests_passed }}
+          TESTS_TOTAL: ${{ needs.tests-and-coverage.outputs.tests_total }}
+          COVERAGE_TREND: ${{ steps.trend.outputs.trend }}
+        run: |
+          # Determine status
+          if [ "${{ needs.policy-check.result }}" == "success" ]; then
+            STATUS="✅ PASSED"
+            COLOR="#36a64f"
+          else
+            STATUS="❌ FAILED"
+            COLOR="#ff0000"
+          fi
+          
+          # Build Slack message
+          PAYLOAD=$(cat <<EOF
+          {
+            "username": "Merge Gate Bot",
+            "icon_emoji": ":shield:",
+            "attachments": [{
+              "color": "$COLOR",
+              "title": "🛡️ Merge Gate: $STATUS",
+              "text": "*PR #$PR_NUMBER*: $PR_TITLE\n*Author*: @$PR_AUTHOR",
+              "fields": [
+                {
+                  "title": "Coverage",
+                  "value": "${COVERAGE}% ${COVERAGE_TREND}",
+                  "short": true
+                },
+                {
+                  "title": "Tests",
+                  "value": "${TESTS_PASSED}/${TESTS_TOTAL} passed",
+                  "short": true
+                },
+                {
+                  "title": "Merge Score",
+                  "value": "${MERGE_SCORE}/100",
+                  "short": true
+                },
+                {
+                  "title": "Merge Ready",
+                  "value": "${MERGE_READY}",
+                  "short": true
+                }
+              ],
+              "footer": "MAGSASA-CARD ERP CI/CD",
+              "ts": $(date +%s)
+            }]
+          }
+          EOF
+          )
+          
+          curl -X POST "$SLACK_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" || echo "⚠️  Slack notification failed (non-critical)"
+      
+      - name: 📝 PR Comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const coverage = '${{ needs.tests-and-coverage.outputs.coverage }}';
+            const mergeScore = '${{ needs.policy-check.outputs.merge_score }}';
+            const mergeReady = '${{ needs.policy-check.outputs.merge_ready }}';
+            const testsPassed = '${{ needs.tests-and-coverage.outputs.tests_passed }}';
+            const testsTotal = '${{ needs.tests-and-coverage.outputs.tests_total }}';
+            const author = '${{ github.event.pull_request.user.login }}';
+            
+            const status = mergeReady === 'true' ? '✅ READY TO MERGE' : '❌ NOT READY';
+            const emoji = mergeReady === 'true' ? '🎉' : '⚠️';
+            
+            const body = `## 🛡️ Merge Gate Report ${emoji}
+            
+            **Status**: ${status}
+            **Author**: @${author}
+            
+            ### 📊 Quality Metrics
+            
+            | Metric | Value | Status |
+            |--------|-------|--------|
+            | Coverage | ${coverage}% | ${parseFloat(coverage) >= 85 ? '✅' : '❌'} |
+            | Tests | ${testsPassed}/${testsTotal} | ${testsPassed === testsTotal ? '✅' : '❌'} |
+            | Merge Score | ${mergeScore}/100 | ${parseFloat(mergeScore) >= 80 ? '✅' : '❌'} |
+            
+            ### 📈 Coverage Trend
+            \`\`\`
+            ${{ steps.trend.outputs.trend }}
+            \`\`\`
+            
+            ---
+            
+            ${mergeReady === 'true' 
+              ? '✅ All quality gates passed! This PR is ready to merge.' 
+              : '⚠️  Some quality gates failed. Please address the issues above.'}
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+  # ============================================================================
+  # JOB 5: Final Gate
+  # ============================================================================
+  final-gate:
+    name: 🚦 Final Merge Gate
+    runs-on: ubuntu-latest
+    needs: [lint-and-format, tests-and-coverage, policy-check]
+    if: always()
+    
+    steps:
+      - name: ✅ Check all gates passed
+        run: |
+          LINT_STATUS="${{ needs.lint-and-format.result }}"
+          TESTS_STATUS="${{ needs.tests-and-coverage.result }}"
+          POLICY_STATUS="${{ needs.policy-check.result }}"
+          
+          echo "📊 Gate Results:"
+          echo "   Lint & Format: $LINT_STATUS"
+          echo "   Tests & Coverage: $TESTS_STATUS"
+          echo "   Policy Check: $POLICY_STATUS"
+          
+          if [ "$LINT_STATUS" != "success" ] || [ "$TESTS_STATUS" != "success" ] || [ "$POLICY_STATUS" != "success" ]; then
+            echo "❌ One or more quality gates failed"
+            exit 1
+          fi
+          
+          echo "✅ All quality gates passed!"

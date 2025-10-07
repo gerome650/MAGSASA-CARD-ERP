@@ -11,6 +11,7 @@ import sys
 import time
 
 import psutil
+import requests
 
 
 class PortDetector:
@@ -27,9 +28,12 @@ class PortDetector:
         ports = []
 
         try:
-            for _proc in psutil.process_iter(["pid", "name", "cmdline"]):
+            for proc in psutil.process_iter(["pid", "name", "cmdline"]):
                 try:
-                    # Check if this is our Flask process and if proc.info["cmdline"]:
+                    cmdline = (
+                        " ".join(proc.info["cmdline"]) if proc.info["cmdline"] else ""
+                    )
+                    # Check if this is our Flask process
                     if (
                         self.service_name in proc.info["name"]
                         and self.process_pattern in cmdline
@@ -37,7 +41,7 @@ class PortDetector:
 
                         # Get network connections for this process
                         connections = proc.connections(kind="inet")
-                        for _conn in connections:
+                        for conn in connections:
                             if conn.status == psutil.CONN_LISTEN and conn.laddr.ip in [
                                 "127.0.0.1",
                                 "0.0.0.0",
@@ -82,7 +86,7 @@ class PortDetector:
         """Scan common ports for Flask services."""
         healthy_services = []
 
-        for _port in self.common_ports:
+        for port in self.common_ports:
             is_healthy, info = self.check_port_health(port, host)
             if is_healthy:
                 healthy_services.append((port, info))
@@ -101,7 +105,7 @@ class PortDetector:
         if process_ports:
             print(f"   Found processes on ports: {process_ports}", file=sys.stderr)
 
-            for _port in process_ports:
+            for port in process_ports:
                 is_healthy, info = self.check_port_health(port, host)
                 if is_healthy:
                     print(
@@ -131,7 +135,7 @@ class PortDetector:
 
         if healthy_services:
             # Prefer Flask-specific services
-            for _port, info in healthy_services:
+            for port, info in healthy_services:
                 service_name = info.get("service", "").lower()
                 if "flask" in service_name or "magsasa" in service_name:
                     print(f"   ✅ Found Flask service on port {port}", file=sys.stderr)

@@ -12,6 +12,8 @@ Usage:
 import sys
 from pathlib import Path
 
+import requests
+
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -152,7 +154,7 @@ def update_env_file(api_key: str) -> bool:
 
         # Update or add NOTION_API_KEY
         updated = False
-        for _i, line in enumerate(lines):
+        for i, line in enumerate(lines):
             if line.startswith("NOTION_API_KEY="):
                 lines[i] = f"NOTION_API_KEY={api_key}\n"
                 updated = True

@@ -251,7 +251,7 @@ def populate_sample_data(_):
         "Mango",
     ]
 
-    for _i in range(2495):  # 2500 - 5 sample farmers
+    for i in range(2495):  # 2500 - 5 sample farmers
         first_name = random.choice(first_names)
         last_name = random.choice(last_names)
         email = f"{first_name.lower()}.{last_name.lower()}.{i}.demo@fictitious.com"

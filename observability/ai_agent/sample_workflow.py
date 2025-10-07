@@ -12,7 +12,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
-from main import AgentConfig, AIIncidentAgent
+from .main import AgentConfig, AIIncidentAgent
 
 # Setup logging
 logging.basicConfig(

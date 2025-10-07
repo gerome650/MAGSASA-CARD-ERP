@@ -22,7 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
-def run_sanity_check(_args):
+def run_sanity_check(args):
     """Run the comprehensive sanity check."""
     from scripts.sanity_check_notion import main as sanity_check_main
 
@@ -53,7 +53,7 @@ def run_validate(_args):
         sys.argv = original_argv
 
 
-def run_sync(_args):
+def run_sync(args):
     """Run the weekly sync orchestrator."""
     from scripts.notion_weekly_sync import main as sync_main
 
@@ -85,7 +85,7 @@ def run_sync(_args):
         sys.argv = original_argv
 
 
-def create_sanity_check_parser(_):
+def create_sanity_check_parser():
     """Create parser for sanity-check command."""
     parser = argparse.ArgumentParser(
         description="Run comprehensive Notion integration sanity check",
@@ -97,7 +97,7 @@ def create_sanity_check_parser(_):
     return parser
 
 
-def create_validate_parser(_):
+def create_validate_parser():
     """Create parser for validate command."""
     parser = argparse.ArgumentParser(
         description="Validate Notion database schemas only", add_help=False
@@ -105,7 +105,7 @@ def create_validate_parser(_):
     return parser
 
 
-def create_sync_parser(_):
+def create_sync_parser():
     """Create parser for sync command."""
     parser = argparse.ArgumentParser(
         description="Run Notion sync operations", add_help=False
@@ -135,7 +135,7 @@ def create_sync_parser(_):
     return parser
 
 
-def print_help(_):
+def print_help():
     """Print comprehensive help message."""
     help_text = """
 Stage 7.3.1 - Unified Notion CLI
@@ -233,7 +233,7 @@ For more help on a specific command:
     print(help_text)
 
 
-def main(_):
+def main():
     """Main entry point."""
     if len(sys.argv) < 2:
         print_help()

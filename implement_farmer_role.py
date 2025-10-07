@@ -10,7 +10,7 @@ import sqlite3
 from datetime import datetime
 
 
-def hash_password(_password):
+def hash_password(password):
     """Hash password using SHA-256"""
     return hashlib.sha256(password.encode()).hexdigest()
 
@@ -81,7 +81,7 @@ def create_farmer_role_and_users(_):
         ]
 
         # Add permissions to database
-        for _module, action, description in farmer_permissions:
+        for module, action, description in farmer_permissions:
             cursor.execute(
                 """
                 INSERT OR IGNORE INTO permissions (module, action, description)
@@ -92,7 +92,7 @@ def create_farmer_role_and_users(_):
 
         # 3. Assign permissions to Farmer role
         print("\n🔗 Step 3: Assigning permissions to Farmer role...")
-        for _module, action, description in farmer_permissions:
+        for module, action, _description in farmer_permissions:
             # Get permission ID
             cursor.execute(
                 """
@@ -123,7 +123,7 @@ def create_farmer_role_and_users(_):
         existing_farmers = cursor.fetchall()
 
         demo_farmers = []
-        for _i, (farmer_id, farmer_name, mobile) in enumerate(existing_farmers):
+        for i, (farmer_id, farmer_name, mobile) in enumerate(existing_farmers):
             # Create username from farmer name (simplified)
             username = farmer_name.lower().replace(" ", "").replace(".", "")[:15]
             if len(username) < 5:
@@ -140,7 +140,9 @@ def create_farmer_role_and_users(_):
                 }
             )
 
-# Add additional demo farmers if we don't have enough and if len(demo_farmers) < 3:
+        # Add additional demo farmers if we don't have enough
+        if len(demo_farmers) < 3:
+            additional_farmers = [
                 {
                     "username": "maria_santos",
                     "password": "farmer123",
@@ -170,7 +172,7 @@ def create_farmer_role_and_users(_):
 
         # Create user accounts for farmers
         created_users = 0
-        for _farmer_data in demo_farmers[:5]:  # Limit to 5 demo farmers
+        for farmer_data in demo_farmers[:5]:  # Limit to 5 demo farmers
             try:
                 # Split full name into first and last name
                 name_parts = farmer_data["full_name"].split(" ", 1)
@@ -219,7 +221,7 @@ def create_farmer_role_and_users(_):
         print(f"✅ Farmer role created with {len(farmer_permissions)} permissions")
         print(f"✅ {created_users} demo farmer accounts created")
         print("\n👨‍🌾 Demo Farmer Credentials:")
-        for _farmer_data in demo_farmers[:created_users]:
+        for farmer_data in demo_farmers[:created_users]:
             print(
                 f"   • Username: {farmer_data['username']} | Password: {farmer_data['password']}"
             )

@@ -1,0 +1,234 @@
+# 🛡️ MAGSASA-CARD ERP - Merge Policy & Governance Configuration
+# This file defines the quality gates, enforcement rules, and CI/CD policies
+# for maintaining enterprise-grade code quality standards.
+
+version: "1.0.0"
+enforcement_mode: "strict"  # Options: strict, warn, disabled
+fail_on_violation: true
+
+# 📊 Code Coverage Requirements
+coverage:
+  enabled: true
+  minimum: 85  # Hard fail below this
+  warning: 90  # Warning if below this
+  target: 95   # Aspirational target
+  dev_mode: true  # When true, coverage below minimum will warn locally but not fail (CI still enforces)
+  measurement: "line"  # Options: line, branch, both
+  exclude_patterns:
+    - "tests/*"
+    - "scripts/*"
+    - "migrations/*"
+    - "**/test_*.py"
+    - "**/__pycache__/*"
+  report_formats:
+    - "xml"
+    - "html"
+    - "json"
+  trend_tracking:
+    enabled: true
+    history_size: 10
+    sparkline: true
+
+# 🧹 Linting & Formatting
+linting:
+  enabled: true
+  tools:
+    ruff:
+      enabled: true
+      max_violations: 0
+      config: "pyproject.toml"
+    black:
+      enabled: true
+      check_mode: true
+      config: "pyproject.toml"
+    mypy:
+      enabled: true
+      strict: false
+      config: "mypy.ini"
+  auto_fix: false  # Only check, don't auto-fix in CI
+
+# 🧪 Test Requirements
+testing:
+  enabled: true
+  minimum_pass_rate: 100  # All tests must pass
+  required_test_types:
+    - "unit"
+    - "integration"
+  coverage_per_module:
+    enabled: false  # Future enhancement
+    minimum: 80
+  performance_tests:
+    enabled: false  # Future enhancement
+    max_regression: 10  # percent
+
+# 🌿 Branch Protection
+branch_protection:
+  enabled: true
+  protected_branches:
+    - "main"
+    - "master"
+    - "production"
+  require_pull_request: true
+  require_reviews: 1
+  require_status_checks: true
+  required_checks:
+    - "lint-and-format"
+    - "tests-and-coverage"
+    - "policy-check"
+  allow_force_push: false
+  allow_deletions: false
+
+# 📝 PR Metadata Requirements
+pull_request:
+  require_description: true
+  min_description_length: 50
+  require_labels: true
+  required_labels: []  # Empty = any label OK
+  allowed_labels:
+    - "bug"
+    - "feature"
+    - "enhancement"
+    - "documentation"
+    - "breaking-change"
+    - "hotfix"
+    - "refactor"
+    - "ci-cd"
+  require_changelog: false  # Future enhancement
+  require_issue_link: false  # Future enhancement
+
+# 👥 Reviewer Requirements
+reviews:
+  enabled: true
+  minimum_reviewers: 1
+  require_code_owner_review: false
+  dismiss_stale_reviews: true
+  require_approval_before_merge: true
+  allowed_reviewers: []  # Empty = anyone can review
+
+# 📢 Slack Notifications
+slack:
+  enabled: true
+  webhook_env_var: "SLACK_WEBHOOK_URL"
+  mention_pr_author: true
+  mention_reviewers: false
+  channels:
+    default: "#ci-cd-notifications"
+    critical: "#alerts"
+  events:
+    - "pr_opened"
+    - "pr_merged"
+    - "ci_failure"
+    - "coverage_drop"
+    - "policy_violation"
+  include_metrics:
+    - "coverage"
+    - "coverage_trend"
+    - "merge_score"
+    - "test_results"
+    - "lint_results"
+
+# 🎯 Merge Readiness Scoring
+merge_score:
+  enabled: true
+  passing_threshold: 80  # Minimum score to allow merge
+  weights:
+    coverage: 30
+    tests_passing: 30
+    linting: 20
+    reviews: 15
+    documentation: 5
+  components:
+    coverage:
+      max_score: 100
+      calculation: "linear"  # (actual/target) * 100
+    tests_passing:
+      max_score: 100
+      calculation: "percentage"  # (passed/total) * 100
+    linting:
+      max_score: 100
+      penalty_per_violation: 5
+    reviews:
+      max_score: 100
+      score_per_review: 50
+    documentation:
+      max_score: 100
+      has_description: 50
+      has_changelog: 50
+
+# 🚨 Alert Thresholds
+alerts:
+  coverage_drop:
+    enabled: true
+    threshold: 5  # Alert if coverage drops by 5% or more
+    severity: "warning"
+  test_failures:
+    enabled: true
+    threshold: 1  # Alert on any test failure
+    severity: "critical"
+  lint_violations:
+    enabled: true
+    threshold: 10
+    severity: "warning"
+
+# 🔧 Auto-remediation
+auto_remediation:
+  enabled: false  # Future enhancement
+  actions:
+    format_code: false
+    update_dependencies: false
+    generate_changelog: false
+
+# 📈 Metrics & Reporting
+metrics:
+  enabled: true
+  dashboard_url: ""  # Future enhancement
+  export_formats:
+    - "json"
+    - "markdown"
+  historical_data:
+    enabled: true
+    retention_days: 90
+
+# 🎨 Badge Generation
+badges:
+  enabled: true
+  types:
+    - "coverage"
+    - "tests"
+    - "quality"
+  output_dir: "badges"
+  auto_update_readme: true
+
+# 🔐 Security Scanning
+security:
+  enabled: false  # Future enhancement
+  tools:
+    - "bandit"
+    - "safety"
+  fail_on_high_severity: true
+  fail_on_medium_severity: false
+
+# 📦 Dependency Management
+dependencies:
+  enabled: false  # Future enhancement
+  check_outdated: false
+  check_vulnerabilities: false
+  auto_update: false
+
+# 🏷️ Metadata
+metadata:
+  project_name: "MAGSASA-CARD ERP"
+  team: "Platform Engineering"
+  owner: "@platform-team"
+  documentation_url: "https://github.com/your-org/MAGSASA-CARD-ERP/wiki"
+  support_channel: "#platform-support"
+
+# 📜 Custom Rules (Extensible)
+custom_rules:
+  enabled: false
+  rules: []
+  # Example:
+  # - name: "no_print_statements"
+  #   pattern: "^\\s*print\\("
+  #   message: "Use logging instead of print statements"
+  #   severity: "warning"

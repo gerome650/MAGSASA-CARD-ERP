@@ -68,7 +68,9 @@ def should_suppress_alert(alert_data: dict[str, Any]) -> bool:
     with suppression_lock:
         current_time = time.time()
 
-# Check if alert is already suppressed and if suppression_key in alert_suppression:
+        # Check if alert is already suppressed
+        if suppression_key in alert_suppression:
+            suppress_until = alert_suppression[suppression_key]
             if current_time < suppress_until:
                 return True
 
@@ -205,7 +207,7 @@ def webhook_pagerduty(_):
     return handle_webhook(request, "pagerduty")
 
 
-def handle_webhook(_request_obj, _endpoint_type: str):
+def handle_webhook(request_obj, endpoint_type: str):
     """
     Handle incoming webhook requests.
 
@@ -234,7 +236,7 @@ def handle_webhook(_request_obj, _endpoint_type: str):
         results = []
         alerts = data.get("alerts", [])
 
-        for _alert in alerts:
+        for alert in alerts:
             alert_result = process_alert(alert)
             results.append(
                 {
@@ -336,7 +338,7 @@ def test_webhook(_):
     )
 
 
-def signal_handler(_signum, _frame):
+def signal_handler(signum, _frame):
     """Handle shutdown signals gracefully"""
     logger.info(f"Received signal {signum}, shutting down gracefully...")
     sys.exit(0)
@@ -380,12 +382,14 @@ def start_webhook_server(host="0.0.0.0", port=5001, debug=False):
 if __name__ == "__main__":
     # Initialize components
     try:
-# Initialize annotation manager if not already done and if annotation_manager is None:
+        # Initialize annotation manager if not already done
+        if annotation_manager is None:
             api_key = os.getenv("GRAFANA_API_KEY", "your-api-key")
 
             if api_key != "your-api-key":
                 from ..dashboards.annotations import initialize_annotation_manager
 
+                grafana_url = os.getenv("GRAFANA_URL", "http://localhost:3000")
                 initialize_annotation_manager(grafana_url, api_key)
                 logger.info("Annotation manager initialized")
             else:

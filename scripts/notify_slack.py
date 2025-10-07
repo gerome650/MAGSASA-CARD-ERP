@@ -27,6 +27,7 @@ class SlackNotifier:
         failing_check: str,
         logs_url: str | None = None,
         pr_url: str | None = None,
+        pr_author: str | None = None,
     ) -> bool:
         """
         Send notification about preflight failure.
@@ -37,17 +38,24 @@ class SlackNotifier:
             failing_check: Description of failing check
             logs_url: Optional URL to logs
             pr_url: Optional URL to pull request
+            pr_author: PR author username (from PR_AUTHOR env var)
 
         Returns:
             True if notification sent successfully, False otherwise
         """
         try:
+            # Get PR author from environment if not provided
+            if not pr_author:
+                pr_author = os.getenv("PR_AUTHOR", "unknown")
+
             # Build attachments with failure details
+            author_mention = f"@{pr_author}" if pr_author != "unknown" else "PR author"
+
             attachments = [
                 {
                     "color": "danger",
-                    "title": "❌ Preflight Check Failed",
-                    "text": f"**Check:** {failing_check}",
+                    "title": f"❌ Preflight Check Failed - {author_mention}",
+                    "text": f"**Check:** {failing_check}\n⚠️ **{author_mention}** — Please fix the failing checks.",
                     "fields": [
                         {
                             "title": "Branch",
@@ -57,6 +65,11 @@ class SlackNotifier:
                         {
                             "title": "Commit",
                             "value": commit_sha[:8],
+                            "short": True,
+                        },
+                        {
+                            "title": "Author",
+                            "value": author_mention,
                             "short": True,
                         },
                         {
@@ -93,7 +106,7 @@ class SlackNotifier:
 
             # Build payload
             payload = {
-                "text": f"🚨 Preflight FAILED on *{branch}*",
+                "text": f"🚨 Preflight FAILED on *{branch}* by {author_mention}",
                 "attachments": attachments,
                 "channel": os.getenv("SLACK_CHANNEL", "#ci-cd"),
                 "username": "CI/CD Bot",
@@ -126,6 +139,7 @@ class SlackNotifier:
         commit_sha: str,
         checks_passed: int,
         total_checks: int,
+        pr_author: str | None = None,
     ) -> bool:
         """
         Send notification about successful preflight.
@@ -135,17 +149,24 @@ class SlackNotifier:
             commit_sha: Git commit SHA
             checks_passed: Number of checks that passed
             total_checks: Total number of checks
+            pr_author: PR author username (from PR_AUTHOR env var)
 
         Returns:
             True if notification sent successfully, False otherwise
         """
         try:
+            # Get PR author from environment if not provided
+            if not pr_author:
+                pr_author = os.getenv("PR_AUTHOR", "unknown")
+
+            author_mention = f"@{pr_author}" if pr_author != "unknown" else "PR author"
+
             payload = {
-                "text": f"✅ Preflight PASSED on *{branch}*",
+                "text": f"✅ Preflight PASSED on *{branch}* by {author_mention}",
                 "attachments": [
                     {
                         "color": "good",
-                        "title": "All Checks Passed",
+                        "title": f"All Checks Passed - Great work {author_mention}!",
                         "text": f"**{checks_passed}/{total_checks}** checks passed successfully",
                         "fields": [
                             {
@@ -156,6 +177,11 @@ class SlackNotifier:
                             {
                                 "title": "Commit",
                                 "value": commit_sha[:8],
+                                "short": True,
+                            },
+                            {
+                                "title": "Author",
+                                "value": author_mention,
                                 "short": True,
                             },
                             {

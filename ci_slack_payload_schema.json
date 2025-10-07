@@ -1,0 +1,293 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CI Slack Notification Payload Schema",
+  "description": "JSON Schema for validating CI notification Slack Block Kit messages",
+  "type": "object",
+  "required": ["text", "blocks"],
+  "properties": {
+    "text": {
+      "type": "string",
+      "description": "Fallback text for the notification",
+      "pattern": "^(🚨 Merge Gate Failed|🎉 Merge Gate Passed)"
+    },
+    "blocks": {
+      "type": "array",
+      "description": "Array of Block Kit blocks",
+      "minItems": 4,
+      "maxItems": 10,
+      "items": {
+        "$ref": "#/definitions/block"
+      }
+    }
+  },
+  "definitions": {
+    "block": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["header", "section", "actions", "context"],
+          "description": "Type of block"
+        },
+        "text": {
+          "$ref": "#/definitions/text_object",
+          "description": "Text content for the block"
+        },
+        "fields": {
+          "type": "array",
+          "description": "Array of text fields (section blocks only)",
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/definitions/text_object"
+          }
+        },
+        "elements": {
+          "type": "array",
+          "description": "Array of interactive elements",
+          "maxItems": 5,
+          "items": {
+            "$ref": "#/definitions/element"
+          }
+        }
+      }
+    },
+    "text_object": {
+      "type": "object",
+      "required": ["type", "text"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["plain_text", "mrkdwn"],
+          "description": "Type of text formatting"
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 3000,
+          "description": "Text content"
+        },
+        "emoji": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to show emoji"
+        }
+      }
+    },
+    "element": {
+      "type": "object",
+      "required": ["type", "text", "url"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["button"],
+          "description": "Type of interactive element"
+        },
+        "text": {
+          "$ref": "#/definitions/text_object",
+          "description": "Text content for the element"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL for external links (button elements)"
+        },
+        "style": {
+          "type": "string",
+          "enum": ["primary", "danger"],
+          "description": "Button style"
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "text": "🚨 Merge Gate Failed - PR #42",
+      "blocks": [
+        {
+          "type": "header",
+          "text": {
+            "type": "plain_text",
+            "text": "🚨 Merge Gate Failed 🚨",
+            "emoji": true
+          }
+        },
+        {
+          "type": "section",
+          "fields": [
+            {
+              "type": "mrkdwn",
+              "text": "*📁 Repository:*\nmagsasa-ci-template"
+            },
+            {
+              "type": "mrkdwn",
+              "text": "*🔀 PR:*\n#42 - Refactor policy loader"
+            },
+            {
+              "type": "mrkdwn",
+              "text": "*👤 Author:*\n@gerome"
+            },
+            {
+              "type": "mrkdwn",
+              "text": "*🌿 Branch:*\nfeature/coverage-improvements"
+            }
+          ]
+        },
+        {
+          "type": "section",
+          "text": {
+            "type": "mrkdwn",
+            "text": "*❌ Failure Reasons:*\n• 📊 Coverage below 85.0% threshold\n• 🧹 Code quality issues (linting/formatting)"
+          }
+        },
+        {
+          "type": "section",
+          "fields": [
+            {
+              "type": "mrkdwn",
+              "text": "*📊 Coverage:*\n83.4% (1.6% below threshold)"
+            },
+            {
+              "type": "mrkdwn",
+              "text": "*🎯 Required:*\n85.0%"
+            }
+          ]
+        },
+        {
+          "type": "actions",
+          "elements": [
+            {
+              "type": "button",
+              "text": {
+                "type": "plain_text",
+                "text": "🔗 View PR",
+                "emoji": true
+              },
+              "url": "https://github.com/gerome/magsasa-ci-template/pull/42",
+              "style": "primary"
+            },
+            {
+              "type": "button",
+              "text": {
+                "type": "plain_text",
+                "text": "📊 Coverage Report",
+                "emoji": true
+              },
+              "url": "https://github.com/gerome/magsasa-ci-template/pull/42/checks"
+            }
+          ]
+        },
+        {
+          "type": "section",
+          "text": {
+            "type": "mrkdwn",
+            "text": "⚠️ <@gerome> Please address the issues above before this PR can be merged."
+          }
+        },
+        {
+          "type": "context",
+          "elements": [
+            {
+              "type": "mrkdwn",
+              "text": "🤖 Automated by Merge Gate • Coverage enforcement active"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "text": "🎉 Merge Gate Passed - PR #43",
+      "blocks": [
+        {
+          "type": "header",
+          "text": {
+            "type": "plain_text",
+            "text": "🎉 Merge Gate Passed! 🎉",
+            "emoji": true
+          }
+        },
+        {
+          "type": "section",
+          "fields": [
+            {
+              "type": "mrkdwn",
+              "text": "*📁 Repository:*\nmagsasa-ci-template"
+            },
+            {
+              "type": "mrkdwn",
+              "text": "*🔀 PR:*\n#43 - Add comprehensive test coverage"
+            },
+            {
+              "type": "mrkdwn",
+              "text": "*👤 Author:*\n@gerome"
+            },
+            {
+              "type": "mrkdwn",
+              "text": "*🌿 Branch:*\nfeature/test-coverage"
+            }
+          ]
+        },
+        {
+          "type": "section",
+          "fields": [
+            {
+              "type": "mrkdwn",
+              "text": "*📊 Coverage:*\n92.3% ✅"
+            },
+            {
+              "type": "mrkdwn",
+              "text": "*🎯 Required:*\n85.0%"
+            },
+            {
+              "type": "mrkdwn",
+              "text": "*📈 Merge Score:*\n95.2%"
+            },
+            {
+              "type": "mrkdwn",
+              "text": "*✅ All Checks:*\nPASSED"
+            }
+          ]
+        },
+        {
+          "type": "actions",
+          "elements": [
+            {
+              "type": "button",
+              "text": {
+                "type": "plain_text",
+                "text": "🔗 View PR",
+                "emoji": true
+              },
+              "url": "https://github.com/gerome/magsasa-ci-template/pull/43",
+              "style": "primary"
+            },
+            {
+              "type": "button",
+              "text": {
+                "type": "plain_text",
+                "text": "📊 Coverage Report",
+                "emoji": true
+              },
+              "url": "https://github.com/gerome/magsasa-ci-template/pull/43/checks"
+            }
+          ]
+        },
+        {
+          "type": "section",
+          "text": {
+            "type": "mrkdwn",
+            "text": "🎉 <@gerome> Great job! This PR meets all requirements and is ready to merge."
+          }
+        },
+        {
+          "type": "context",
+          "elements": [
+            {
+              "type": "mrkdwn",
+              "text": "🤖 Automated by Merge Gate • All quality checks passed"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

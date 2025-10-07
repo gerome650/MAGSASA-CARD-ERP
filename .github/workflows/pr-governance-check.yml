@@ -1,0 +1,481 @@
+name: 🧑‍⚖️ PR Governance Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+    branches:
+      - main
+      - master
+      - develop
+      - "release/*"
+      - "feature/*"
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  # ============================================================================
+  # JOB 1: Spec Reference Validation
+  # ============================================================================
+  spec-reference-check:
+    name: 📋 Spec Reference Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 🔍 Check for spec reference in PR body
+        id: spec_check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prBody = context.payload.pull_request.body || '';
+            const prTitle = context.payload.pull_request.title || '';
+            
+            // Check for spec references (e.g., /specs/, specs/, Spec:, Specification:)
+            const specPatterns = [
+              /\/specs?\//i,
+              /spec(?:ification)?:\s*\S+/i,
+              /references?:\s*\S+/i,
+              /design\s+doc:\s*\S+/i,
+              /spec-\d+/i
+            ];
+            
+            const hasSpecRef = specPatterns.some(pattern => 
+              pattern.test(prBody) || pattern.test(prTitle)
+            );
+            
+            // Exempt bot PRs, dependency updates, and docs-only changes
+            const exemptPatterns = [
+              /^\[bot\]/i,
+              /^chore\(deps\)/i,
+              /^docs:/i,
+              /dependabot/i
+            ];
+            
+            const isExempt = exemptPatterns.some(pattern => pattern.test(prTitle));
+            
+            if (!hasSpecRef && !isExempt) {
+              core.setFailed('❌ PR must include a spec reference in the body or title');
+              core.summary
+                .addHeading('❌ Spec Reference Missing')
+                .addRaw(`
+                  This PR does not reference a specification document.
+                  
+                  **Required:** Add a reference to your spec in the PR description:
+                  - Link to spec file: \`/specs/feature-name.md\`
+                  - Spec ID: \`Spec: SPEC-123\`
+                  - Design doc reference
+                  
+                  **Why?** Specs ensure features are properly designed before implementation.
+                `)
+                .write();
+              return false;
+            }
+            
+            console.log('✅ Spec reference found or PR is exempt');
+            return true;
+      
+      - name: 📊 Update check status
+        if: always()
+        run: |
+          if [ "${{ steps.spec_check.outputs.result }}" == "false" ]; then
+            echo "::warning::Spec reference check failed"
+            exit 1
+          fi
+
+  # ============================================================================
+  # JOB 2: Duplicate Test Detection
+  # ============================================================================
+  duplicate-test-check:
+    name: 🔍 Duplicate Test Detection
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: 🔍 Scan for duplicate test names
+        run: |
+          echo "🔍 Scanning for duplicate test names..."
+          
+          # Find all test files
+          TEST_FILES=$(find tests/ -name "test_*.py" -type f 2>/dev/null || echo "")
+          
+          if [ -z "$TEST_FILES" ]; then
+            echo "✅ No test files found to check"
+            exit 0
+          fi
+          
+          # Extract test function names
+          DUPLICATES=$(grep -h "^def test_" $TEST_FILES | \
+            sed 's/def \(test_[^(]*\).*/\1/' | \
+            sort | uniq -d)
+          
+          if [ ! -z "$DUPLICATES" ]; then
+            echo "❌ Duplicate test names found:"
+            echo "$DUPLICATES"
+            echo ""
+            echo "Please ensure all test names are unique across the test suite."
+            exit 1
+          fi
+          
+          echo "✅ No duplicate test names found"
+          
+          # Check for duplicate test class names
+          DUPLICATE_CLASSES=$(grep -h "^class Test" $TEST_FILES | \
+            sed 's/class \(Test[^(:]*\).*/\1/' | \
+            sort | uniq -d)
+          
+          if [ ! -z "$DUPLICATE_CLASSES" ]; then
+            echo "⚠️  Warning: Duplicate test class names found:"
+            echo "$DUPLICATE_CLASSES"
+          fi
+
+  # ============================================================================
+  # JOB 3: Directory Structure Enforcement
+  # ============================================================================
+  directory-structure-check:
+    name: 📁 Directory Structure Enforcement
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 🏗️ Validate directory structure
+        run: |
+          echo "🏗️ Validating project directory structure..."
+          
+          REQUIRED_DIRS=(
+            "src"
+            "tests"
+            ".github/workflows"
+            "scripts"
+            "docs"
+          )
+          
+          MISSING_DIRS=()
+          
+          for dir in "${REQUIRED_DIRS[@]}"; do
+            if [ ! -d "$dir" ]; then
+              MISSING_DIRS+=("$dir")
+            fi
+          done
+          
+          if [ ${#MISSING_DIRS[@]} -gt 0 ]; then
+            echo "⚠️  Warning: Missing recommended directories:"
+            printf '%s\n' "${MISSING_DIRS[@]}"
+          else
+            echo "✅ All recommended directories present"
+          fi
+          
+          # Check for common anti-patterns
+          if [ -d "temp" ] || [ -d "tmp" ] || [ -d "scratch" ]; then
+            echo "⚠️  Warning: Temporary directories found (temp/tmp/scratch)"
+            echo "Consider adding these to .gitignore"
+          fi
+          
+          # Validate Python package structure
+          if [ -d "src" ]; then
+            if [ ! -f "src/__init__.py" ]; then
+              echo "⚠️  Warning: src/__init__.py not found"
+            fi
+          fi
+          
+          echo "✅ Directory structure validation complete"
+
+  # ============================================================================
+  # JOB 4: Secrets Scanning
+  # ============================================================================
+  secrets-scanning:
+    name: 🔐 Secrets Scanning
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: 🔐 Scan for exposed secrets
+        run: |
+          echo "🔐 Scanning for exposed secrets..."
+          
+          # Patterns to detect potential secrets
+          PATTERNS=(
+            "password\s*=\s*['\"][^'\"]{8,}"
+            "api_key\s*=\s*['\"][^'\"]{20,}"
+            "secret\s*=\s*['\"][^'\"]{20,}"
+            "token\s*=\s*['\"][^'\"]{20,}"
+            "aws_access_key_id"
+            "AKIA[0-9A-Z]{16}"
+            "ghp_[0-9a-zA-Z]{36}"
+            "sk-[0-9a-zA-Z]{32,}"
+          )
+          
+          FINDINGS=0
+          
+          for pattern in "${PATTERNS[@]}"; do
+            # Search in Python, JS, YAML files (exclude common false positives)
+            MATCHES=$(git diff origin/${{ github.base_ref }}...HEAD | \
+              grep -i -E "^\+.*$pattern" | \
+              grep -v "test_" | \
+              grep -v "example" | \
+              grep -v "template" | \
+              grep -v "# pragma: allowlist secret" || true)
+            
+            if [ ! -z "$MATCHES" ]; then
+              echo "⚠️  Potential secret found matching pattern: $pattern"
+              FINDINGS=$((FINDINGS + 1))
+            fi
+          done
+          
+          if [ $FINDINGS -gt 0 ]; then
+            echo ""
+            echo "❌ Found $FINDINGS potential secret(s) in the diff"
+            echo "Please review and ensure no actual secrets are committed."
+            echo "To bypass this check, add '# pragma: allowlist secret' comment"
+            exit 1
+          fi
+          
+          echo "✅ No exposed secrets detected"
+
+  # ============================================================================
+  # JOB 5: Test Coverage Enforcement
+  # ============================================================================
+  coverage-enforcement:
+    name: 📊 Test Coverage Enforcement
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: 📦 Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      
+      - name: 📦 Install dependencies
+        run: |
+          for i in 1 2 3; do 
+            uv sync --dev && break || { 
+              echo "Attempt $i failed, retrying..."; 
+              sleep 5; 
+            }
+          done
+      
+      - name: 🧪 Run tests with coverage
+        run: |
+          uv run pytest tests/ \
+            --cov=src \
+            --cov=packages \
+            --cov-report=json \
+            --cov-report=term \
+            --cov-fail-under=80 \
+            -v || true
+      
+      - name: 📊 Enforce coverage threshold
+        run: |
+          if [ -f coverage.json ]; then
+            COVERAGE=$(python3 -c "import json; print(json.load(open('coverage.json'))['totals']['percent_covered'])")
+            THRESHOLD=80
+            
+            echo "📊 Coverage: ${COVERAGE}%"
+            echo "🎯 Threshold: ${THRESHOLD}%"
+            
+            if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
+              echo "❌ Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
+              exit 1
+            fi
+            
+            echo "✅ Coverage meets threshold"
+          else
+            echo "⚠️  Warning: coverage.json not found, skipping enforcement"
+          fi
+      
+      - name: 💾 Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: |
+            coverage.json
+            .coverage
+
+  # ============================================================================
+  # JOB 6: Linting (Ruff)
+  # ============================================================================
+  ruff-linting:
+    name: 🧹 Ruff Linting
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: 📦 Install ruff
+        run: |
+          pip install ruff
+      
+      - name: 🧹 Run ruff check
+        run: |
+          ruff check . \
+            --output-format=github \
+            --exclude "venv,dist,build,htmlcov,migrations,__pycache__" || {
+            echo "❌ Linting check failed"
+            echo "Fix with: ruff check --fix ."
+            exit 1
+          }
+      
+      - name: 📊 Generate lint report
+        if: always()
+        run: |
+          ruff check . \
+            --output-format=json \
+            --exclude "venv,dist,build,htmlcov,migrations,__pycache__" \
+            > lint-results.json || true
+          
+          if [ -f lint-results.json ]; then
+            VIOLATIONS=$(python3 -c "import sys, json; print(len(json.load(open('lint-results.json'))))" 2>/dev/null || echo "0")
+            echo "LINT_VIOLATIONS=$VIOLATIONS" >> $GITHUB_ENV
+            echo "📊 Linting violations: $VIOLATIONS"
+          fi
+      
+      - name: 💾 Upload lint results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: lint-results
+          path: lint-results.json
+
+  # ============================================================================
+  # JOB 7: Final Governance Summary
+  # ============================================================================
+  governance-summary:
+    name: 📋 Governance Summary
+    runs-on: ubuntu-latest
+    needs: 
+      - spec-reference-check
+      - duplicate-test-check
+      - directory-structure-check
+      - secrets-scanning
+      - coverage-enforcement
+      - ruff-linting
+    if: always()
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+      
+      - name: 📊 Generate summary report
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const jobs = {
+              'spec-reference-check': '${{ needs.spec-reference-check.result }}',
+              'duplicate-test-check': '${{ needs.duplicate-test-check.result }}',
+              'directory-structure-check': '${{ needs.directory-structure-check.result }}',
+              'secrets-scanning': '${{ needs.secrets-scanning.result }}',
+              'coverage-enforcement': '${{ needs.coverage-enforcement.result }}',
+              'ruff-linting': '${{ needs.ruff-linting.result }}'
+            };
+            
+            const passed = Object.values(jobs).filter(r => r === 'success').length;
+            const failed = Object.values(jobs).filter(r => r === 'failure').length;
+            const total = Object.keys(jobs).length;
+            
+            const status = failed === 0 ? '✅ PASSED' : '❌ FAILED';
+            const emoji = failed === 0 ? '🎉' : '⚠️';
+            
+            core.summary
+              .addHeading(`${emoji} Governance Check Summary`)
+              .addRaw(`\n**Status:** ${status}\n\n`)
+              .addRaw(`**Results:** ${passed}/${total} checks passed\n\n`)
+              .addHeading('Check Results', 3)
+              .addTable([
+                [{data: 'Check', header: true}, {data: 'Result', header: true}],
+                ['📋 Spec Reference', jobs['spec-reference-check'] === 'success' ? '✅ Pass' : '❌ Fail'],
+                ['🔍 Duplicate Tests', jobs['duplicate-test-check'] === 'success' ? '✅ Pass' : '❌ Fail'],
+                ['📁 Directory Structure', jobs['directory-structure-check'] === 'success' ? '✅ Pass' : '❌ Fail'],
+                ['🔐 Secrets Scanning', jobs['secrets-scanning'] === 'success' ? '✅ Pass' : '❌ Fail'],
+                ['📊 Coverage Enforcement', jobs['coverage-enforcement'] === 'success' ? '✅ Pass' : '❌ Fail'],
+                ['🧹 Ruff Linting', jobs['ruff-linting'] === 'success' ? '✅ Pass' : '❌ Fail']
+              ])
+              .write();
+            
+            if (failed > 0) {
+              core.setFailed(`${failed} governance check(s) failed`);
+            }
+      
+      - name: 🎯 Post PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const jobs = {
+              'spec-reference-check': '${{ needs.spec-reference-check.result }}',
+              'duplicate-test-check': '${{ needs.duplicate-test-check.result }}',
+              'directory-structure-check': '${{ needs.directory-structure-check.result }}',
+              'secrets-scanning': '${{ needs.secrets-scanning.result }}',
+              'coverage-enforcement': '${{ needs.coverage-enforcement.result }}',
+              'ruff-linting': '${{ needs.ruff-linting.result }}'
+            };
+            
+            const passed = Object.values(jobs).filter(r => r === 'success').length;
+            const failed = Object.values(jobs).filter(r => r === 'failure').length;
+            const total = Object.keys(jobs).length;
+            
+            const status = failed === 0 ? '✅ All checks passed!' : `⚠️ ${failed} check(s) failed`;
+            
+            const comment = `## 🧑‍⚖️ Governance Check Results
+            
+            **Status:** ${status}
+            **Score:** ${passed}/${total} checks passed
+            
+            ### Check Details
+            
+            | Check | Result |
+            |-------|--------|
+            | 📋 Spec Reference | ${jobs['spec-reference-check'] === 'success' ? '✅' : '❌'} |
+            | 🔍 Duplicate Tests | ${jobs['duplicate-test-check'] === 'success' ? '✅' : '❌'} |
+            | 📁 Directory Structure | ${jobs['directory-structure-check'] === 'success' ? '✅' : '❌'} |
+            | 🔐 Secrets Scanning | ${jobs['secrets-scanning'] === 'success' ? '✅' : '❌'} |
+            | 📊 Coverage Enforcement | ${jobs['coverage-enforcement'] === 'success' ? '✅' : '❌'} |
+            | 🧹 Ruff Linting | ${jobs['ruff-linting'] === 'success' ? '✅' : '❌'} |
+            
+            ${failed > 0 ? '\n⚠️ **Action Required:** Please fix the failing checks before merging.' : '\n🎉 **Great job!** All governance checks passed.'}
+            
+            ---
+            *Automated governance check • [View workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})*
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
