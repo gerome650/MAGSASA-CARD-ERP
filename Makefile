@@ -5,7 +5,21 @@ PYTEST ?= pytest
 BLACK ?= black
 RUFF ?= ruff
 
-.PHONY: help setup install dev-install lint format test quick-test coverage-local test-fast coverage-ci run run-orchestrator mcp-check agent-run-all clean build ci-preflight notify-test coverage-report push-workflow release-workflows resolve-conflicts safe-commit ensure-hooks hygiene coverage-check validate-payload validate-all fix-all ci validate-schema
+.PHONY: help setup install dev-install install-dev check-deps lint format fix-lint \
+	test test-setup test-observability test-coverage quick-test coverage-local test-fast coverage-ci \
+	run run-orchestrator mcp-check agent-run-all mcp-demo clean clean-venv build \
+	ci-preflight preflight-full preflight-quick notify-test coverage-report coverage-smoke pre-commit \
+	ci-debug verify-ci security-scan ci-health \
+	push-workflow release-workflows resolve-conflicts \
+	safe-commit ensure-hooks hygiene coverage-check \
+	validate-payload validate-all validate-schema validate-all-enhanced fix-all fix-all-enhanced ci ci-enhanced \
+	pre-commit-check pre-commit-full post-push-check validate-policy test-policy-loader \
+	install-git-hooks remove-git-hooks pre-push-local release-check \
+	coverage-trend coverage-badge install-governance-hooks uninstall-governance-hooks \
+	enforce-coverage governance-dev check-policy calculate-merge-score notify-slack-enhanced verify-all \
+	governance-report governance-report-dev policy-verify policy-check \
+	hooks-install hooks-verify hooks-uninstall secrets-check governance-status governance-reset \
+	install-hooks remove-hooks safety-check
 
 # 🔧 Developer Note: PYTHONPATH Configuration
 # All test targets set PYTHONPATH=$(PWD) inline to ensure Python can resolve internal modules
@@ -120,12 +134,6 @@ hygiene: ## Run format & lint checks (black --check, ruff)
 	uv run $(BLACK) --check .
 	uv run $(RUFF) check .
 
-coverage-check: ## Run tests with coverage and enforce threshold
-	@echo "📊 Running tests with coverage (minimum $(COVERAGE_MIN)%)…"
-	@command -v $(PYTEST) >/dev/null 2>&1 || { echo "❌ pytest not found. Install with: pip install pytest pytest-cov"; exit 1; }
-	PYTHONPATH=$(PWD) uv run $(PYTEST) -q --maxfail=1 --disable-warnings --cov=. --cov-report=term-missing:skip-covered --cov-report=xml --cov-fail-under=$(COVERAGE_MIN)
-
-
 ensure-hooks: ## Configure Git to use .githooks and ensure pre-commit is executable
 	@echo "🪝 Ensuring git hooks are installed…"
 	@git config core.hooksPath .githooks
@@ -189,15 +197,40 @@ check-deps:
 	@python3 -m pip check || (echo "❌ Dependency check failed. Run: make install-dev" && exit 1)
 	@echo "✅ All dependencies OK"
 
-test:
-	@echo "🧪 Running tests with coverage..."
-	@echo "   📌 Using: -n=auto (parallel), --reruns=2 (retry flaky), --cov-fail-under=65"
-	PYTHONPATH=$(PWD) uv run pytest tests/ -v --tb=short --cov=packages --cov-report=term-missing --cov-report=html || true
+# ==================================================================================
+# 🧪 TEST AUTOMATION TASKS
+# ==================================================================================
 
+# 📦 Ensure runtime dependencies and package imports are ready before testing
+test-setup:
+	@echo "📦 Setting up test environment (auto-installing missing deps & fixing imports)..."
+	@.venv/bin/python -m pip install --quiet uvicorn fastapi || true
+	@touch observability/__init__.py
+	@touch observability/ai_agent/__init__.py
+	@touch observability/alerts/__init__.py
+	@echo "✅ Runtime dependencies installed and __init__.py files ensured."
+
+# ✅ Run the entire test suite (always runs setup first)
+test: test-setup
+	@echo "🧪 Running full test suite..."
+	@.venv/bin/python -m pytest tests/ --maxfail=1 --disable-warnings -q
+
+# 🧪 Running quick tests (no coverage)
 quick-test:
 	@echo "🧪 Running quick tests..."
 	uv run pytest tests/ -v --tb=short || true
 
+# 🔍 Focused: Run only observability-related tests (faster during development)
+test-observability: test-setup
+	@echo "🧪 Running observability tests..."
+	@.venv/bin/python -m pytest tests/observability/ --maxfail=1 --disable-warnings -q
+
+# 📈 Extended: Run with coverage reporting enabled
+test-coverage: test-setup
+	@echo "📊 Running tests with coverage..."
+	@.venv/bin/python -m pytest --cov=observability --cov-report=term-missing --disable-warnings -q
+
+# 🧪 Running local coverage on observability modules
 coverage-local:
 	@echo "🧪 Running local coverage on observability modules..."
 	PYTHONPATH=$(PWD) pytest tests/ \
@@ -208,10 +241,12 @@ coverage-local:
 		--cov-report=term-missing \
 		--cov-report=html
 
+# 🧪 Running fast tests
 test-fast:
 	@echo "🧪 Running fast tests..."
 	PYTHONPATH=$(PWD) pytest -q --disable-warnings
 
+# 🧪 Running CI coverage with strict enforcement
 coverage-ci:
 	@echo "🧪 Running CI coverage with strict enforcement..."
 	PYTHONPATH=$(PWD) pytest tests/ \
