@@ -10,8 +10,10 @@ from typing import Any
 
 try:
     import requests
-except ImportError:
-    raise ImportError("requests library not found. Install with: pip install requests")
+except ImportError as e:
+    raise ImportError(
+        "requests library not found. Install with: pip install requests"
+    ) from e
 
 
 class SlackNotifier:
@@ -28,9 +30,8 @@ class SlackNotifier:
         self.webhook_url = webhook_url or os.getenv("SLACK_WEBHOOK_URL")
         self.verbose = verbose
 
-        if not self.webhook_url:
-            if self.verbose:
-                print("⚠ SLACK_WEBHOOK_URL not configured, notifications disabled")
+        if not self.webhook_url and self.verbose:
+            print("⚠ SLACK_WEBHOOK_URL not configured, notifications disabled")
 
     def send_readiness_alert(
         self,
@@ -38,6 +39,7 @@ class SlackNotifier:
         score_data: dict[str, Any],
         failing_workflows: list[dict[str, Any]] | None = None,
         blockers: list[str] | None = None,
+        pr_author: str | None = None,
     ) -> bool:
         """
         Send readiness score alert to Slack.
@@ -47,6 +49,7 @@ class SlackNotifier:
             score_data: Detailed score breakdown
             failing_workflows: List of failing workflow information
             blockers: List of blocking issues
+            pr_author: PR author username (from PR_AUTHOR env var)
 
         Returns:
             True if notification sent successfully, False otherwise
@@ -56,49 +59,75 @@ class SlackNotifier:
                 print("⚠ Cannot send Slack notification: webhook URL not configured")
             return False
 
+        # Get PR author from environment if not provided
+        if not pr_author:
+            pr_author = os.getenv("PR_AUTHOR", "")
+
+        author_mention = f"@{pr_author}" if pr_author else ""
+
         # Determine color and urgency
         if score >= 90:
             color = "good"
             emoji = "✅"
             urgency = "INFO"
+            greeting = f"Great work {author_mention}! " if author_mention else ""
         elif score >= 80:
             color = "warning"
             emoji = "⚠️"
             urgency = "WARNING"
+            greeting = f"{author_mention} — " if author_mention else ""
         else:
             color = "danger"
             emoji = "🚨"
             urgency = "ALERT"
+            greeting = f"⚠️ {author_mention} — " if author_mention else ""
 
         # Build message
+        pretext_message = f"{emoji} *Release Readiness Update* - {urgency}"
+        if greeting:
+            pretext_message = f"{greeting}{pretext_message}"
+
+        fields = [
+            {
+                "title": "Status",
+                "value": score_data.get("status_text", "Unknown"),
+                "short": True,
+            },
+            {"title": "Target", "value": "95% for release", "short": True},
+            {
+                "title": "Core Gates",
+                "value": f"{score_data['core_passing']}/{score_data['core_total']} ({score_data['core_score']}%)",
+                "short": True,
+            },
+            {
+                "title": "Deployment",
+                "value": f"{score_data['deployment_passing']}/{score_data['deployment_total']} ({score_data['deployment_score']}%)",
+                "short": True,
+            },
+        ]
+
+        # Add author field if available
+        if author_mention:
+            fields.insert(
+                0,
+                {
+                    "title": "PR Author",
+                    "value": author_mention,
+                    "short": True,
+                },
+            )
+
         message = {
             "username": "Release Dashboard Bot",
             "icon_emoji": ":rocket:",
             "attachments": [
                 {
-                    "fallback": f"Release Readiness: {score}%",
+                    "fallback": f"Release Readiness: {score}% {f'by {author_mention}' if author_mention else ''}",
                     "color": color,
-                    "pretext": f"{emoji} *Release Readiness Update* - {urgency}",
+                    "pretext": pretext_message,
                     "title": f"v0.7.0 Release Readiness Score: {score}%",
                     "title_link": "https://github.com/MAGSASA-CARD-ERP/MAGSASA-CARD-ERP/blob/main/v0.7.0-release-checklist.md",
-                    "fields": [
-                        {
-                            "title": "Status",
-                            "value": score_data.get("status_text", "Unknown"),
-                            "short": True,
-                        },
-                        {"title": "Target", "value": "95% for release", "short": True},
-                        {
-                            "title": "Core Gates",
-                            "value": f"{score_data['core_passing']}/{score_data['core_total']} ({score_data['core_score']}%)",
-                            "short": True,
-                        },
-                        {
-                            "title": "Deployment",
-                            "value": f"{score_data['deployment_passing']}/{score_data['deployment_total']} ({score_data['deployment_score']}%)",
-                            "short": True,
-                        },
-                    ],
+                    "fields": fields,
                     "footer": "Release Dashboard Updater",
                     "footer_icon": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
                     "ts": int(datetime.now().timestamp()),
@@ -171,12 +200,15 @@ class SlackNotifier:
                 print(f"✗ Failed to send Slack notification: {e}")
             return False
 
-    def send_success_notification(self, score: float) -> bool:
+    def send_success_notification(
+        self, score: float, pr_author: str | None = None
+    ) -> bool:
         """
         Send a success notification when readiness is high.
 
         Args:
             score: Current readiness score
+            pr_author: PR author username (from PR_AUTHOR env var)
 
         Returns:
             True if sent successfully
@@ -184,10 +216,16 @@ class SlackNotifier:
         if not self.webhook_url:
             return False
 
+        # Get PR author from environment if not provided
+        if not pr_author:
+            pr_author = os.getenv("PR_AUTHOR", "")
+
+        author_mention = f"@{pr_author}" if pr_author else "team"
+
         message = {
             "username": "Release Dashboard Bot",
             "icon_emoji": ":rocket:",
-            "text": f":tada: *Great news!* Release readiness is at *{score}%* - we're ready to ship! :ship:",
+            "text": f":tada: *Great news {author_mention}!* Release readiness is at *{score}%* - we're ready to ship! :ship:",
             "attachments": [
                 {
                     "color": "good",

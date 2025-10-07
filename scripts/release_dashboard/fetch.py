@@ -10,8 +10,10 @@ from typing import Any
 try:
     from github import Auth, Github
     from github.GithubException import GithubException
-except ImportError:
-    raise ImportError("PyGithub library not found. Install with: pip install PyGithub")
+except ImportError as e:
+    raise ImportError(
+        "PyGithub library not found. Install with: pip install PyGithub"
+    ) from e
 
 
 class GitHubWorkflowFetcher:
@@ -64,7 +66,7 @@ class GitHubWorkflowFetcher:
         try:
             self.github = Github(auth=Auth.Token(self.token))
         except Exception as e:
-            raise ValueError(f"Failed to initialize GitHub client: {e}")
+            raise ValueError(f"Failed to initialize GitHub client: {e}") from e
 
         # Get repository
         if not repo_full_name:
@@ -76,13 +78,15 @@ class GitHubWorkflowFetcher:
                 print(f"✓ Connected to repository: {repo_full_name}")
         except GithubException as e:
             if e.status == 401:
-                raise ValueError("Invalid GitHub token. Please check your credentials.")
+                raise ValueError(
+                    "Invalid GitHub token. Please check your credentials."
+                ) from e
             elif e.status == 404:
                 raise ValueError(
                     f"Repository '{repo_full_name}' not found or no access."
-                )
+                ) from e
             else:
-                raise ValueError(f"Failed to access repository: {e}")
+                raise ValueError(f"Failed to access repository: {e}") from e
 
     def _detect_repo_from_git(self) -> str:
         """Detect repository name from git remote."""
@@ -104,10 +108,10 @@ class GitHubWorkflowFetcher:
                 return parts
             else:
                 raise ValueError("Could not detect GitHub repository from git remote")
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
             raise ValueError(
                 "Failed to detect repository. Not in a git repository or no remote configured."
-            )
+            ) from e
 
     def get_workflow_runs(
         self, limit: int = 10, branch: str | None = None

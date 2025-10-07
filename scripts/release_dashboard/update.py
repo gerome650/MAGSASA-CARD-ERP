@@ -37,10 +37,12 @@ class MarkdownUpdater:
                 print(f"✓ Read checklist file: {self.checklist_path}")
 
             return self.content
-        except FileNotFoundError:
-            raise FileNotFoundError(f"Checklist file not found: {self.checklist_path}")
+        except FileNotFoundError as e:
+            raise FileNotFoundError(
+                f"Checklist file not found: {self.checklist_path}"
+            ) from e
         except Exception as e:
-            raise OSError(f"Error reading checklist file: {e}")
+            raise OSError(f"Error reading checklist file: {e}") from e
 
     def write(self, content: str | None = None) -> None:
         """Write updated content to the checklist file."""
@@ -57,7 +59,7 @@ class MarkdownUpdater:
                 print(f"✓ Updated checklist file: {self.checklist_path}")
 
         except Exception as e:
-            raise OSError(f"Error writing checklist file: {e}")
+            raise OSError(f"Error writing checklist file: {e}") from e
 
     def generate_ci_snapshot(
         self, runs: list[dict[str, Any]], health: dict[str, Any] | None = None
@@ -79,8 +81,8 @@ class MarkdownUpdater:
 
 **Last Updated:** """
                 + datetime.now().strftime("%B %d, %Y at %H:%M UTC")
-                + """  
-**CI Health Status:** ⚠️ NO DATA  
+                + """
+**CI Health Status:** ⚠️ NO DATA
 
 No recent workflow runs found.
 <!-- CI_SNAPSHOT_END -->"""
@@ -155,10 +157,7 @@ No recent workflow runs found.
             commit_display = f"{commit_sha}"
 
             last_run = run.get("created_at")
-            if last_run:
-                last_run_str = last_run.strftime("%Y-%m-%d %H:%M")
-            else:
-                last_run_str = "N/A"
+            last_run_str = last_run.strftime("%Y-%m-%d %H:%M") if last_run else "N/A"
 
             workflow_name = run.get("display_name", run.get("workflow_name", "Unknown"))
 

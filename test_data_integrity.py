@@ -85,7 +85,9 @@ def test_database_testing(_):
                 },
             }
 
-            def insert_and_verify_data(_table, _test_data, _precision_fields, _expected_precision):
+            def insert_and_verify_data(
+                _table, _test_data, _precision_fields, _expected_precision
+            ):
                 """Insert test data and verify accuracy"""
                 try:
                     # Generate INSERT statement
@@ -177,7 +179,9 @@ def test_database_testing(_):
                         "message": message,
                         "field_count": len(scenario_data["test_data"]),
                         "accurate_fields": (
-sum(1 for _r in results.values() if r["accurate"]) and if results:
+                            sum(1 for _r in results.values() if r["accurate"])
+                            if results
+                            else 0
                         ),
                         "accuracy_percentage": (
                             (
@@ -374,8 +378,10 @@ sum(1 for _r in results.values() if r["accurate"]) and if results:
 
     integrity_results = test_referential_integrity()
 
-    for _test in integrity_results:
-status = "✅" if test["status"] == "PASS" else "❌" and if "integrity_percentage" in test:
+    for test in integrity_results:
+        status = "✅" if test["status"] == "PASS" else "❌"
+        if "integrity_percentage" in test:
+            print(
                 f"   {status} {test['scenario']}: {test['integrity_percentage']:.1f}% integrity"
             )
             print(
@@ -644,7 +650,7 @@ status = "✅" if test["status"] == "PASS" else "❌" and if "integrity_percenta
                                     table_data
                                 ).hexdigest()
                         except Exception:
-        original_counts[table] = 0
+                            original_counts[table] = 0
                             original_checksums[table] = ""
 
                     # Perform backup (simulate by copying database)
@@ -704,7 +710,7 @@ status = "✅" if test["status"] == "PASS" else "❌" and if "integrity_percenta
                                     table, ""
                                 )
                         except Exception:
-        backup_counts[table] = 0
+                            backup_counts[table] = 0
                             backup_checksums[table] = ""
 
                     conn_backup.close()
@@ -713,9 +719,11 @@ status = "✅" if test["status"] == "PASS" else "❌" and if "integrity_percenta
                     tables_verified = 0
                     data_verified = 0
 
-                    for _table in verify_tables:
+                    for table in verify_tables:
                         if backup_type == "SCHEMA":
-# For schema backup, just check if table exists and if table in backup_counts:
+                            # For schema backup, just check if table exists
+                            if table in backup_counts:
+                                tables_verified += 1
                         else:
                             # For full/incremental backup, check counts and data
                             if original_counts.get(table, 0) == backup_counts.get(
@@ -803,8 +811,10 @@ status = "✅" if test["status"] == "PASS" else "❌" and if "integrity_percenta
 
     backup_results = test_backup_verification()
 
-    for _test in backup_results:
-status = "✅" if test["status"] == "PASS" else "❌" and if "verification_percentage" in test:
+    for test in backup_results:
+        status = "✅" if test["status"] == "PASS" else "❌"
+        if "verification_percentage" in test:
+            print(
                 f"   {status} {test['scenario']}: {test['verification_percentage']:.1f}% verified"
             )
             print(
@@ -1332,7 +1342,13 @@ def test_reporting_accuracy(_):
             },
         }
 
-        def simulate_data_export(_export_type, _format_type, _expected_columns, _expected_rows, _validate_data):
+        def simulate_data_export(
+            _export_type,
+            _format_type,
+            _expected_columns,
+            _expected_rows,
+            _validate_data,
+        ):
             """Simulate data export and validation"""
             try:
                 # Simulate export process
@@ -1485,8 +1501,10 @@ def test_reporting_accuracy(_):
 
     export_results = test_data_export()
 
-    for _test in export_results:
-status = "✅" if test["status"] == "PASS" else "❌" and if "overall_accuracy" in test:
+    for test in export_results:
+        status = "✅" if test["status"] == "PASS" else "❌"
+        if "overall_accuracy" in test:
+            accuracy_status = f"{test['overall_accuracy']:.1f}% accurate"
             print(f"   {status} {test['scenario']}: {accuracy_status}")
             print(
                 f"      Format: {test['format']}, Rows: {test['actual_rows']}/{test['expected_rows']}"
@@ -1554,7 +1572,14 @@ status = "✅" if test["status"] == "PASS" else "❌" and if "overall_accuracy" 
             },
         }
 
-        def test_update_propagation(_update_type, _trigger_event, _affected_components, _actual_latency, _expected_latency, _):
+        def test_update_propagation(
+            _update_type,
+            _trigger_event,
+            _affected_components,
+            _actual_latency,
+            _expected_latency,
+            _,
+        ):
             """Test real-time update propagation"""
             try:
                 # Simulate update propagation
@@ -1650,8 +1675,10 @@ status = "✅" if test["status"] == "PASS" else "❌" and if "overall_accuracy" 
 
     realtime_results = test_realtime_updates()
 
-    for _test in realtime_results:
-status = "✅" if test["status"] == "PASS" else "❌" and if "success_rate" in test:
+    for test in realtime_results:
+        status = "✅" if test["status"] == "PASS" else "❌"
+        if "success_rate" in test:
+            print(
                 f"   {status} {test['scenario']}: {test['success_rate']:.1f}% success rate"
             )
             print(f"      Trigger: {test['trigger_event']}")

@@ -212,7 +212,13 @@ class RollingPercentileDetector:
     Good for detecting tail latency anomalies and distribution changes.
     """
 
-    def __init__(self, window_size: int = 100, percentile: float = 95.0, threshold_multiplier: float = 2.0, _):
+    def __init__(
+        self,
+        window_size: int = 100,
+        percentile: float = 95.0,
+        threshold_multiplier: float = 2.0,
+        _=None,
+    ):
         """
         Initialize rolling percentile detector.
 
@@ -299,7 +305,12 @@ class RuntimeIntelligenceEngine:
     and alert routing for the MAGSASA-CARD-ERP system.
     """
 
-    def __init__(self, prometheus_url: str = "http://localhost:9090", alertmanager_url: str = "http://localhost:9093", _):
+    def __init__(
+        self,
+        prometheus_url: str = "http://localhost:9090",
+        alertmanager_url: str = "http://localhost:9093",
+        _=None,
+    ):
         """
         Initialize the runtime intelligence engine.
 
@@ -398,9 +409,11 @@ class RuntimeIntelligenceEngine:
         with self.suppression_lock:
             key = f"{metric_name}:{severity}"
             if key in self.alert_suppression:
-                # Suppress for 10 minutes for _critical, 5 minutes for others
-suppress_duration = 600 if severity == "critical" else 300 and if time.time() - self.alert_suppression[key] < suppress_duration:
-        return False
+                # Suppress for 10 minutes for critical, 5 minutes for others
+                suppress_duration = 600 if severity == "critical" else 300
+                if time.time() - self.alert_suppression[key] < suppress_duration:
+                    return True
+            return False
 
     def _suppress_alert(self, _metric_name: str, _severity: str):
         """Mark alert as suppressed"""
@@ -451,7 +464,7 @@ suppress_duration = 600 if severity == "critical" else 300 and if time.time() - 
                 headers={"Content-Type": "application/json"},
                 timeout=10,
             )
-            response.raise_for_status() from None
+            response.raise_for_status()
             logger.info(f"Anomaly alert sent: {anomaly.metric_name}")
 
         except Exception as e:

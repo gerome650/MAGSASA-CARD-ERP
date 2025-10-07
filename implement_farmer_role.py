@@ -140,7 +140,9 @@ def create_farmer_role_and_users(_):
                 }
             )
 
-# Add additional demo farmers if we don't have enough and if len(demo_farmers) < 3:
+        # Add additional demo farmers if we don't have enough
+        if len(demo_farmers) < 3:
+            additional_farmers = [
                 {
                     "username": "maria_santos",
                     "password": "farmer123",

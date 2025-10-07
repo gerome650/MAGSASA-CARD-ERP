@@ -2,7 +2,7 @@
 """
 🚀 Release Readiness Dashboard Updater CLI (Production-Grade)
 
-Automatically updates v0.7.0-release-checklist.md with the latest GitHub Actions 
+Automatically updates v0.7.0-release-checklist.md with the latest GitHub Actions
 and CI/CD data from the repository.
 
 Features:
@@ -29,10 +29,10 @@ Options:
 Examples:
     # Preview changes
     python scripts/update_release_dashboard.py --dry-run
-    
+
     # Commit updates and send notifications
     python scripts/update_release_dashboard.py --commit --notify --verbose
-    
+
     # Enforce readiness gate (CI will fail if <90%)
     python scripts/update_release_dashboard.py --check-only
 """
@@ -44,10 +44,8 @@ from typing import Any
 
 # Rich library for beautiful terminal output
 try:
-    from rich import print as rprint
     from rich.console import Console
     from rich.panel import Panel
-    from rich.progress import Progress, SpinnerColumn, TextColumn
     from rich.table import Table
 
     RICH_AVAILABLE = True
@@ -467,19 +465,19 @@ def main():
 Examples:
   # Preview changes
   python scripts/update_release_dashboard.py --dry-run
-  
+
   # Commit updates and send notifications
   python scripts/update_release_dashboard.py --commit --notify --verbose
-  
+
   # Enforce readiness gate (CI will fail if <90%)
   python scripts/update_release_dashboard.py --check-only
-  
+
   # Full automation mode
   python scripts/update_release_dashboard.py --commit --notify --branch main
-  
+
   # Post PR comment with readiness info
   python scripts/update_release_dashboard.py --pr-comment
-  
+
   # Full automation with PR comments and strict mode
   python scripts/update_release_dashboard.py --commit --notify --pr-comment --strict
         """,

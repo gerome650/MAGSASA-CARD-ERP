@@ -488,7 +488,9 @@ def test_agricultural_lending_logic(_):
             },
         }
 
-        def calculate_late_fee(_payment_amount, _days_late, _late_fee_rate, _grace_period):
+        def calculate_late_fee(
+            _payment_amount, _days_late, _late_fee_rate, _grace_period
+        ):
             """Calculate late fee based on days late"""
             if days_late <= grace_period:
                 return 0.0
@@ -754,7 +756,9 @@ def test_workflow_validation(_):
             },
         }
 
-        def determine_approval_workflow(_loan_amount, _agscore, _loan_type, _auto_limit):
+        def determine_approval_workflow(
+            _loan_amount, _agscore, _loan_type, _auto_limit
+        ):
             """Determine approval workflow based on loan characteristics"""
             workflow = ["SUBMITTED"]
 
@@ -1130,7 +1134,9 @@ def test_data_validation(_):
                     continue
 
                 # String validations
-if isinstance(value, str) and if "min_length" in rule and len(value) < rule["min_length"]:
+                if isinstance(value, str):
+                    if "min_length" in rule and len(value) < rule["min_length"]:
+                        errors.append(f"{field} too short")
                     if "max_length" in rule and len(value) > rule["max_length"]:
                         errors.append(f"{field} too long")
                     if "pattern" in rule:
@@ -1142,7 +1148,9 @@ if isinstance(value, str) and if "min_length" in rule and len(value) < rule["min
                         errors.append(f"{field} invalid option")
 
                 # Numeric validations
-if isinstance(value, (int, float)) and if "min" in rule and value < rule["min"]:
+                if isinstance(value, (int, float)):
+                    if "min" in rule and value < rule["min"]:
+                        errors.append(f"{field} too small")
                     if "max" in rule and value > rule["max"]:
                         errors.append(f"{field} too large")
 
@@ -1230,7 +1238,7 @@ if isinstance(value, (int, float)) and if "min" in rule and value < rule["min"]:
             },
         }
 
-        def check_business_rule(_rule_type, _**kwargs):
+        def check_business_rule(rule_type, **kwargs):
             """Check business rule compliance"""
             if "seasonal" in rule_type.lower():
                 planting_month = kwargs["planting_month"]
