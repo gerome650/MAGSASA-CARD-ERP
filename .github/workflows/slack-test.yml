@@ -1,0 +1,67 @@
+name: "🧪 Slack Governance Alert Test"
+
+on:
+  workflow_dispatch:
+
+jobs:
+  slack-test:
+    name: slack-test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Fetch Render Metrics
+        id: render-metrics
+        run: |
+          # Attempt to fetch Render metrics
+          RENDER_RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Accept: application/json" \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/metrics")
+          
+          RENDER_HTTP_CODE=$(echo "$RENDER_RESPONSE" | tail -n1)
+          RENDER_BODY=$(echo "$RENDER_RESPONSE" | sed '$d')
+          
+          if [ "$RENDER_HTTP_CODE" = "200" ]; then
+            # Parse metrics using jq
+            UPTIME=$(echo "$RENDER_BODY" | jq -r '.uptime // "N/A"')
+            LATENCY=$(echo "$RENDER_BODY" | jq -r '.latency_ms // "N/A"')
+            ERROR_RATE=$(echo "$RENDER_BODY" | jq -r '.error_rate // "N/A"')
+            
+            echo "✅ Render metrics fetched successfully"
+            echo "uptime=$UPTIME" >> $GITHUB_OUTPUT
+            echo "latency=$LATENCY" >> $GITHUB_OUTPUT
+            echo "error_rate=$ERROR_RATE" >> $GITHUB_OUTPUT
+            echo "metrics_available=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Render API call failed with HTTP code: $RENDER_HTTP_CODE"
+            echo "Response: $RENDER_BODY"
+            echo "metrics_available=false" >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+      
+      - name: Send Slack Message with Metrics
+        run: |
+          # Construct Slack message
+          if [ "${{ steps.render-metrics.outputs.metrics_available }}" = "true" ]; then
+            MESSAGE="✅ Governance Bot: Slack Webhook Test Successful!\n\n🧭 Render Metrics:\n• Uptime: ${{ steps.render-metrics.outputs.uptime }}\n• Latency: ${{ steps.render-metrics.outputs.latency }} ms\n• Error Rate: ${{ steps.render-metrics.outputs.error_rate }}%\n\n🕒 Triggered manually from GitHub Actions."
+          else
+            MESSAGE="✅ Governance Bot: Slack Webhook Test Successful!\n\n⚠️ Render Metrics Unavailable — check API key or service ID.\n\n🕒 Triggered manually from GitHub Actions."
+          fi
+          
+          # Send to Slack
+          RESPONSE=$(curl -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\"$MESSAGE\"}" \
+            -w "\n%{http_code}" \
+            -s \
+            ${{ secrets.SLACK_GOVERNANCE_WEBHOOK }})
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ Slack webhook failed with HTTP code: $HTTP_CODE"
+            echo "Response: $RESPONSE"
+            exit 1
+          fi
+          
+          echo "✅ Slack message sent successfully (HTTP $HTTP_CODE)"
+

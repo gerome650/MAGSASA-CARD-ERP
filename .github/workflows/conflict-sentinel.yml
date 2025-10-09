@@ -1,0 +1,226 @@
+name: "🔍 Conflict Sentinel"
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'Makefile'
+      - '.github/workflows/**'
+      - 'pyproject.toml'
+      - 'src/**'
+      - 'packages/**'
+
+env:
+  CONFLICT_LABEL: "⚠️ Conflict Review Needed"
+
+jobs:
+  conflict-detection:
+    name: "🔍 Detect Merge Conflicts"
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      actions: read
+    
+    steps:
+      - name: "📥 Checkout Repository"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: "🐍 Setup Python"
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: "📦 Install Dependencies"
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || echo "⚠️ requirements.txt not found, continuing..."
+      
+      - name: "🔍 Run Conflict Detection (Dry Run)"
+        id: conflict-check
+        run: |
+          echo "🔍 Running Conflict Sentinel in dry-run mode..."
+          echo "============================================="
+          
+          # Capture output for reporting
+          if make resolve-conflicts DRY_RUN=true > conflict-report.txt 2>&1; then
+            echo "✅ No conflicts detected"
+            echo "conflicts_detected=false" >> $GITHUB_OUTPUT
+            echo "exit_code=0" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Conflicts detected"
+            echo "conflicts_detected=true" >> $GITHUB_OUTPUT
+            echo "exit_code=$?" >> $GITHUB_OUTPUT
+          fi
+          
+          # Display the report
+          echo ""
+          echo "📋 Conflict Detection Report:"
+          echo "============================="
+          cat conflict-report.txt
+          
+          # Store report content for comment
+          {
+            echo 'CONFLICT_REPORT<<EOF'
+            cat conflict-report.txt
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+      
+      - name: "📋 Create/Ensure Conflict Label Exists"
+        if: always()
+        run: |
+          echo "🏷️ Ensuring conflict label exists..."
+          
+          # Check if label exists
+          if gh label list --json name | jq -r '.[].name' | grep -q "^${{ env.CONFLICT_LABEL }}$"; then
+            echo "✅ Label '${{ env.CONFLICT_LABEL }}' already exists"
+          else
+            echo "📝 Creating label '${{ env.CONFLICT_LABEL }}'..."
+            gh label create "${{ env.CONFLICT_LABEL }}" \
+              --description "This PR has merge conflicts that need manual resolution" \
+              --color "d93f0b" || echo "⚠️ Failed to create label (may already exist)"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: "🏷️ Apply/Remove Conflict Label"
+        if: always()
+        run: |
+          echo "🏷️ Managing conflict label based on detection results..."
+          
+          if [ "${{ steps.conflict-check.outputs.conflicts_detected }}" = "true" ]; then
+            echo "❌ Applying conflict label..."
+            gh pr edit ${{ github.event.pull_request.number }} --add-label "${{ env.CONFLICT_LABEL }}" || echo "⚠️ Failed to add label"
+          else
+            echo "✅ Removing conflict label if present..."
+            gh pr edit ${{ github.event.pull_request.number }} --remove-label "${{ env.CONFLICT_LABEL }}" || echo "ℹ️ Label not present or failed to remove"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: "💬 Post Conflict Detection Results"
+        if: always()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          message: |
+            ## 🔍 Conflict Sentinel Report
+            
+            **Status:** ${{ steps.conflict-check.outputs.conflicts_detected == 'true' && '❌ CONFLICTS DETECTED' || '✅ NO CONFLICTS FOUND' }}
+            
+            **Detection Results:**
+            ```
+            ${{ steps.conflict-check.outputs.CONFLICT_REPORT }}
+            ```
+            
+            ### 📋 Next Steps
+            
+            ${{ steps.conflict-check.outputs.conflicts_detected == 'true' && format('
+            **🚨 ACTION REQUIRED:**
+            1. **Review** the conflicting files listed above
+            2. **Resolve** conflicts manually using your preferred method:
+               ```bash
+               # Option 1: Use the automated resolver
+               make resolve-conflicts
+               
+               # Option 2: Manual resolution
+               git status                    # See conflicting files
+               git diff                     # Review conflicts
+               # Edit files to resolve conflicts
+               git add <resolved-files>     # Stage resolved files
+               git commit                   # Complete resolution
+               ```
+            3. **Test** your changes thoroughly
+            4. **Push** the resolved changes to this PR
+            
+            ⚠️ **This PR will remain blocked until conflicts are resolved.**
+            ', '') || '
+            **🎉 All Clear!** No merge conflicts detected.
+            
+            This PR is ready for review and merge.
+            ' }}
+            
+            ### 🔧 Local Development
+            
+            To run conflict detection locally:
+            ```bash
+            # Dry run (detection only)
+            make resolve-conflicts DRY_RUN=true
+            
+            # Full resolution attempt
+            make resolve-conflicts
+            ```
+            
+            ---
+            *🤖 This report was generated by the Conflict Sentinel workflow*
+      
+      - name: "📦 Upload Conflict Report Artifact"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conflict-detection-report-${{ github.event.pull_request.number }}
+          path: conflict-report.txt
+          retention-days: 7
+      
+      - name: "🔍 Debug Information"
+        if: failure()
+        run: |
+          echo "🐛 Debug Information:"
+          echo "===================="
+          echo "Git Status:"
+          git status --porcelain || true
+          echo ""
+          echo "Git Log (last 5 commits):"
+          git log --oneline -5 || true
+          echo ""
+          echo "Current Branch:"
+          git branch --show-current || true
+          echo ""
+          echo "Makefile exists:"
+          ls -la Makefile || echo "❌ Makefile not found"
+          echo ""
+          echo "Workflow files:"
+          ls -la .github/workflows/ || echo "❌ Workflows directory not found"
+      
+      - name: "❌ Fail on Conflicts Detected"
+        if: steps.conflict-check.outputs.conflicts_detected == 'true'
+        run: |
+          echo "❌ MERGE CONFLICTS DETECTED!"
+          echo "============================="
+          echo ""
+          echo "🚨 This PR contains merge conflicts that must be resolved before it can be merged."
+          echo ""
+          echo "📋 Files with conflicts:"
+          cat conflict-report.txt | grep "❌ Conflict detected in:" || echo "   (See full report above)"
+          echo ""
+          echo "🔧 To resolve conflicts:"
+          echo "   1. Check out this PR branch locally"
+          echo "   2. Run: make resolve-conflicts"
+          echo "   3. Review and test the resolved changes"
+          echo "   4. Commit and push the resolution"
+          echo ""
+          echo "💡 The PR has been labeled with '⚠️ Conflict Review Needed' for visibility."
+          exit 1
+      
+      - name: "✅ Success - No Conflicts"
+        if: steps.conflict-check.outputs.conflicts_detected == 'false'
+        run: |
+          echo "✅ CONFLICT DETECTION PASSED!"
+          echo "============================="
+          echo ""
+          echo "🎉 No merge conflicts detected in this PR."
+          echo "✅ The PR is ready for review and merge."
+          echo ""
+          echo "📋 Scanned files:"
+          echo "   - Makefile"
+          echo "   - .github/workflows/*.yml"
+          echo "   - pyproject.toml"
+          echo "   - Git status (unmerged paths)"
+          echo "   - Stash entries"
+          echo ""
+          echo "🏷️ Conflict label has been removed if it was present."

@@ -2,6 +2,9 @@
 
 [![🛡️ Safety Gate](https://github.com/gerome650/MAGSASA-CARD-ERP/actions/workflows/safety-gate.yml/badge.svg)](https://github.com/gerome650/MAGSASA-CARD-ERP/actions/workflows/safety-gate.yml)
 
+👉 **System Anchor:** See [SYSTEM_PROMPT.md](./SYSTEM_PROMPT.md) for the AI Studio governance & architecture plan.  
+👉 **Branch Protection Checklist:** See [GOVERNANCE_BRANCH_PROTECTION_CHECKLIST.md](./.github/GOVERNANCE_BRANCH_PROTECTION_CHECKLIST.md)
+
 # AgSense Stage 7 - Intelligent Agent Orchestration Platform
 
 🧠 **AgSense Stage 7** is a Python 3.12+ monorepo built with `uv` workspaces for intelligent agent orchestration. This scaffold provides a complete development environment with CI/CD, testing, and deployment workflows.
@@ -79,13 +82,65 @@ make install        # Install production dependencies
 make dev-install    # Install development dependencies
 ```
 
-### Code Quality
+### Code Quality & Governance
 
 ```bash
 make lint           # Run all linting (ruff, black, mypy)
 make format         # Format code automatically
 make test           # Run tests with coverage
 make quick-test     # Quick test run (no coverage)
+make verify-all     # Complete enforcement pipeline (recommended)
+```
+
+### Governance System
+
+```bash
+# Git Hooks Management
+make hooks-install  # Install hardened Git hooks
+make hooks-verify   # Verify hook installation
+make hooks-uninstall # Remove Git hooks
+
+# Policy & Compliance
+make policy-verify  # Validate merge policy configuration
+make policy-check   # Check policy compliance
+make governance-report # Generate comprehensive governance report
+make governance-status # Show governance system status
+
+# Coverage & Quality Gates
+make coverage-check # Run coverage check with policy enforcement
+make governance-dev # Run governance checks in development mode (relaxed)
+make secrets-check  # Check for potential secrets in staged files
+make governance-reset # Reset governance system (uninstall and reinstall)
+```
+
+### 🧪 Development Mode (Optional)
+
+During early development, you can skip strict coverage enforcement locally while keeping it enforced in CI/CD. This allows you to commit and push code during active development without being blocked by coverage requirements.
+
+**Enable dev mode in `merge_policy.yml`:**
+
+```yaml
+coverage:
+  minimum: 85
+  dev_mode: true  # Enable relaxed local enforcement
+```
+
+**Then run:**
+
+```bash
+# Run governance checks in development mode
+make governance-dev
+
+# Or use the script directly
+python scripts/hooks/enforce_coverage.py --allow-dev
+```
+
+**⚠️ Important Notes:**
+- CI/CD pipelines will **always** enforce full coverage rules regardless of dev_mode
+- Dev mode only affects local development when explicitly enabled with `--allow-dev`
+- Use `--strict` flag to test CI enforcement locally: `python scripts/hooks/enforce_coverage.py --strict`
+- This feature helps during early development but should not be used as a workaround for poor test coverage
+
 ```
 
 ### Agent Management
@@ -138,6 +193,175 @@ pytest tests/integration/  # Direct pytest command
 ```bash
 make test           # Includes coverage report
 # Coverage reports generated in htmlcov/
+```
+
+## 🛡️ Governance & CI/CD System
+
+This repository implements a **production-hardened governance system** with automated quality gates, compliance enforcement, and audit-grade reporting suitable for enterprise environments.
+
+### 🔧 Governance Architecture
+
+The governance system consists of multiple layers:
+
+1. **Pre-Commit Hooks**: Automated quality checks before commits
+2. **Post-Push Hooks**: Coverage tracking and Slack notifications
+3. **Policy Enforcement**: Centralized configuration via `merge_policy.yml`
+4. **Coverage Tracking**: Historical trend analysis and reporting
+5. **Merge Scoring**: Weighted algorithm for merge readiness assessment
+
+### 📋 Pre-Commit Workflow
+
+The pre-commit hook automatically runs:
+
+- **Secrets Detection**: Scans for potential API keys, passwords, tokens
+- **Policy Compliance**: Validates against governance policies
+- **Code Formatting**: Auto-fixes with Black (local) or checks (CI)
+- **Linting**: Auto-fixes with Ruff (local) or checks (CI)
+- **Type Checking**: Optional MyPy validation
+- **Unit Tests**: Quick test execution for immediate feedback
+
+```bash
+# Install hardened Git hooks
+make hooks-install
+
+# Verify installation
+make hooks-verify
+
+# Run pre-commit checks manually
+python scripts/hooks/pre_commit.py --verbose
+```
+
+### 📤 Post-Push Workflow
+
+The post-push hook provides:
+
+- **Coverage Tracking**: Historical coverage data with delta calculations
+- **Merge Scoring**: Weighted algorithm considering coverage, tests, linting, reviews
+- **Slack Integration**: Rich notifications with coverage trends and merge readiness
+- **Audit Logging**: Complete audit trail of all governance actions
+
+```bash
+# Test post-push workflow
+python scripts/hooks/post_push.py --dry-run --verbose
+
+# Generate coverage trend report
+python scripts/metrics/coverage_trend.py --report
+```
+
+### 🎯 Merge Readiness Scoring
+
+The system calculates a weighted merge score based on:
+
+- **Coverage (40%)**: Code coverage percentage vs. target
+- **Tests (20%)**: Test pass rate and execution success
+- **Linting (20%)**: Code quality and style violations
+- **Policy (20%)**: Compliance with governance policies
+
+```bash
+# Calculate merge score
+python scripts/utils/policy_loader.py --calculate-score --check-all
+
+# Generate governance report
+make governance-report
+```
+
+### 📊 Policy Configuration
+
+Governance policies are defined in `merge_policy.yml`:
+
+```yaml
+coverage:
+  minimum: 85    # Hard fail below this
+  warning: 90    # Warning threshold
+  target: 95     # Aspirational target
+
+testing:
+  minimum_pass_rate: 100  # All tests must pass
+
+linting:
+  tools:
+    ruff:
+      max_violations: 0    # Zero tolerance
+
+merge_score:
+  passing_threshold: 80   # Minimum score to merge
+  weights:
+    coverage: 40
+    tests: 20
+    linting: 20
+    policy: 20
+```
+
+### 🔍 Quality Gates
+
+The system enforces multiple quality gates:
+
+- **Coverage Enforcement**: Fails builds below minimum threshold
+- **Test Requirements**: All tests must pass
+- **Linting Standards**: Zero tolerance for violations
+- **Secrets Prevention**: Blocks commits with potential secrets
+- **Policy Compliance**: Validates against governance rules
+
+### 📈 Coverage Tracking
+
+Historical coverage tracking includes:
+
+- **Trend Analysis**: 30-day rolling analysis with sparklines
+- **Delta Calculations**: Coverage change detection
+- **Prediction**: Future coverage trend forecasting
+- **Badge Generation**: Dynamic SVG badges with color coding
+
+```bash
+# Generate coverage trend report
+make coverage-report
+
+# Update coverage badge
+python scripts/metrics/coverage_badge.py --update-readme
+```
+
+### 🚨 Security & Compliance
+
+The governance system includes:
+
+- **Secrets Detection**: Regex patterns for common secret types
+- **Audit Logging**: Complete trail of all governance actions
+- **Bypass Detection**: Identifies `--no-verify` usage attempts
+- **CI Safety**: Different behavior in CI vs. local environments
+
+### 🔧 Developer Workflow
+
+For contributors, the governance system provides:
+
+1. **Local Development**: Auto-fix capabilities for formatting and linting
+2. **CI Safety**: Check-only mode in CI environments
+3. **Graceful Degradation**: System continues working even with missing dependencies
+4. **Clear Feedback**: Detailed error messages and remediation guidance
+
+```bash
+# Quick development workflow
+make verify-all        # Run all checks
+make governance-status # Check system health
+make secrets-check     # Verify no secrets
+```
+
+### 📚 Compliance & Auditing
+
+The system generates audit-grade reports suitable for:
+
+- **SOC 2 Compliance**: Automated controls and audit trails
+- **ISO 27001**: Information security management
+- **PCI DSS**: Payment card industry standards
+- **Investor Due Diligence**: Technical quality assessment
+
+```bash
+# Generate compliance report
+make governance-report
+
+# Validate policy configuration
+make policy-verify
+
+# Check system integrity
+make governance-status
 ```
 
 ## 🤖 Agent Architecture

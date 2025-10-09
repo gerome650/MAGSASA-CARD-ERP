@@ -11,12 +11,30 @@ dev-dependencies = [
     "pytest-asyncio==0.21.1",
     "pytest-rerunfailures==14.0",
     "pytest-xdist==3.5.0",
+    "pytest-timeout>=2.2.0",
     "pre-commit==3.7.1",
     "build==1.2.1",
     "twine==5.1.0",
     "bandit[toml]==1.7.8",
     "safety==3.2.0",
     "pip-audit==2.7.3",
+    # Async & HTTP (CRITICAL - fixes ModuleNotFoundError)
+    "aiohttp>=3.9.0",
+    "anyio>=4.0.0",
+    "httpx>=0.26.0",
+    # Configuration & Data
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0.0",
+    "toml>=0.10.2",
+    # Type stubs
+    "types-PyYAML",
+    "types-requests",
+    # Monitoring
+    "psutil>=5.9.0",
+    # Utilities
+    "requests>=2.31.0",
+    "click>=8.1.0",
+    "rich>=13.7.0",
 ]
 
 [tool.uv.workspace]
@@ -159,6 +177,7 @@ markers = [
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
     "flaky: marks tests as flaky (will auto-retry)",
+    "performance: marks tests as performance/load tests (long-running)",
 ]
 
 [tool.coverage.run]

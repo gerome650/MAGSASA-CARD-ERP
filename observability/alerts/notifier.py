@@ -13,6 +13,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ class AlertContext:
 class SlackNotifier:
     """Slack notification handler with rich message formatting"""
 
-    def __init__(self, _webhook_url: str, channel: str = "#alerts"):
+    def __init__(self, webhook_url: str, channel: str = "#alerts"):
         self.webhook_url = webhook_url
         self.channel = channel
 
@@ -127,7 +128,9 @@ class SlackNotifier:
                 }
             )
 
-# Add current/baseline values if available and if context.current_value or context.baseline_value:
+            # Add current/baseline values if available
+            if context.current_value or context.baseline_value:
+                value_text = []
                 if context.current_value:
                     value_text.append(f"*Current:* {context.current_value}")
                 if context.baseline_value:
@@ -206,7 +209,7 @@ class SlackNotifier:
 class PagerDutyNotifier:
     """PagerDuty notification handler for critical alerts"""
 
-    def __init__(self, _integration_key: str):
+    def __init__(self, integration_key: str):
         self.integration_key = integration_key
         self.api_url = "https://events.pagerduty.com/v2/enqueue"
 
@@ -290,7 +293,7 @@ class PagerDutyNotifier:
 class EmailNotifier:
     """Email notification handler"""
 
-    def __init__(self, _smtp_config: dict[str, _str]):
+    def __init__(self, smtp_config: dict[str, str]):
         self.smtp_config = smtp_config
 
     def send_alert(self, alert: dict[str, Any], context: AlertContext) -> bool:
@@ -337,7 +340,7 @@ class SmartAlertRouter:
     based on alert severity, context, and routing rules.
     """
 
-    def __init__(self, _config: dict[str, _Any]):
+    def __init__(self, config: dict[str, Any]):
         """
         Initialize the smart alert router.
 
@@ -396,7 +399,7 @@ class SmartAlertRouter:
         severity_str = labels.get("severity", "info").lower()
         severity = (
             AlertSeverity(severity_str)
-            if severity_str in [s.value for _s in AlertSeverity]
+            if severity_str in [s.value for s in AlertSeverity]
             else AlertSeverity.INFO
         )
 
@@ -420,7 +423,7 @@ class SmartAlertRouter:
                     alert["startsAt"].replace("Z", "+00:00")
                 )
             except Exception:
-        timestamp = datetime.now()
+                timestamp = datetime.now()
 
         return AlertContext(
             service=labels.get("service", "unknown"),
@@ -458,12 +461,13 @@ class SmartAlertRouter:
                 return True
 
         # Suppress non-critical alerts on weekends (example)
-if context.severity in [AlertSeverity.WARNING, AlertSeverity.INFO] and if datetime.now().weekday() >= 5:  # Saturday = 5, Sunday = 6:
-
         # Check for duplicate alerts (simple deduplication)
         # In production, you'd implement proper deduplication logic here
 
-        return False
+        return (
+            context.severity in [AlertSeverity.WARNING, AlertSeverity.INFO]
+            and datetime.now().weekday() >= 5
+        )  # Saturday = 5, Sunday = 6
 
     def route_alert(self, alert: dict[str, Any]) -> dict[str, bool]:
         """
@@ -477,14 +481,15 @@ if context.severity in [AlertSeverity.WARNING, AlertSeverity.INFO] and if dateti
         """
         context = self.extract_context(alert)
 
-# Check if alert should be suppressed and if self.should_suppress_alert(context, alert):
+        # Check if alert should be suppressed
+        if self.should_suppress_alert(context, alert):
             return {"suppressed": True}
 
         # Get routing channels for this severity
         channels = self.routing_rules.get(context.severity, [NotificationChannel.SLACK])
 
         results = {}
-        for _channel in channels:
+        for channel in channels:
             notifier = self.notifiers.get(channel)
             if notifier:
                 try:
@@ -510,8 +515,8 @@ if context.severity in [AlertSeverity.WARNING, AlertSeverity.INFO] and if dateti
         return {
             "configured_channels": list(self.notifiers.keys()),
             "routing_rules": {
-                severity.value: [ch.value for _ch in channels]
-                for _severity, channels in self.routing_rules.items()
+                severity.value: [ch.value for ch in channels]
+                for severity, channels in self.routing_rules.items()
             },
             "config": self.config,
         }

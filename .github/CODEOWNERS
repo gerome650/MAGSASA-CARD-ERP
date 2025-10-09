@@ -1,0 +1,18 @@
+# 🛡️ Governance Enforcement Rules
+# These files require explicit approval from the governance reviewers
+
+# Governance workflows and critical CI/CD pipelines
+/.github/workflows/pr-governance-check.yml    @gerome650 @pepoy-songco @lia-anonas
+
+# Governance specifications and architecture documents
+/specs/observer_guardrails.yaml               @gerome650 @pepoy-songco @lia-anonas
+/specs/render_integration.md                  @gerome650 @pepoy-songco @lia-anonas
+/specs/slack_integration.md                   @gerome650 @pepoy-songco @lia-anonas
+/specs/mcp-architecture.md                    @gerome650 @pepoy-songco @lia-anonas
+
+# System-critical documentation
+/SYSTEM_PROMPT.md                             @gerome650 @pepoy-songco @lia-anonas
+
+# PR templates and governance controls
+/.github/PULL_REQUEST_TEMPLATE.md             @gerome650 @pepoy-songco @lia-anonas
+

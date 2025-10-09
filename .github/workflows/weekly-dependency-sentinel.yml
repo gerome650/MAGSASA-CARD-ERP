@@ -1,0 +1,94 @@
+name: Weekly Dependency Sentinel
+
+on:
+  schedule:
+    - cron: "0 9 * * 1" # Mondays 09:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install safety & pip-audit (optional)
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-audit safety poetry
+      - name: Audit dependencies
+        run: |
+          make audit-deps || true
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit-report
+          path: .github/reports/dependency-audit-*.md
+
+  open-pr:
+    needs: [audit]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare branch
+        run: |
+          BRANCH="chore/weekly-dependency-audit-$(date +%F)"
+          git checkout -b "$BRANCH"
+          mkdir -p .github/reports
+          # Ensure at least one report exists (noop if audit created it)
+          ls .github/reports/dependency-audit-*.md >/dev/null 2>&1 || echo "# Dependency Audit (empty)" > .github/reports/dependency-audit-$(date +%F).md
+          git add .github/reports/
+          git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" \
+            commit -m "chore(security): add weekly dependency audit report" || echo "No changes to commit."
+      - name: Create Pull Request
+        id: cpr
+        uses: peter-evans/create-pull-request@v6
+        with:
+          title: "chore(security): weekly dependency audit"
+          body: |
+            Automated weekly dependency audit report.
+
+            **Team:** ${{ env.SECURITY_TEAM_ALIAS || '@yourorg/security' }}
+          branch: chore/weekly-dependency-audit-${{ steps.date.outputs.today || 'auto' }}
+          base: main
+          labels: |
+            security
+            dependencies
+            audit
+          author: github-actions[bot] <github-actions[bot]@users.noreply.github.com>
+      - name: Save PR number
+        if: steps.cpr.outputs.pull-request-number
+        run: echo "PR_NUMBER=${{ steps.cpr.outputs.pull-request-number }}" >> $GITHUB_ENV
+
+  notify:
+    needs: [open-pr]
+    runs-on: ubuntu-latest
+    if: env.PR_NUMBER != '' || always()
+    steps:
+      - uses: actions/checkout@v4
+      - name: Post PR mention for team alias
+        if: env.PR_NUMBER != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ env.PR_NUMBER }}
+          TEAM_ALIAS: ${{ vars.SECURITY_TEAM_ALIAS || '@yourorg/security' }}
+        run: |
+          gh pr comment "$PR_NUMBER" --body "📣 Weekly audit ready. ${TEAM_ALIAS} please review."
+      - name: Slack (optional)
+        if: env.PR_NUMBER != '' && secrets.SLACK_WEBHOOK_URL != ''
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          payload: |
+            {
+              "text": "🚨 Weekly Dependency Audit\nPR: ${{ github.server_url }}/${{ github.repository }}/pull/${{ env.PR_NUMBER }}\nTeam: ${{ vars.SECURITY_TEAM_ALIAS || '@yourorg/security' }}"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+

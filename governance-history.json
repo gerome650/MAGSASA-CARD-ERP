@@ -1,0 +1,83 @@
+[
+  {
+    "timestamp": "2025-10-01T08:00:00Z",
+    "uptime": "99.5",
+    "latency": "1850",
+    "error_rate": "0.5",
+    "status": "healthy",
+    "message": "✅ All metrics within acceptable ranges"
+  },
+  {
+    "timestamp": "2025-10-02T08:00:00Z",
+    "uptime": "99.2",
+    "latency": "2100",
+    "error_rate": "0.8",
+    "status": "healthy",
+    "message": "✅ All metrics within acceptable ranges"
+  },
+  {
+    "timestamp": "2025-10-03T08:00:00Z",
+    "uptime": "97.8",
+    "latency": "2650",
+    "error_rate": "2.1",
+    "status": "drift-detected",
+    "message": "⚠️ Uptime below warning threshold (97.8% < 99.0%)"
+  },
+  {
+    "timestamp": "2025-10-04T08:00:00Z",
+    "uptime": "99.6",
+    "latency": "1920",
+    "error_rate": "0.4",
+    "status": "healthy",
+    "message": "✅ All metrics within acceptable ranges"
+  },
+  {
+    "timestamp": "2025-10-05T08:00:00Z",
+    "uptime": "99.1",
+    "latency": "4321",
+    "error_rate": "1.2",
+    "status": "drift-detected",
+    "message": "⚠️ Latency above threshold (4321 ms > 4000 ms)"
+  },
+  {
+    "timestamp": "2025-10-06T08:00:00Z",
+    "uptime": "99.8",
+    "latency": "1750",
+    "error_rate": "0.3",
+    "status": "healthy",
+    "message": "✅ All metrics within acceptable ranges"
+  },
+  {
+    "timestamp": "2025-10-07T08:00:00Z",
+    "uptime": "97.5",
+    "latency": "3200",
+    "error_rate": "2.5",
+    "status": "drift-detected",
+    "message": "⚠️ Uptime below critical threshold (97.5% < 98.0%)"
+  },
+  {
+    "timestamp": "2025-10-08T08:00:00Z",
+    "uptime": "99.4",
+    "latency": "2050",
+    "error_rate": "0.6",
+    "status": "healthy",
+    "message": "✅ All metrics within acceptable ranges"
+  },
+  {
+    "timestamp": "2025-10-09T08:00:00Z",
+    "uptime": "99.7",
+    "latency": "1880",
+    "error_rate": "0.4",
+    "status": "healthy",
+    "message": "✅ All metrics within acceptable ranges"
+  },
+  {
+    "timestamp": "2025-10-09T16:42:00Z",
+    "uptime": "96.2",
+    "latency": "5100",
+    "error_rate": "3.8",
+    "status": "drift-detected",
+    "message": "⚠️ Multiple thresholds exceeded: uptime 96.2% < 98.0%, latency 5100ms > 4000ms"
+  }
+]
+
