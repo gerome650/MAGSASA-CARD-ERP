@@ -187,7 +187,17 @@ jobs:
           fi
 
           DASHBOARD_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          DASHBOARD_MD="> 📊 **Latest Drift Dashboard:** [View Dashboard Artifacts]($DASHBOARD_URL)\n> 🕒 Last updated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          
+          # Determine status badge based on anomaly detection outputs
+          if [[ "${{ needs.heartbeat-metrics-ping.outputs.anomaly_status }}" == "healthy" ]]; then
+            BADGE="🟢 Healthy"
+          elif [[ "${{ needs.heartbeat-metrics-ping.outputs.anomaly_status }}" == "warning" ]]; then
+            BADGE="🟡 Warning"
+          else
+            BADGE="🔴 Drift Detected"
+          fi
+
+          DASHBOARD_MD="> 📊 **Latest Drift Dashboard:** [View Dashboard Artifacts]($DASHBOARD_URL) — **${BADGE}**\n> 🕒 Last updated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
           EXISTING_BODY=$(gh issue view "$ISSUE_NUMBER" --json body --jq '.body')
 
