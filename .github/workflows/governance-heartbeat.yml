@@ -174,6 +174,64 @@ jobs:
       # ===============================
       # 📌 Pin Latest Dashboard to Top of Issue
       # ===============================
+      - name: "🧮 Evaluate Status Badge from Guardrails"
+        id: evaluate-badge
+        run: |
+          # Install yq if not available
+          if ! command -v yq &> /dev/null; then
+            sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+            sudo chmod +x /usr/local/bin/yq
+          fi
+
+          # Extract thresholds from guardrails file
+          UPTIME_THRESHOLD=$(yq '.observer_guardrails.runtime_constraints.uptime_percent.min' specs/observer_guardrails.yaml)
+          LATENCY_THRESHOLD=$(yq '.observer_guardrails.runtime_constraints.latency_ms.max' specs/observer_guardrails.yaml)
+          LATENCY_WARNING=$(yq '.observer_guardrails.runtime_constraints.latency_ms.warning_threshold' specs/observer_guardrails.yaml)
+
+          # Extract live metrics from previous step outputs
+          UPTIME="${{ steps.render.outputs.uptime }}"
+          LATENCY="${{ steps.render.outputs.latency }}"
+          ERROR_RATE="${{ steps.render.outputs.error_rate }}"
+
+          echo "📊 Thresholds from guardrails:"
+          echo "  - Uptime min: $UPTIME_THRESHOLD%"
+          echo "  - Latency max: $LATENCY_THRESHOLD ms"
+          echo "  - Latency warning: $LATENCY_WARNING ms"
+          echo ""
+          echo "📈 Current metrics:"
+          echo "  - Uptime: $UPTIME%"
+          echo "  - Latency: $LATENCY ms"
+          echo "  - Error Rate: $ERROR_RATE%"
+
+          STATUS="healthy"
+          
+          # Handle unavailable metrics
+          if [ "$UPTIME" = "unavailable" ] || [ "$LATENCY" = "unavailable" ]; then
+            STATUS="warning"
+            echo "⚠️ Some metrics unavailable — defaulting to warning status"
+          else
+            # Check for drift conditions (critical)
+            if (( $(echo "$UPTIME < $UPTIME_THRESHOLD" | bc -l) )); then
+              STATUS="drift"
+              echo "🔴 DRIFT: Uptime $UPTIME% < threshold $UPTIME_THRESHOLD%"
+            elif (( $(echo "$LATENCY > $LATENCY_THRESHOLD" | bc -l) )); then
+              STATUS="drift"
+              echo "🔴 DRIFT: Latency $LATENCY ms > threshold $LATENCY_THRESHOLD ms"
+            # Check for warning conditions (approaching thresholds)
+            elif (( $(echo "$UPTIME < ($UPTIME_THRESHOLD + 0.5)" | bc -l) )); then
+              STATUS="warning"
+              echo "🟡 WARNING: Uptime approaching threshold ($UPTIME% near $UPTIME_THRESHOLD%)"
+            elif (( $(echo "$LATENCY > $LATENCY_WARNING" | bc -l) )); then
+              STATUS="warning"
+              echo "🟡 WARNING: Latency above warning threshold ($LATENCY ms > $LATENCY_WARNING ms)"
+            else
+              echo "✅ All metrics healthy"
+            fi
+          fi
+
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          echo "📌 Final status: $STATUS"
+
       - name: "📌 Pin Dashboard Link in Heartbeat Issue"
         if: ${{ always() }}
         env:
@@ -188,14 +246,21 @@ jobs:
 
           DASHBOARD_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           
-          # Determine status badge based on anomaly detection outputs
-          if [[ "${{ needs.heartbeat-metrics-ping.outputs.anomaly_status }}" == "healthy" ]]; then
-            BADGE="🟢 Healthy"
-          elif [[ "${{ needs.heartbeat-metrics-ping.outputs.anomaly_status }}" == "warning" ]]; then
-            BADGE="🟡 Warning"
-          else
-            BADGE="🔴 Drift Detected"
-          fi
+          # Pick badge color based on evaluated status from guardrails
+          case "${{ steps.evaluate-badge.outputs.status }}" in
+            healthy)
+              BADGE="🟢 Healthy"
+              ;;
+            warning)
+              BADGE="🟡 Warning"
+              ;;
+            drift)
+              BADGE="🔴 Drift Detected"
+              ;;
+            *)
+              BADGE="⚪ Unknown"
+              ;;
+          esac
 
           DASHBOARD_MD="> 📊 **Latest Drift Dashboard:** [View Dashboard Artifacts]($DASHBOARD_URL) — **${BADGE}**\n> 🕒 Last updated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
