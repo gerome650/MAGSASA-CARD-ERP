@@ -9,10 +9,16 @@ jobs:
   heartbeat-metrics-ping:
     name: "📊 Governance Metrics Ping (Slack + Render)"
     runs-on: ubuntu-latest
+    env:
+      UPTIME_THRESHOLD: "98.0"
+      LATENCY_THRESHOLD: "4000"
+      ERROR_RATE_THRESHOLD: "2.0"
     outputs:
       uptime: ${{ steps.render.outputs.uptime }}
       latency: ${{ steps.render.outputs.latency }}
       error_rate: ${{ steps.render.outputs.error_rate }}
+      anomaly_status: ${{ steps.anomaly.outputs.status }}
+      anomaly_message: ${{ steps.anomaly.outputs.message }}
     steps:
       - name: "Checkout Repository"
         uses: actions/checkout@v4
@@ -31,16 +37,182 @@ jobs:
           echo "error_rate=$ERROR_RATE" >> $GITHUB_OUTPUT
         continue-on-error: true
 
-      - name: "Post Governance Metrics to Slack"
+      - name: "Analyze Metrics for Anomalies"
+        id: anomaly
         run: |
           UPTIME="${{ steps.render.outputs.uptime }}"
           LATENCY="${{ steps.render.outputs.latency }}"
           ERROR_RATE="${{ steps.render.outputs.error_rate }}"
 
+          STATUS="healthy"
+          MESSAGE="✅ All metrics within thresholds."
+
+          # Check uptime threshold
+          if [ "$UPTIME" != "unavailable" ]; then
+            if (( $(echo "$UPTIME < $UPTIME_THRESHOLD" | bc -l) )); then
+              STATUS="drift-detected"
+              MESSAGE="⚠️ Uptime below threshold ($UPTIME% < $UPTIME_THRESHOLD%)"
+            fi
+          fi
+
+          # Check latency threshold
+          if [ "$LATENCY" != "unavailable" ]; then
+            if (( $(echo "$LATENCY > $LATENCY_THRESHOLD" | bc -l) )); then
+              STATUS="drift-detected"
+              if [ "$MESSAGE" = "✅ All metrics within thresholds." ]; then
+                MESSAGE="⚠️ Latency above threshold ($LATENCY ms > $LATENCY_THRESHOLD ms)"
+              else
+                MESSAGE="$MESSAGE; Latency above threshold ($LATENCY ms > $LATENCY_THRESHOLD ms)"
+              fi
+            fi
+          fi
+
+          # Check error rate threshold
+          if [ "$ERROR_RATE" != "unavailable" ]; then
+            if (( $(echo "$ERROR_RATE > $ERROR_RATE_THRESHOLD" | bc -l) )); then
+              STATUS="drift-detected"
+              if [ "$MESSAGE" = "✅ All metrics within thresholds." ]; then
+                MESSAGE="⚠️ Error rate above threshold ($ERROR_RATE% > $ERROR_RATE_THRESHOLD%)"
+              else
+                MESSAGE="$MESSAGE; Error rate above threshold ($ERROR_RATE% > $ERROR_RATE_THRESHOLD%)"
+              fi
+            fi
+          fi
+
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          echo "message=$MESSAGE" >> $GITHUB_OUTPUT
+
+      - name: "📜 Append anomaly record to governance-history.json"
+        id: history
+        run: |
+          FILE="governance-history.json"
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          UPTIME="${{ steps.render.outputs.uptime }}"
+          LATENCY="${{ steps.render.outputs.latency }}"
+          ERROR_RATE="${{ steps.render.outputs.error_rate }}"
+          STATUS="${{ steps.anomaly.outputs.status }}"
+          MESSAGE="${{ steps.anomaly.outputs.message }}"
+
+          # Create file if it doesn't exist
+          if [ ! -f "$FILE" ]; then
+            echo "[]" > $FILE
+          fi
+
+          # Append record to JSON array
+          tmp=$(mktemp)
+          jq --arg ts "$TIMESTAMP" \
+             --arg uptime "$UPTIME" \
+             --arg latency "$LATENCY" \
+             --arg error "$ERROR_RATE" \
+             --arg status "$STATUS" \
+             --arg message "$MESSAGE" \
+             '. += [{"timestamp": $ts, "uptime": $uptime, "latency": $latency, "error_rate": $error, "status": $status, "message": $message}]' \
+             $FILE > "$tmp" && mv "$tmp" $FILE
+
+          echo "✅ Anomaly record appended to $FILE"
+          cat $FILE
+
+      - name: "💾 Commit anomaly history"
+        if: always()
+        run: |
+          git config user.name "governance-bot"
+          git config user.email "governance-bot@users.noreply.github.com"
+          git add governance-history.json
+          git commit -m "chore: update governance anomaly history [skip ci]" --no-verify || echo "No changes to commit"
+          git push
+
+      # ===============================
+      # 📊 Drift Dashboard Integration (Auto-Inserted)
+      # ===============================
+      - name: "🐍 Setup Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: "📦 Install dashboard deps"
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install matplotlib
+
+      - name: "📊 Generate Drift Dashboard"
+        run: |
+          python scripts/qa/gov_drift_dashboard.py
+          test -f governance-drift-dashboard.html
+          test -f governance-drift-dashboard.md
+
+      - name: "📎 Upload Dashboard Artifacts"
+        uses: actions/upload-artifact@v4
+        with:
+          name: governance-drift-dashboard
+          path: |
+            governance-drift-dashboard.html
+            governance-drift-dashboard.md
+          retention-days: 30
+
+      - name: "🧾 Comment on Governance Heartbeat Issue"
+        if: ${{ always() }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DASHBOARD_ARTIFACT="Check **Artifacts** in this workflow run"
+          {
+            echo ""
+            echo "### 📊 Governance Drift Dashboard"
+            echo "- 📎 $DASHBOARD_ARTIFACT"
+            echo "- 🕒 Generated on: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          } > heartbeat_dashboard_comment.md
+
+          ISSUE_NUMBER=$(gh issue list --label heartbeat --state open --json number --jq '.[0].number' || true)
+
+          if [ -n "$ISSUE_NUMBER" ]; then
+            gh issue comment "$ISSUE_NUMBER" --body-file heartbeat_dashboard_comment.md
+          else
+            echo "⚠️ No open heartbeat issue found — skipping comment."
+          fi
+
+      # ===============================
+      # 📌 Pin Latest Dashboard to Top of Issue
+      # ===============================
+      - name: "📌 Pin Dashboard Link in Heartbeat Issue"
+        if: ${{ always() }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE_NUMBER=$(gh issue list --label heartbeat --state open --json number --jq '.[0].number' || true)
+
+          if [ -z "$ISSUE_NUMBER" ]; then
+            echo "⚠️ No open heartbeat issue found — skipping pinning."
+            exit 0
+          fi
+
+          DASHBOARD_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          DASHBOARD_MD="> 📊 **Latest Drift Dashboard:** [View Dashboard Artifacts]($DASHBOARD_URL)\n> 🕒 Last updated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
+          EXISTING_BODY=$(gh issue view "$ISSUE_NUMBER" --json body --jq '.body')
+
+          if echo "$EXISTING_BODY" | grep -q "📊 **Latest Drift Dashboard:**"; then
+            # Replace existing pinned dashboard line
+            NEW_BODY=$(echo "$EXISTING_BODY" | sed "s|> 📊 **Latest Drift Dashboard:.*|$DASHBOARD_MD|")
+          else
+            # Prepend dashboard link to issue body
+            NEW_BODY="$DASHBOARD_MD\n\n$EXISTING_BODY"
+          fi
+
+          echo "$NEW_BODY" > updated_issue_body.md
+          gh issue edit "$ISSUE_NUMBER" --body-file updated_issue_body.md
+
+      - name: "Post Governance Metrics to Slack"
+        run: |
+          UPTIME="${{ steps.render.outputs.uptime }}"
+          LATENCY="${{ steps.render.outputs.latency }}"
+          ERROR_RATE="${{ steps.render.outputs.error_rate }}"
+          ANOMALY_MESSAGE="${{ steps.anomaly.outputs.message }}"
+
           if [ "$UPTIME" = "unavailable" ]; then
             MESSAGE="⚠️ *Governance Heartbeat Metrics Failed*\nRender metrics unavailable. Check API key or service ID."
           else
-            MESSAGE="✅ *Governance Heartbeat Metrics*\n🧭 Uptime: $UPTIME%\n⚡ Latency: $LATENCY ms\n🚨 Error Rate: $ERROR_RATE%"
+            MESSAGE="✅ *Governance Heartbeat Metrics*\n🧭 Uptime: $UPTIME%\n⚡ Latency: $LATENCY ms\n🚨 Error Rate: $ERROR_RATE%\n\n$ANOMALY_MESSAGE"
           fi
 
           curl -X POST -H 'Content-type: application/json' \
@@ -63,6 +235,8 @@ jobs:
             const uptime = "${{ needs.heartbeat-metrics-ping.outputs.uptime }}";
             const latency = "${{ needs.heartbeat-metrics-ping.outputs.latency }}";
             const errorRate = "${{ needs.heartbeat-metrics-ping.outputs.error_rate }}";
+            const anomalyStatus = "${{ needs.heartbeat-metrics-ping.outputs.anomaly_status }}";
+            const anomalyMessage = "${{ needs.heartbeat-metrics-ping.outputs.anomaly_message }}";
             
             const body = `
             ## 🧭 Governance Review Checklist
@@ -85,6 +259,9 @@ jobs:
             - **Latency**: ${latency}${latency === "unavailable" ? "" : " ms"}
             - **Error Rate**: ${errorRate}${errorRate === "unavailable" ? "" : "%"}
 
+            ## 🚨 Anomaly Detection Status
+            ${anomalyMessage}
+
             🧑‍⚖️ Governance Team:
             - @gerome650
             - @pepoy-songco
@@ -92,6 +269,11 @@ jobs:
 
             📅 Next heartbeat will auto-trigger in 90 days.
             `;
+            
+            // Determine labels based on anomaly status
+            const baseLabels = ["governance", "heartbeat"];
+            const statusLabel = anomalyStatus === "drift-detected" ? "⚠️ drift-detected" : "✅ healthy";
+            const allLabels = [...baseLabels, statusLabel];
             
             const { data: issues } = await github.rest.issues.listForRepo({
               owner,
@@ -108,16 +290,17 @@ jobs:
                 repo,
                 issue_number: existing.number,
                 body,
+                labels: allLabels
               });
-              core.info(`✅ Updated existing heartbeat issue #${existing.number}`);
+              core.info(`✅ Updated existing heartbeat issue #${existing.number} with label: ${statusLabel}`);
             } else {
               const { data: newIssue } = await github.rest.issues.create({
                 owner,
                 repo,
                 title: issueTitle,
                 body,
-                labels: ["governance", "heartbeat"]
+                labels: allLabels
               });
-              core.info(`🆕 Created new heartbeat issue #${newIssue.number}`);
+              core.info(`🆕 Created new heartbeat issue #${newIssue.number} with label: ${statusLabel}`);
             }
 
