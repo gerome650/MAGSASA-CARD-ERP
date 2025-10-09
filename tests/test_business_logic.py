@@ -663,7 +663,7 @@ def validate_input(
             if "options" in rule and value not in rule["options"]:
                 errors.append(f"{field} invalid option")
 
-        if isinstance(value, (int, float)):
+        if isinstance(value, int | float):
             if "min" in rule and value < rule["min"]:
                 errors.append(f"{field} too small")
             if "max" in rule and value > rule["max"]:

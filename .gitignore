@@ -221,3 +221,9 @@ notion_cache/
 
 # Control center
 control_center_cache/venv/
+
+# QA artifacts
+qa_summary.md
+qa_results.json
+qa_output.json
+scripts/qa/history/*.json

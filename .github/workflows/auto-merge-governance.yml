@@ -1,0 +1,74 @@
+name: 🛡️ Auto Merge Governance Workflow
+
+on:
+  push:
+    branches-ignore:
+      - main
+    paths:
+      - ".github/workflows/governance-heartbeat.yml"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge-governance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git user
+        run: |
+          git config user.name "governance-bot"
+          git config user.email "governance-bot@users.noreply.github.com"
+
+      - name: Ensure main is up to date
+        run: |
+          git fetch origin main
+          git checkout main
+          git pull origin main
+
+      - name: Merge governance workflow changes into main
+        run: |
+          git merge --no-ff ${{ github.ref_name }} -m "chore: auto-merge governance workflow updates from ${{ github.ref_name }}"
+          git push origin main
+
+      - name: Handle merge failure
+        if: failure()
+        id: handle_failure
+        run: echo "❌ Auto-merge failed. Triggering fallback PR."
+
+      - name: Create fallback PR
+        if: failure()
+        id: create_pr
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: main
+          branch: ${{ github.ref_name }}
+          title: "🛡️ Governance Workflow Fallback PR - ${{ github.ref_name }}"
+          body: |
+            Auto-merge to `main` failed for governance workflow.
+            Please review and merge manually.
+          labels: governance-review
+
+      - name: Send Slack fallback alert
+        if: failure()
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\"🛑 *Governance Auto-Merge Failed*\nBranch: \`${{ github.ref_name }}\`\nA fallback PR has been created and labeled *governance-review*.\n📄 File: .github/workflows/governance-heartbeat.yml\n🕒 Time: $(date -u '+%Y-%m-%dT%H:%M:%SZ')\"}" \
+            ${{ secrets.SLACK_GOVERNANCE_WEBHOOK }}
+
+      - name: Confirm merge success
+        run: echo "✅ Governance workflow merged into main successfully."
+
+      - name: Send Slack notification
+        if: success()
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\"🛡️ *Governance Workflow Auto-Merged* ✅\nBranch: \`${{ github.ref_name }}\`\nMerged into: \`main\`\n📄 File: .github/workflows/governance-heartbeat.yml\n🕒 Time: $(date -u '+%Y-%m-%dT%H:%M:%SZ')\"}" \
+            ${{ secrets.SLACK_GOVERNANCE_WEBHOOK }}
+

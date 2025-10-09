@@ -1,6 +1,6 @@
 # 🎯 Governance Drift Dashboard
 
-**Generated:** 2025-10-09 20:19:24 UTC  
+**Generated:** 2025-10-09 20:21:44 UTC  
 **Last Heartbeat:** 2025-10-09 16:42:00 UTC  
 **Data Source:** `governance-history.json`
 

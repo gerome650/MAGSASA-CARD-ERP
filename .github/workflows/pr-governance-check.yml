@@ -384,6 +384,7 @@ jobs:
       - secrets-scanning
       - coverage-enforcement
       - ruff-linting
+      - qa-observability-consistency
     if: always()
     
     steps:
@@ -400,7 +401,8 @@ jobs:
               'directory-structure-check': '${{ needs.directory-structure-check.result }}',
               'secrets-scanning': '${{ needs.secrets-scanning.result }}',
               'coverage-enforcement': '${{ needs.coverage-enforcement.result }}',
-              'ruff-linting': '${{ needs.ruff-linting.result }}'
+              'ruff-linting': '${{ needs.ruff-linting.result }}',
+              'qa-observability-consistency': '${{ needs.qa-observability-consistency.result }}'
             };
             
             const passed = Object.values(jobs).filter(r => r === 'success').length;
@@ -422,7 +424,8 @@ jobs:
                 ['📁 Directory Structure', jobs['directory-structure-check'] === 'success' ? '✅ Pass' : '❌ Fail'],
                 ['🔐 Secrets Scanning', jobs['secrets-scanning'] === 'success' ? '✅ Pass' : '❌ Fail'],
                 ['📊 Coverage Enforcement', jobs['coverage-enforcement'] === 'success' ? '✅ Pass' : '❌ Fail'],
-                ['🧹 Ruff Linting', jobs['ruff-linting'] === 'success' ? '✅ Pass' : '❌ Fail']
+                ['🧹 Ruff Linting', jobs['ruff-linting'] === 'success' ? '✅ Pass' : '❌ Fail'],
+                ['🧪 QA Consistency', jobs['qa-observability-consistency'] === 'success' ? '✅ Pass' : '❌ Fail']
               ])
               .write();
             
@@ -430,18 +433,28 @@ jobs:
               core.setFailed(`${failed} governance check(s) failed`);
             }
       
+      - name: 📥 Download QA artifacts
+        if: github.event_name == 'pull_request'
+        uses: actions/download-artifact@v3
+        with:
+          name: qa-results-${{ github.run_id }}
+          path: ./qa-artifacts/
+        continue-on-error: true
+      
       - name: 🎯 Post PR comment
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
+            const fs = require('fs');
             const jobs = {
               'spec-reference-check': '${{ needs.spec-reference-check.result }}',
               'duplicate-test-check': '${{ needs.duplicate-test-check.result }}',
               'directory-structure-check': '${{ needs.directory-structure-check.result }}',
               'secrets-scanning': '${{ needs.secrets-scanning.result }}',
               'coverage-enforcement': '${{ needs.coverage-enforcement.result }}',
-              'ruff-linting': '${{ needs.ruff-linting.result }}'
+              'ruff-linting': '${{ needs.ruff-linting.result }}',
+              'qa-observability-consistency': '${{ needs.qa-observability-consistency.result }}'
             };
             
             const passed = Object.values(jobs).filter(r => r === 'success').length;
@@ -449,6 +462,38 @@ jobs:
             const total = Object.keys(jobs).length;
             
             const status = failed === 0 ? '✅ All checks passed!' : `⚠️ ${failed} check(s) failed`;
+            
+            // Read QA results if available
+            let qaSection = '';
+            try {
+              const qaResultsPath = './qa-artifacts/qa_results.json';
+              if (fs.existsSync(qaResultsPath)) {
+                const qaData = JSON.parse(fs.readFileSync(qaResultsPath, 'utf8'));
+                const qaStatus = qaData.errors_count === 0 ? '✅ Passed' : `❌ ${qaData.errors_count} Error(s)`;
+                const qaWarnings = qaData.warnings_count > 0 ? `, ⚠️ ${qaData.warnings_count} Warning(s)` : '';
+                
+                qaSection = `\n\n### 🧪 QA Consistency Check\n${qaStatus}${qaWarnings}\n`;
+                
+                // Add diff table if mismatches exist
+                if (qaData.mismatches && qaData.mismatches.length > 0) {
+                  qaSection += '\n**Threshold Mismatches:**\n\n';
+                  qaSection += '| Metric | Expected | Found | Source File | Status |\n';
+                  qaSection += '|--------|----------|-------|-------------|--------|\n';
+                  
+                  qaData.mismatches.forEach(m => {
+                    qaSection += `| ${m.metric} | ${m.expected} | ${m.found} | ${m.source_file} | ❌ |\n`;
+                  });
+                  
+                  qaSection += '\n📋 See the full QA report in the sticky comment above.\n';
+                }
+                
+                if (qaData.errors_count > 0) {
+                  qaSection += '\n⚠️ **Slack escalation triggered for QA failures.**\n';
+                }
+              }
+            } catch (error) {
+              console.log('Could not read QA results:', error.message);
+            }
             
             const comment = `## 🧑‍⚖️ Governance Check Results
             
@@ -465,7 +510,8 @@ jobs:
             | 🔐 Secrets Scanning | ${jobs['secrets-scanning'] === 'success' ? '✅' : '❌'} |
             | 📊 Coverage Enforcement | ${jobs['coverage-enforcement'] === 'success' ? '✅' : '❌'} |
             | 🧹 Ruff Linting | ${jobs['ruff-linting'] === 'success' ? '✅' : '❌'} |
-            
+            | 🧪 QA Consistency | ${jobs['qa-observability-consistency'] === 'success' ? '✅' : '❌'} |
+            ${qaSection}
             ${failed > 0 ? '\n⚠️ **Action Required:** Please fix the failing checks before merging.' : '\n🎉 **Great job!** All governance checks passed.'}
             
             ---
@@ -610,5 +656,110 @@ jobs:
           else
             echo "✅ No threshold breaches detected."
           fi
+
+  # ============================================================================
+  # JOB 9: QA Observability & Governance Consistency
+  # ============================================================================
+  qa-observability-consistency:
+    name: 🧪 QA Observability & Governance Consistency
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
+    
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: 🔧 Set base/head SHAs and PR metadata
+        run: |
+          echo "GITHUB_BASE_SHA=${{ github.event.pull_request.base.sha }}" >> $GITHUB_ENV
+          echo "GITHUB_HEAD_SHA=${{ github.event.pull_request.head.sha }}" >> $GITHUB_ENV
+          echo "GITHUB_PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+          echo "GITHUB_REPOSITORY=${{ github.repository }}" >> $GITHUB_ENV
+      
+      - name: 🐍 Install Python deps (yaml optional)
+        run: |
+          python3 -V
+          pip3 install --user pyyaml || true
+      
+      - name: 🧪 Run consistency checks
+        id: qa_check
+        run: |
+          python3 scripts/qa/obs_governance_consistency.py | tee qa_output.json
+          
+          # Check for errors in the output
+          if grep -q '"errors": \[' qa_output.json && ! grep -q '"errors": \[\]' qa_output.json; then
+            echo "❌ Consistency errors detected."
+            echo "qa_failed=true" >> $GITHUB_OUTPUT
+            exit 1
+          else
+            echo "qa_failed=false" >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+      
+      - name: 📋 Post QA summary as sticky PR comment
+        if: always()
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: "QA Consistency Report"
+          path: qa_summary.md
+      
+      - name: 🚨 Slack Escalation on QA Failure
+        if: failure() || steps.qa_check.outputs.qa_failed == 'true'
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_GOVERNANCE_WEBHOOK }}
+        run: |
+          # Generate Slack payload with enhanced script
+          if [ -z "$SLACK_WEBHOOK" ]; then
+            echo "⚠️ SLACK_GOVERNANCE_WEBHOOK not configured, skipping Slack alert"
+            exit 0
+          fi
+          
+          echo "📣 Sending Slack escalation for QA failure..."
+          
+          # Get Slack message from script
+          MESSAGE=$(python3 scripts/qa/obs_governance_consistency.py --slack-payload 2>/dev/null || echo "🚨 QA Governance Check Failed on PR #${{ github.event.pull_request.number }}")
+          
+          # Build JSON payload
+          PAYLOAD=$(jq -n --arg text "$MESSAGE" '{text: $text}')
+          
+          # Send to Slack
+          curl -X POST -H 'Content-type: application/json' \
+            --data "$PAYLOAD" \
+            "$SLACK_WEBHOOK"
+          
+          echo "✅ Slack escalation sent"
+      
+      - name: 💾 Archive QA results for drift tracking
+        if: always()
+        run: |
+          # Create history directory
+          mkdir -p scripts/qa/history
+          
+          # Copy artifact with run ID for tracking
+          if [ -f qa_results.json ]; then
+            cp qa_results.json scripts/qa/history/qa_results_${{ github.run_id }}.json
+            echo "✅ QA results archived: scripts/qa/history/qa_results_${{ github.run_id }}.json"
+          else
+            echo "⚠️ qa_results.json not found, skipping archival"
+          fi
+      
+      - name: 📦 Upload QA artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: qa-results-${{ github.run_id }}
+          path: |
+            qa_results.json
+            qa_summary.md
+            scripts/qa/history/
+          retention-days: 90
+      
+      - name: ❌ Fail job if errors detected
+        if: steps.qa_check.outputs.qa_failed == 'true'
+        run: |
+          echo "❌ QA consistency checks failed with errors"
+          exit 1
 
 

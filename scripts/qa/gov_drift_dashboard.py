@@ -33,13 +33,15 @@ import sys
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 try:
     import matplotlib
-    matplotlib.use('Agg')  # Non-GUI backend for CI compatibility
-    import matplotlib.pyplot as plt
+
+    matplotlib.use("Agg")  # Non-GUI backend for CI compatibility
     import matplotlib.dates as mdates
+    import matplotlib.pyplot as plt
+
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
@@ -52,7 +54,7 @@ class GovernanceDriftDashboard:
     HISTORY_FILE = "governance-history.json"
     OUTPUT_MD = "governance-drift-dashboard.md"
     OUTPUT_HTML = "governance-drift-dashboard.html"
-    
+
     # Thresholds for anomaly detection
     UPTIME_WARN = 99.0
     UPTIME_FAIL = 98.0
@@ -63,70 +65,89 @@ class GovernanceDriftDashboard:
     def __init__(self, history_file: str = None, workspace: Path = None):
         """Initialize dashboard generator."""
         self.workspace = workspace or Path.cwd()
-        self.history_file = Path(history_file) if history_file else self.workspace / self.HISTORY_FILE
-        self.data: List[Dict[str, Any]] = []
-        self.stats: Dict[str, Any] = {}
-        
+        self.history_file = (
+            Path(history_file) if history_file else self.workspace / self.HISTORY_FILE
+        )
+        self.data: list[dict[str, Any]] = []
+        self.stats: dict[str, Any] = {}
+
     def load_history(self) -> bool:
         """Load and validate governance history file."""
         if not self.history_file.exists():
-            print(f"❌ Error: History file not found: {self.history_file}", file=sys.stderr)
-            print("\n💡 Tip: Run the governance-heartbeat workflow to generate history data.", file=sys.stderr)
+            print(
+                f"❌ Error: History file not found: {self.history_file}",
+                file=sys.stderr,
+            )
+            print(
+                "\n💡 Tip: Run the governance-heartbeat workflow to generate history data.",
+                file=sys.stderr,
+            )
             return False
-        
+
         try:
-            with open(self.history_file, 'r') as f:
+            with open(self.history_file) as f:
                 self.data = json.load(f)
-            
+
             if not self.data:
-                print(f"⚠️  Warning: History file is empty: {self.history_file}", file=sys.stderr)
+                print(
+                    f"⚠️  Warning: History file is empty: {self.history_file}",
+                    file=sys.stderr,
+                )
                 return False
-            
-            print(f"✅ Loaded {len(self.data)} heartbeat records from {self.history_file}")
+
+            print(
+                f"✅ Loaded {len(self.data)} heartbeat records from {self.history_file}"
+            )
             return True
-            
+
         except json.JSONDecodeError as e:
             print(f"❌ Error: Invalid JSON in history file: {e}", file=sys.stderr)
             return False
         except Exception as e:
             print(f"❌ Error loading history file: {e}", file=sys.stderr)
             return False
-    
+
     def calculate_statistics(self):
         """Calculate summary statistics from history data."""
         total_records = len(self.data)
-        healthy_count = sum(1 for record in self.data if record.get("status") == "healthy")
-        drift_count = sum(1 for record in self.data if record.get("status") == "drift-detected")
-        
+        healthy_count = sum(
+            1 for record in self.data if record.get("status") == "healthy"
+        )
+        drift_count = sum(
+            1 for record in self.data if record.get("status") == "drift-detected"
+        )
+
         # Extract numeric values (filter out "unavailable")
         uptimes = [
-            float(r["uptime"]) for r in self.data 
+            float(r["uptime"])
+            for r in self.data
             if r.get("uptime") not in ["unavailable", None, ""]
         ]
         latencies = [
-            float(r["latency"]) for r in self.data 
+            float(r["latency"])
+            for r in self.data
             if r.get("latency") not in ["unavailable", None, ""]
         ]
         error_rates = [
-            float(r["error_rate"]) for r in self.data 
+            float(r["error_rate"])
+            for r in self.data
             if r.get("error_rate") not in ["unavailable", None, ""]
         ]
-        
+
         # Calculate averages
         avg_uptime = sum(uptimes) / len(uptimes) if uptimes else 0
         avg_latency = sum(latencies) / len(latencies) if latencies else 0
         avg_error_rate = sum(error_rates) / len(error_rates) if error_rates else 0
-        
+
         # Get anomalies (drift events)
-        anomalies = [
-            r for r in self.data 
-            if r.get("status") == "drift-detected"
-        ]
+        anomalies = [r for r in self.data if r.get("status") == "drift-detected"]
         last_anomalies = anomalies[-5:] if len(anomalies) >= 5 else anomalies
-        
+
         # Calculate drift percentage
-        drift_percentage = (drift_count / total_records * 100) if total_records > 0 else 0
-        
+        drift_percentage = (
+            (drift_count / total_records * 100) if total_records > 0 else 0
+        )
+
         self.stats = {
             "total_records": total_records,
             "healthy_count": healthy_count,
@@ -144,142 +165,193 @@ class GovernanceDriftDashboard:
             "latencies": latencies,
             "error_rates": error_rates,
         }
-        
-        print(f"📊 Statistics calculated:")
+
+        print("📊 Statistics calculated:")
         print(f"   Total heartbeats: {total_records}")
         print(f"   Healthy: {healthy_count} ({healthy_count/total_records*100:.1f}%)")
         print(f"   Drift detected: {drift_count} ({drift_percentage:.1f}%)")
         print(f"   Avg uptime: {avg_uptime:.2f}%")
         print(f"   Avg latency: {avg_latency:.0f}ms")
-    
-    def generate_plots(self) -> Dict[str, str]:
+
+    def generate_plots(self) -> dict[str, str]:
         """Generate matplotlib plots and return as base64 encoded strings."""
         if not MATPLOTLIB_AVAILABLE:
             print("⚠️  Skipping plot generation (matplotlib not available)")
             return {}
-        
+
         plots = {}
-        
+
         # Prepare time series data
         timestamps = []
         uptimes = []
         latencies = []
         drift_timestamps = []
         drift_values = []
-        
+
         for record in self.data:
             try:
                 ts = datetime.fromisoformat(record["timestamp"].replace("Z", "+00:00"))
                 timestamps.append(ts)
-                
+
                 # Uptime
                 uptime = record.get("uptime")
                 if uptime not in ["unavailable", None, ""]:
                     uptimes.append(float(uptime))
                 else:
                     uptimes.append(None)
-                
+
                 # Latency and drift markers
                 latency = record.get("latency")
                 if latency not in ["unavailable", None, ""]:
                     latencies.append(float(latency))
-                    
+
                     # Mark drift events on latency chart
                     if record.get("status") == "drift-detected":
                         drift_timestamps.append(ts)
                         drift_values.append(float(latency))
                 else:
                     latencies.append(None)
-                    
+
             except (ValueError, KeyError) as e:
                 print(f"⚠️  Skipping malformed record: {e}", file=sys.stderr)
                 continue
-        
+
         # Plot 1: Uptime over time
         if timestamps and any(u is not None for u in uptimes):
             fig, ax = plt.subplots(figsize=(12, 5))
-            
+
             # Filter out None values
-            valid_timestamps = [t for t, u in zip(timestamps, uptimes) if u is not None]
+            valid_timestamps = [
+                t for t, u in zip(timestamps, uptimes, strict=False) if u is not None
+            ]
             valid_uptimes = [u for u in uptimes if u is not None]
-            
-            ax.plot(valid_timestamps, valid_uptimes, 'b-', linewidth=2, label='Uptime')
-            ax.axhline(y=self.UPTIME_WARN, color='orange', linestyle='--', label=f'Warning ({self.UPTIME_WARN}%)')
-            ax.axhline(y=self.UPTIME_FAIL, color='red', linestyle='--', label=f'Critical ({self.UPTIME_FAIL}%)')
-            
-            ax.set_xlabel('Time', fontsize=12)
-            ax.set_ylabel('Uptime (%)', fontsize=12)
-            ax.set_title('📈 Governance Uptime Trend', fontsize=14, fontweight='bold')
+
+            ax.plot(valid_timestamps, valid_uptimes, "b-", linewidth=2, label="Uptime")
+            ax.axhline(
+                y=self.UPTIME_WARN,
+                color="orange",
+                linestyle="--",
+                label=f"Warning ({self.UPTIME_WARN}%)",
+            )
+            ax.axhline(
+                y=self.UPTIME_FAIL,
+                color="red",
+                linestyle="--",
+                label=f"Critical ({self.UPTIME_FAIL}%)",
+            )
+
+            ax.set_xlabel("Time", fontsize=12)
+            ax.set_ylabel("Uptime (%)", fontsize=12)
+            ax.set_title("📈 Governance Uptime Trend", fontsize=14, fontweight="bold")
             ax.legend()
             ax.grid(True, alpha=0.3)
-            ax.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d"))
             plt.xticks(rotation=45)
             plt.tight_layout()
-            
-            plots['uptime'] = self._fig_to_base64(fig)
+
+            plots["uptime"] = self._fig_to_base64(fig)
             plt.close(fig)
-        
+
         # Plot 2: Latency trend with drift markers
         if timestamps and any(lat is not None for lat in latencies):
             fig, ax = plt.subplots(figsize=(12, 5))
-            
+
             # Filter out None values
-            valid_timestamps = [t for t, lat in zip(timestamps, latencies) if lat is not None]
+            valid_timestamps = [
+                t
+                for t, lat in zip(timestamps, latencies, strict=False)
+                if lat is not None
+            ]
             valid_latencies = [lat for lat in latencies if lat is not None]
-            
-            ax.plot(valid_timestamps, valid_latencies, 'g-', linewidth=2, label='Latency')
-            
+
+            ax.plot(
+                valid_timestamps, valid_latencies, "g-", linewidth=2, label="Latency"
+            )
+
             # Add drift markers
             if drift_timestamps and drift_values:
-                ax.scatter(drift_timestamps, drift_values, color='red', s=100, zorder=5, 
-                          marker='o', label='Drift Event', edgecolors='darkred', linewidths=2)
-            
-            ax.axhline(y=self.LATENCY_WARN, color='orange', linestyle='--', label=f'Warning ({self.LATENCY_WARN}ms)')
-            ax.axhline(y=self.LATENCY_FAIL, color='red', linestyle='--', label=f'Critical ({self.LATENCY_FAIL}ms)')
-            
-            ax.set_xlabel('Time', fontsize=12)
-            ax.set_ylabel('Latency (ms)', fontsize=12)
-            ax.set_title('🐢 Governance Latency Trend (with Drift Events)', fontsize=14, fontweight='bold')
+                ax.scatter(
+                    drift_timestamps,
+                    drift_values,
+                    color="red",
+                    s=100,
+                    zorder=5,
+                    marker="o",
+                    label="Drift Event",
+                    edgecolors="darkred",
+                    linewidths=2,
+                )
+
+            ax.axhline(
+                y=self.LATENCY_WARN,
+                color="orange",
+                linestyle="--",
+                label=f"Warning ({self.LATENCY_WARN}ms)",
+            )
+            ax.axhline(
+                y=self.LATENCY_FAIL,
+                color="red",
+                linestyle="--",
+                label=f"Critical ({self.LATENCY_FAIL}ms)",
+            )
+
+            ax.set_xlabel("Time", fontsize=12)
+            ax.set_ylabel("Latency (ms)", fontsize=12)
+            ax.set_title(
+                "🐢 Governance Latency Trend (with Drift Events)",
+                fontsize=14,
+                fontweight="bold",
+            )
             ax.legend()
             ax.grid(True, alpha=0.3)
-            ax.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d'))
+            ax.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d"))
             plt.xticks(rotation=45)
             plt.tight_layout()
-            
-            plots['latency'] = self._fig_to_base64(fig)
+
+            plots["latency"] = self._fig_to_base64(fig)
             plt.close(fig)
-        
+
         # Plot 3: Status distribution pie chart
         fig, ax = plt.subplots(figsize=(8, 6))
-        
-        labels = ['Healthy', 'Drift Detected']
-        sizes = [self.stats['healthy_count'], self.stats['drift_count']]
-        colors = ['#4CAF50', '#FF5252']
+
+        labels = ["Healthy", "Drift Detected"]
+        sizes = [self.stats["healthy_count"], self.stats["drift_count"]]
+        colors = ["#4CAF50", "#FF5252"]
         explode = (0, 0.1)  # Explode drift slice
-        
-        ax.pie(sizes, explode=explode, labels=labels, colors=colors, autopct='%1.1f%%',
-               shadow=True, startangle=90, textprops={'fontsize': 12})
-        ax.set_title('🥧 Governance Health Status Distribution', fontsize=14, fontweight='bold')
-        
-        plots['distribution'] = self._fig_to_base64(fig)
+
+        ax.pie(
+            sizes,
+            explode=explode,
+            labels=labels,
+            colors=colors,
+            autopct="%1.1f%%",
+            shadow=True,
+            startangle=90,
+            textprops={"fontsize": 12},
+        )
+        ax.set_title(
+            "🥧 Governance Health Status Distribution", fontsize=14, fontweight="bold"
+        )
+
+        plots["distribution"] = self._fig_to_base64(fig)
         plt.close(fig)
-        
+
         print(f"✅ Generated {len(plots)} plots")
         return plots
-    
+
     def _fig_to_base64(self, fig) -> str:
         """Convert matplotlib figure to base64 string."""
         buf = BytesIO()
-        fig.savefig(buf, format='png', dpi=100, bbox_inches='tight')
+        fig.savefig(buf, format="png", dpi=100, bbox_inches="tight")
         buf.seek(0)
-        img_base64 = base64.b64encode(buf.read()).decode('utf-8')
+        img_base64 = base64.b64encode(buf.read()).decode("utf-8")
         buf.close()
         return img_base64
-    
-    def generate_markdown_report(self, plots: Dict[str, str]):
+
+    def generate_markdown_report(self, plots: dict[str, str]):
         """Generate Markdown report."""
         output_path = self.workspace / self.OUTPUT_MD
-        
+
         # Format last update time
         if self.data:
             last_timestamp = self.data[-1].get("timestamp", "Unknown")
@@ -290,12 +362,12 @@ class GovernanceDriftDashboard:
                 last_update = last_timestamp
         else:
             last_update = "No data"
-        
+
         # Build markdown content
         md_content = f"""# 🎯 Governance Drift Dashboard
 
-**Generated:** {datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")}  
-**Last Heartbeat:** {last_update}  
+**Generated:** {datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")}
+**Last Heartbeat:** {last_update}
 **Data Source:** `{self.history_file.name}`
 
 ---
@@ -316,7 +388,7 @@ class GovernanceDriftDashboard:
 """
 
         # Add drift warning if threshold exceeded
-        if self.stats['drift_percentage'] > self.DRIFT_WARNING_THRESHOLD:
+        if self.stats["drift_percentage"] > self.DRIFT_WARNING_THRESHOLD:
             md_content += f"""
 ---
 
@@ -340,17 +412,17 @@ class GovernanceDriftDashboard:
 ## 🚨 Last 5 Anomalies
 
 """
-        if self.stats['last_anomalies']:
+        if self.stats["last_anomalies"]:
             md_content += "| Timestamp | Message |\n"
             md_content += "|-----------|----------|\n"
-            
-            for anomaly in self.stats['last_anomalies']:
+
+            for anomaly in self.stats["last_anomalies"]:
                 timestamp = anomaly.get("timestamp", "Unknown")
                 message = anomaly.get("message", "No message")
                 md_content += f"| `{timestamp}` | {message} |\n"
         else:
             md_content += "✅ No anomalies detected! All heartbeats are healthy.\n"
-        
+
         # Add chart references (if available)
         if plots:
             md_content += """
@@ -359,20 +431,22 @@ class GovernanceDriftDashboard:
 ## 📈 Trend Visualizations
 
 """
-            if 'uptime' in plots:
+            if "uptime" in plots:
                 md_content += "### Uptime Trend\n"
                 md_content += "![Uptime Trend](governance-drift-uptime.png)\n\n"
-            
-            if 'latency' in plots:
+
+            if "latency" in plots:
                 md_content += "### Latency Trend (with Drift Events)\n"
                 md_content += "![Latency Trend](governance-drift-latency.png)\n\n"
-            
-            if 'distribution' in plots:
+
+            if "distribution" in plots:
                 md_content += "### Status Distribution\n"
-                md_content += "![Status Distribution](governance-drift-distribution.png)\n\n"
-            
+                md_content += (
+                    "![Status Distribution](governance-drift-distribution.png)\n\n"
+                )
+
             md_content += "_Note: For interactive charts, view the HTML dashboard (`governance-drift-dashboard.html`)_\n"
-        
+
         # Add footer
         md_content += """
 ---
@@ -406,18 +480,18 @@ echo "Drift: $(echo "scale=2; ($DRIFT * 100) / $TOTAL" | bc)%"
 
 ---
 
-**Generated by:** `scripts/qa/gov_drift_dashboard.py`  
+**Generated by:** `scripts/qa/gov_drift_dashboard.py`
 **Dashboard version:** 1.0.0
 """
-        
+
         # Write markdown file
         output_path.write_text(md_content)
         print(f"✅ Markdown report generated: {output_path}")
-    
-    def generate_html_dashboard(self, plots: Dict[str, str]):
+
+    def generate_html_dashboard(self, plots: dict[str, str]):
         """Generate HTML dashboard with embedded charts."""
         output_path = self.workspace / self.OUTPUT_HTML
-        
+
         # Format last update time
         if self.data:
             last_timestamp = self.data[-1].get("timestamp", "Unknown")
@@ -428,7 +502,7 @@ echo "Drift: $(echo "scale=2; ($DRIFT * 100) / $TOTAL" | bc)%"
                 last_update = last_timestamp
         else:
             last_update = "No data"
-        
+
         # Build HTML content
         html_content = f"""<!DOCTYPE html>
 <html lang="en">
@@ -574,16 +648,16 @@ echo "Drift: $(echo "scale=2; ($DRIFT * 100) / $TOTAL" | bc)%"
             <h1>🎯 Governance Drift Dashboard</h1>
             <p>Real-time monitoring and analysis of governance heartbeat metrics</p>
             <p style="margin-top: 10px; font-size: 0.9em;">
-                Generated: {datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")} | 
+                Generated: {datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")} |
                 Last Heartbeat: {last_update}
             </p>
         </div>
-        
+
         <div class="content">
 """
 
         # Add drift warning if needed
-        if self.stats['drift_percentage'] > self.DRIFT_WARNING_THRESHOLD:
+        if self.stats["drift_percentage"] > self.DRIFT_WARNING_THRESHOLD:
             html_content += f"""
             <div class="warning-box">
                 <h3>⚠️ DRIFT WARNING</h3>
@@ -637,30 +711,30 @@ echo "Drift: $(echo "scale=2; ($DRIFT * 100) / $TOTAL" | bc)%"
             <div class="section">
                 <h2>📈 Trend Visualizations</h2>
 """
-            if 'uptime' in plots:
+            if "uptime" in plots:
                 html_content += f"""
                 <div class="chart">
                     <h3>Uptime Trend</h3>
                     <img src="data:image/png;base64,{plots['uptime']}" alt="Uptime Trend">
                 </div>
 """
-            
-            if 'latency' in plots:
+
+            if "latency" in plots:
                 html_content += f"""
                 <div class="chart">
                     <h3>Latency Trend (with Drift Events)</h3>
                     <img src="data:image/png;base64,{plots['latency']}" alt="Latency Trend">
                 </div>
 """
-            
-            if 'distribution' in plots:
+
+            if "distribution" in plots:
                 html_content += f"""
                 <div class="chart">
                     <h3>Status Distribution</h3>
                     <img src="data:image/png;base64,{plots['distribution']}" alt="Status Distribution">
                 </div>
 """
-            
+
             html_content += """
             </div>
 """
@@ -670,7 +744,7 @@ echo "Drift: $(echo "scale=2; ($DRIFT * 100) / $TOTAL" | bc)%"
             <div class="section">
                 <h2>🚨 Last 5 Anomalies</h2>
 """
-        if self.stats['last_anomalies']:
+        if self.stats["last_anomalies"]:
             html_content += """
                 <table>
                     <thead>
@@ -681,7 +755,7 @@ echo "Drift: $(echo "scale=2; ($DRIFT * 100) / $TOTAL" | bc)%"
                     </thead>
                     <tbody>
 """
-            for anomaly in self.stats['last_anomalies']:
+            for anomaly in self.stats["last_anomalies"]:
                 timestamp = anomaly.get("timestamp", "Unknown")
                 message = anomaly.get("message", "No message")
                 html_content += f"""
@@ -698,15 +772,15 @@ echo "Drift: $(echo "scale=2; ($DRIFT * 100) / $TOTAL" | bc)%"
             html_content += """
                 <p>✅ No anomalies detected! All heartbeats are healthy.</p>
 """
-        
+
         html_content += """
             </div>
         </div>
-        
+
         <div class="footer">
             <p>Generated by: <code>scripts/qa/gov_drift_dashboard.py</code> | Dashboard version: 1.0.0</p>
             <p style="margin-top: 5px;">
-                📚 <a href="docs/GOVERNANCE_HISTORY_TRACKING.md" style="color: #667eea;">History Tracking Docs</a> | 
+                📚 <a href="docs/GOVERNANCE_HISTORY_TRACKING.md" style="color: #667eea;">History Tracking Docs</a> |
                 <a href="GOVERNANCE_HEARTBEAT_ANOMALY_DETECTION.md" style="color: #667eea;">Anomaly Detection Docs</a>
             </p>
         </div>
@@ -714,40 +788,42 @@ echo "Drift: $(echo "scale=2; ($DRIFT * 100) / $TOTAL" | bc)%"
 </body>
 </html>
 """
-        
+
         # Write HTML file
         output_path.write_text(html_content)
         print(f"✅ HTML dashboard generated: {output_path}")
-    
+
     def run(self) -> int:
         """Execute dashboard generation pipeline."""
         print("🎯 Governance Drift Dashboard Generator")
         print("=" * 60)
-        
+
         # Load history
         if not self.load_history():
             return 1
-        
+
         # Calculate statistics
         self.calculate_statistics()
-        
+
         # Generate plots
         plots = self.generate_plots()
-        
+
         # Generate reports
         self.generate_markdown_report(plots)
         self.generate_html_dashboard(plots)
-        
+
         print("=" * 60)
         print("✅ Dashboard generation complete!")
-        print(f"\n📄 View reports:")
+        print("\n📄 View reports:")
         print(f"   - Markdown: {self.workspace / self.OUTPUT_MD}")
         print(f"   - HTML:     {self.workspace / self.OUTPUT_HTML}")
-        
+
         # Print drift warning if needed
-        if self.stats['drift_percentage'] > self.DRIFT_WARNING_THRESHOLD:
-            print(f"\n⚠️  WARNING: Drift ratio ({self.stats['drift_percentage']:.1f}%) exceeds threshold!")
-        
+        if self.stats["drift_percentage"] > self.DRIFT_WARNING_THRESHOLD:
+            print(
+                f"\n⚠️  WARNING: Drift ratio ({self.stats['drift_percentage']:.1f}%) exceeds threshold!"
+            )
+
         return 0
 
 
@@ -760,4 +836,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

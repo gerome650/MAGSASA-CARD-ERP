@@ -90,7 +90,7 @@ class TestDataAccuracy:
         # TODO: Implement actual database connection and insertion
         # For now, test the data structure
         assert "farm_size" in mock_farmer_data
-        assert isinstance(mock_farmer_data["farm_size"], (int, float))
+        assert isinstance(mock_farmer_data["farm_size"], int | float)
         assert round(mock_farmer_data["farm_size"], 2) == 2.75
 
     def test_payment_amount_precision(self, db_path: str) -> None:
