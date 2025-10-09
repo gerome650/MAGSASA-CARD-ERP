@@ -33,6 +33,21 @@ Complete ALL sections before requesting review.
 
 ---
 
+## 🧪 QA Consistency Checklist (Observer + Governance)
+
+Please verify the following **before merging**. These align with automated checks run by the QA Consistency Checker:
+
+* [ ] Observer thresholds match guardrails (`observer_guardrails.yaml`)
+* [ ] Render metrics (uptime, latency, drift) are within required limits
+* [ ] Required secrets (`RENDER_API_KEY`, `RENDER_SERVICE_ID`, `SLACK_GOVERNANCE_WEBHOOK`) are present or documented
+* [ ] Alert Loop integration remains intact (Render → Governance → Slack → Observer)
+* [ ] No drift detected between governance specs and workflow config
+* [ ] All related specs (`mcp-architecture.md`, `render_integration.md`, `slack_integration.md`) are updated if necessary
+
+📝 *Note: If any of these checks fail, the automated QA Consistency Checker will flag this PR.*
+
+---
+
 ## 📑 1. Spec-First Compliance
 
 > **Governance Rule:** *"All new features, services, or adapters must reference a spec file in `/specs/`."*
