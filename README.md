@@ -2,7 +2,8 @@
 
 [![🛡️ Safety Gate](https://github.com/gerome650/MAGSASA-CARD-ERP/actions/workflows/safety-gate.yml/badge.svg)](https://github.com/gerome650/MAGSASA-CARD-ERP/actions/workflows/safety-gate.yml)
 
-👉 **System Anchor:** See [SYSTEM_PROMPT.md](./SYSTEM_PROMPT.md) for the AI Studio governance & architecture plan.
+👉 **System Anchor:** See [SYSTEM_PROMPT.md](./SYSTEM_PROMPT.md) for the AI Studio governance & architecture plan.  
+👉 **Branch Protection Checklist:** See [GOVERNANCE_BRANCH_PROTECTION_CHECKLIST.md](./.github/GOVERNANCE_BRANCH_PROTECTION_CHECKLIST.md)
 
 # AgSense Stage 7 - Intelligent Agent Orchestration Platform
 
