@@ -2,6 +2,8 @@
 
 [![🛡️ Safety Gate](https://github.com/gerome650/MAGSASA-CARD-ERP/actions/workflows/safety-gate.yml/badge.svg)](https://github.com/gerome650/MAGSASA-CARD-ERP/actions/workflows/safety-gate.yml)
 
+👉 **System Anchor:** See [SYSTEM_PROMPT.md](./SYSTEM_PROMPT.md) for the AI Studio governance & architecture plan.
+
 # AgSense Stage 7 - Intelligent Agent Orchestration Platform
 
 🧠 **AgSense Stage 7** is a Python 3.12+ monorepo built with `uv` workspaces for intelligent agent orchestration. This scaffold provides a complete development environment with CI/CD, testing, and deployment workflows.
