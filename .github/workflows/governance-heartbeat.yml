@@ -1,3 +1,6 @@
+git add .github/workflows/governance-heartbeat.yml
+git commit -m "chore: replace emoji with Shields.io status badge in heartbeat summary" --no-verify
+git push
 name: 🫀 Governance Heartbeat
 
 on:
@@ -246,23 +249,21 @@ jobs:
 
           DASHBOARD_URL="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           
-          # Pick badge color based on evaluated status from guardrails
+          # Pick badge color based on evaluated status
           case "${{ steps.evaluate-badge.outputs.status }}" in
             healthy)
-              BADGE="🟢 Healthy"
+              BADGE_URL="https://img.shields.io/badge/Governance-Healthy-brightgreen?style=for-the-badge"
               ;;
             warning)
-              BADGE="🟡 Warning"
+              BADGE_URL="https://img.shields.io/badge/Governance-Warning-yellow?style=for-the-badge"
               ;;
             drift)
-              BADGE="🔴 Drift Detected"
-              ;;
-            *)
-              BADGE="⚪ Unknown"
+              BADGE_URL="https://img.shields.io/badge/Governance-Drift%20Detected-red?style=for-the-badge"
               ;;
           esac
 
-          DASHBOARD_MD="> 📊 **Latest Drift Dashboard:** [View Dashboard Artifacts]($DASHBOARD_URL) — **${BADGE}**\n> 🕒 Last updated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          BADGE_MD="![Governance Status](${BADGE_URL})"
+          DASHBOARD_MD="> 📊 **Latest Drift Dashboard:** [View Dashboard Artifacts]($DASHBOARD_URL) ${BADGE_MD}\n> 🕒 Last updated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
           EXISTING_BODY=$(gh issue view "$ISSUE_NUMBER" --json body --jq '.body')
 
