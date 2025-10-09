@@ -6,8 +6,51 @@ on:
   workflow_dispatch:
 
 jobs:
+  heartbeat-metrics-ping:
+    name: "📊 Governance Metrics Ping (Slack + Render)"
+    runs-on: ubuntu-latest
+    outputs:
+      uptime: ${{ steps.render.outputs.uptime }}
+      latency: ${{ steps.render.outputs.latency }}
+      error_rate: ${{ steps.render.outputs.error_rate }}
+    steps:
+      - name: "Checkout Repository"
+        uses: actions/checkout@v4
+
+      - name: "Fetch Render Metrics"
+        id: render
+        run: |
+          RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/metrics")
+          echo "response=$RESPONSE" >> $GITHUB_OUTPUT
+          UPTIME=$(echo "$RESPONSE" | jq -r '.uptime // "unavailable"')
+          LATENCY=$(echo "$RESPONSE" | jq -r '.latency_ms // "unavailable"')
+          ERROR_RATE=$(echo "$RESPONSE" | jq -r '.error_rate // "unavailable"')
+          echo "uptime=$UPTIME" >> $GITHUB_OUTPUT
+          echo "latency=$LATENCY" >> $GITHUB_OUTPUT
+          echo "error_rate=$ERROR_RATE" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: "Post Governance Metrics to Slack"
+        run: |
+          UPTIME="${{ steps.render.outputs.uptime }}"
+          LATENCY="${{ steps.render.outputs.latency }}"
+          ERROR_RATE="${{ steps.render.outputs.error_rate }}"
+
+          if [ "$UPTIME" = "unavailable" ]; then
+            MESSAGE="⚠️ *Governance Heartbeat Metrics Failed*\nRender metrics unavailable. Check API key or service ID."
+          else
+            MESSAGE="✅ *Governance Heartbeat Metrics*\n🧭 Uptime: $UPTIME%\n⚡ Latency: $LATENCY ms\n🚨 Error Rate: $ERROR_RATE%"
+          fi
+
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{\"text\": \"$MESSAGE\"}" \
+            ${{ secrets.SLACK_GOVERNANCE_WEBHOOK }}
+        continue-on-error: false
+
   heartbeat:
     runs-on: ubuntu-latest
+    needs: [heartbeat-metrics-ping]
     steps:
       - name: 🧠 Create or Update Governance Heartbeat Issue
         uses: actions/github-script@v7
@@ -16,6 +59,11 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const issueTitle = "🫀 Governance Heartbeat — Review Required";
+            
+            const uptime = "${{ needs.heartbeat-metrics-ping.outputs.uptime }}";
+            const latency = "${{ needs.heartbeat-metrics-ping.outputs.latency }}";
+            const errorRate = "${{ needs.heartbeat-metrics-ping.outputs.error_rate }}";
+            
             const body = `
             ## 🧭 Governance Review Checklist
 
@@ -31,6 +79,11 @@ jobs:
             - [ ] specs/render_integration.md
             - [ ] specs/slack_integration.md
             - [ ] specs/mcp-architecture.md
+
+            ## 🧭 Render Metrics (Auto-collected)
+            - **Uptime**: ${uptime}${uptime === "unavailable" ? "" : "%"}
+            - **Latency**: ${latency}${latency === "unavailable" ? "" : " ms"}
+            - **Error Rate**: ${errorRate}${errorRate === "unavailable" ? "" : "%"}
 
             🧑‍⚖️ Governance Team:
             - @gerome650
