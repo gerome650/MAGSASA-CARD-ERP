@@ -553,5 +553,62 @@ jobs:
             
             > 📚 **Spec Reference:** `/specs/render_integration.md`
             > 🛡️ **Guardrails:** `/specs/observer_guardrails.yaml`
+      
+      - name: 🔔 Send Slack Alerts (on threshold breach)
+        if: always()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_GOVERNANCE_WEBHOOK }}
+        run: |
+          echo "🔔 Evaluating metrics for Slack alert..."
+          
+          # Check if metrics file exists
+          if [ ! -f render_metrics.json ]; then
+            echo "⚠️ render_metrics.json not found, skipping Slack alert"
+            exit 0
+          fi
+          
+          # Check if webhook is configured
+          if [ -z "$SLACK_WEBHOOK" ]; then
+            echo "⚠️ SLACK_GOVERNANCE_WEBHOOK not configured, skipping Slack alert"
+            exit 0
+          fi
+          
+          # Extract metrics (handle missing fields gracefully)
+          UPTIME=$(jq -r '.system.uptime // 100' render_metrics.json 2>/dev/null || echo "100")
+          LATENCY=$(jq -r '.performance.latency_avg // 0' render_metrics.json 2>/dev/null || echo "0")
+          DRIFT=$(jq -r '.observer.spec_drift // 0' render_metrics.json 2>/dev/null || echo "0")
+          
+          ALERT=""
+          
+          # Check uptime threshold
+          if (( $(echo "$UPTIME < 98.0" | bc -l) )); then
+            ALERT+="🚨 Render uptime below 98%! Current: ${UPTIME}%\n"
+          fi
+          
+          # Check latency threshold
+          if (( $(echo "$LATENCY > 4000" | bc -l) )); then
+            ALERT+="⚠️ Latency exceeds 4000ms. Current: ${LATENCY}ms\n"
+          fi
+          
+          # Check drift threshold
+          if (( $(echo "$DRIFT > 5" | bc -l) )); then
+            ALERT+="🧭 Spec drift above 5%! Current: ${DRIFT}%\n"
+          fi
+          
+          # Send alert if any threshold breached
+          if [ -n "$ALERT" ]; then
+            echo "📣 Sending Slack alert..."
+            PAYLOAD=$(jq -n \
+              --arg text "*📣 Governance Alert: Threshold Breach Detected*\n$ALERT" \
+              '{text: $text}')
+            
+            curl -X POST -H 'Content-type: application/json' \
+              --data "$PAYLOAD" \
+              "$SLACK_WEBHOOK"
+            
+            echo "✅ Slack alert sent successfully"
+          else
+            echo "✅ No threshold breaches detected."
+          fi
 
 
