@@ -1,0 +1,29 @@
+name: "🧪 Slack Governance Alert Test"
+
+on:
+  workflow_dispatch:
+
+jobs:
+  slack-test:
+    name: slack-test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Send Slack Test Message
+        run: |
+          RESPONSE=$(curl -X POST -H 'Content-type: application/json' \
+            --data '{"text":"✅ Governance Bot: Slack Webhook Test Successful! Triggered manually from GitHub Actions."}' \
+            -w "\n%{http_code}" \
+            -s \
+            ${{ secrets.SLACK_GOVERNANCE_WEBHOOK }})
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ Slack webhook failed with HTTP code: $HTTP_CODE"
+            echo "Response: $RESPONSE"
+            exit 1
+          fi
+          
+          echo "✅ Slack message sent successfully (HTTP $HTTP_CODE)"
+
